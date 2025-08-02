@@ -1,0 +1,1300 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Copy Trader API Documentation
+
+## Table of Contents
+1. [Authentication](mdc:#authentication)
+2. [OAuth Authentication](mdc:#oauth-authentication)
+3. [Solana Specific Features](mdc:#solana-specific-features)
+4. [Solana Swap Service Features](mdc:#solana-swap-service-features)
+5. [Perform Swap](mdc:#perform-swap)
+6. [Solana Token Discovery Tools](mdc:#solana-token-discovery-tools)
+7. [Data Models](mdc:#data-models)
+
+---
+
+## Authentication
+
+### User Signup
+**Endpoint:** `POST /auth/signup`
+**Description:** Register new user with email and password (includes whitelist check)
+
+**Request Body:**
+```json
+{
+  "email": "string",
+  "password": "string",
+  "firstName": "string",
+  "lastName": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "User created successfully. Please verify your email.",
+  "data": {
+    "userId": "string",
+    "email": "string",
+    "verificationRequired": true
+  }
+}
+```
+
+### VCS Signup
+**Endpoint:** `POST /auth/signup-vcs`
+**Description:** Special signup route for VCS users
+
+**Request Body:**
+```json
+{
+  "email": "string",
+  "password": "string",
+  "firstName": "string",
+  "lastName": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "VCS user created successfully",
+  "data": {
+    "userId": "string",
+    "email": "string"
+  }
+}
+```
+
+### Email OTP Verification
+**Endpoint:** `POST /auth/verify-otp`
+**Description:** Verify email with OTP code (includes OTP validation middleware)
+
+**Request Body:**
+```json
+{
+  "email": "string",
+  "otp": "string" // 6-digit OTP code
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Email verified successfully",
+  "data": {
+    "user": {
+      "id": "string",
+      "email": "string",
+      "firstName": "string",
+      "lastName": "string",
+      "verified": true
+    },
+    "token": "string"
+  }
+}
+```
+
+### Resend OTP
+**Endpoint:** `POST /auth/resend-otp`
+**Description:** Resend OTP verification code
+
+**Request Body:**
+```json
+{
+  "email": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "OTP resent successfully",
+  "data": null
+}
+```
+
+### User Sign In
+**Endpoint:** `POST /auth/signin`
+**Description:** Login with email and password
+
+**Request Body:**
+```json
+{
+  "email": "string",
+  "password": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Sign in successful",
+  "data": {
+    "user": {
+      "id": "string",
+      "email": "string",
+      "firstName": "string",
+      "lastName": "string"
+    },
+    "token": "string"
+  }
+}
+```
+
+### Forgot Password
+**Endpoint:** `POST /auth/forgot-password`
+**Description:** Request password reset
+
+**Request Body:**
+```json
+{
+  "email": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Password reset email sent",
+  "data": null
+}
+```
+
+### Reset Password
+**Endpoint:** `POST /auth/reset-password`
+**Description:** Reset password with token
+
+**Request Body:**
+```json
+{
+  "token": "string", // Reset token from email
+  "newPassword": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Password reset successful",
+  "data": null
+}
+```
+
+### Sign Out
+**Endpoint:** `POST /auth/signout`
+**Authentication:** Required (JWT)
+**Description:** Sign out user and invalidate token
+
+**Request Body:** None
+
+**Response:**
+```json
+{
+  "message": "Signed out successfully",
+  "data": null
+}
+```
+
+### Link Telegram User
+**Endpoint:** `POST /auth/link-telegram-user`
+**Authentication:** Required (JWT)
+**Description:** Link Telegram account to user profile
+
+**Request Body:**
+```json
+{
+  "telegramId": "string",
+  "telegramUsername": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Telegram account linked successfully",
+  "data": {
+    "telegramId": "string",
+    "telegramUsername": "string"
+  }
+}
+```
+
+---
+
+## OAuth Authentication
+
+### Get Google Auth URL
+**Endpoint:** `GET /oauth/google/url`
+**Description:** Get Google OAuth authorization URL for frontend
+
+**Request Body:** None
+
+**Response:**
+```json
+{
+  "url": "string" // Google OAuth authorization URL
+}
+```
+
+### Google OAuth Callback (Code Exchange)
+**Endpoint:** `POST /oauth/google/callback`
+**Description:** Exchange Google authorization code for JWT token
+
+**Request Body:**
+```json
+{
+  "code": "string" // Authorization code from Google
+}
+```
+
+**Response:**
+```json
+{
+  "token": "string", // JWT token
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string"
+  },
+  "isNewUser": "boolean" // true for sign-up, false for sign-in
+}
+```
+
+**Error Response (Whitelist):**
+```json
+{
+  "message": "Access denied. This application is currently in beta and requires an invitation. Please contact support for access.",
+  "error": "EMAIL_NOT_WHITELISTED"
+}
+```
+
+### Verify Google ID Token
+**Endpoint:** `POST /oauth/verify-token`
+**Description:** Verify Google ID token and authenticate user
+
+**Request Body:**
+```json
+{
+  "idToken": "string" // Google ID token
+}
+```
+
+**Response:**
+```json
+{
+  "token": "string", // JWT token
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string"
+  },
+  "isNewUser": "boolean"
+}
+```
+
+### Multi-Provider OAuth Sign In
+**Endpoint:** `POST /oauth/auth/oauth/signin`
+**Description:** Sign in with Google or Facebook OAuth
+
+**Request Body (Google):**
+```json
+{
+  "provider": "google",
+  "token": "string" // Google ID token
+}
+```
+
+**Request Body (Facebook):**
+```json
+{
+  "provider": "facebook",
+  "token": "string", // Facebook access token
+  "userData": {
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "name": "string",
+    "id": "string" // Facebook user ID
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "token": "string", // JWT token
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string"
+  },
+  "isNewUser": "boolean"
+}
+```
+
+### Google OAuth (Redirect Flow)
+**Endpoint:** `GET /oauth/google`
+**Description:** Initiate Google OAuth redirect flow
+
+**Response:** Redirects to Google OAuth authorization page
+
+### Google OAuth Callback (Redirect Flow)
+**Endpoint:** `GET /oauth/google/callback`
+**Description:** Handle Google OAuth callback and redirect to frontend
+
+**Response:** Redirects to `${CLIENT_URL}/oauth-callback?token=${jwt_token}` on success or `${CLIENT_URL}/login?error=auth_failed` on failure
+
+### Facebook OAuth (Redirect Flow)
+**Endpoint:** `GET /oauth/facebook`
+**Description:** Initiate Facebook OAuth redirect flow
+
+**Response:** Redirects to Facebook OAuth authorization page
+
+### Facebook OAuth Callback (Redirect Flow)
+**Endpoint:** `GET /oauth/facebook/callback`
+**Description:** Handle Facebook OAuth callback and redirect to frontend
+
+**Response:** Redirects to `${CLIENT_URL}/oauth-callback?token=${jwt_token}` on success or `${CLIENT_URL}/login?error=auth_failed` on failure
+
+---
+
+## Solana Specific Features
+
+### Get Solana Agent Details
+**Endpoint:** `GET /features/get-solana-agent-details/:agentId`
+**Authentication:** Required (JWT)
+**Description:** Get detailed information about a Solana trading agent
+
+**Path Parameters:**
+- `agentId` (string): The ID of the agent
+
+**Response:**
+```json
+{
+  "message": "Agent details fetched successfully",
+  "data": {
+    "transactionData": "object", // Agent transaction history
+    "accountData": "object" // Agent account information
+  }
+}
+```
+
+### Setup Copy Trader
+**Endpoint:** `POST /features/setup-copy-trader`
+**Authentication:** Required (JWT)
+**Description:** Initialize copy trading functionality for user
+
+**Request Body:** None
+
+**Response:**
+```json
+{
+  "message": "Copy Trader AI assistant created successfully",
+  "data": {
+    "id": "string", // Agent ID
+    "name": "string",
+    "description": "string",
+    "tools": "array",
+    "createdAt": "date"
+  }
+}
+```
+
+### Update Trading Settings
+**Endpoint:** `POST /features/update-trading-settings`
+**Authentication:** Required (JWT)
+**Description:** Update user's copy trading settings
+
+**Request Body:**
+```json
+{
+  "slippage": "number", // Slippage tolerance (optional)
+  "minSpend": "number", // Minimum spend amount (optional)
+  "maxSpend": "number", // Maximum spend amount (optional)
+  "useWatchConfig": "boolean", // Enable watch configuration (optional)
+  "watchConfig": { // Watch configuration object (optional)
+    "takeProfitPercentage": "number",
+    "stopLossPercentage": "number", 
+    "enableTrailingStop": "boolean",
+    "trailingPercentage": "number",
+    "maxHoldTimeMinutes": "number"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Setting updated successfully",
+  "data": {
+    "userId": "string",
+    "slippage": "number",
+    "minSpend": "number",
+    "maxSpend": "number",
+    "useWatchConfig": "boolean",
+    "watchConfig": "object"
+  }
+}
+```
+
+### Add KOL to Webhook
+**Endpoint:** `POST /features/add-kol-to-webhook`
+**Authentication:** Not required (Admin endpoint)
+**Description:** Add KOL wallets to webhook monitoring
+
+**Request Body:**
+```json
+{
+  "kolWallets": ["string"] // Array of KOL wallet addresses
+}
+```
+
+**Response:**
+```json
+{
+  "message": "KOL wallets added successfully",
+  "data": "object" // Response from webhook service
+}
+```
+
+### Remove KOL from Webhook
+**Endpoint:** `POST /features/remove-kol-from-webhook`
+**Authentication:** Not required (Admin endpoint)
+**Description:** Remove KOL wallet from webhook monitoring
+
+**Request Body:**
+```json
+{
+  "kolWallet": "string" // KOL wallet address to remove
+}
+```
+
+**Response:**
+```json
+{
+  "message": "KOL wallet removed successfully",
+  "data": "object"
+}
+```
+
+### Get KOL Wallets
+**Endpoint:** `GET /features/get-kol-wallets`
+**Authentication:** Required (JWT)
+**Description:** Get list of all monitored KOL wallets
+
+**Response:**
+```json
+{
+  "message": "Kol wallets fetched successfully",
+  "data": ["string"] // Array of KOL wallet addresses
+}
+```
+
+### Get Recent KOL Trades
+**Endpoint:** `GET /features/get-recent-kol-trades`
+**Authentication:** Required (JWT)
+**Description:** Get recent trades from a specific KOL
+
+**Request Body:**
+```json
+{
+  "kolWallet": "string" // KOL wallet address
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Recent kol trades fetched successfully",
+  "data": [
+    {
+      "id": "string",
+      "kolWallet": "string",
+      "signature": "string",
+      "timestamp": "date",
+      "tokenIn": "string",
+      "tokenOut": "string",
+      "amountIn": "number",
+      "amountOut": "number",
+      "tradeType": "buy" | "sell",
+      "mint": "string",
+      "dexProgram": "string",
+      "slotNumber": "number",
+      "blockTime": "number",
+      "fee": "number"
+    }
+  ]
+}
+```
+
+### Get Trade History
+**Endpoint:** `GET /features/get-trade-history`
+**Authentication:** Required (JWT)
+**Description:** Get overall trade history
+
+**Request Body:**
+```json
+{
+  "limit": "number" // Maximum number of trades to return
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Trade history fetched successfully",
+  "data": [
+    {
+      "id": "string",
+      "kolWallet": "string",
+      "signature": "string",
+      "timestamp": "date",
+      "tokenIn": "string",
+      "tokenOut": "string",
+      "amountIn": "number",
+      "amountOut": "number",
+      "tradeType": "buy" | "sell",
+      "mint": "string",
+      "dexProgram": "string",
+      "slotNumber": "number",
+      "blockTime": "number",
+      "fee": "number"
+    }
+  ]
+}
+```
+
+### Subscribe to KOL
+**Endpoint:** `POST /features/subscribe-to-kol`
+**Authentication:** Required (JWT)
+**Description:** Subscribe to copy a KOL's trades
+
+**Request Body:**
+```json
+{
+  "kolWallet": "string", // KOL wallet address
+  "minAmount": "number", // Minimum trade amount
+  "subType": "string" // "trade" or "watch"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "User successfully subscribed to KOL",
+  "data": {
+    "subscriptionId": "string",
+    "kolWallet": "string",
+    "isActive": true,
+    "type": "string"
+  }
+}
+```
+
+### Unsubscribe from KOL
+**Endpoint:** `POST /features/unsubscribe-from-kol`
+**Authentication:** Required (JWT)
+**Description:** Unsubscribe from a KOL
+
+**Request Body:**
+```json
+{
+  "kolWallet": "string" // KOL wallet address
+}
+```
+
+**Response:**
+```json
+{
+  "message": "User unsubscribed from kol",
+  "data": {
+    "kolWallet": "string",
+    "userId": "string"
+  }
+}
+```
+
+---
+
+## Solana Swap Service Features
+
+### Get User PnL
+**Endpoint:** `POST /features/get-user-pnl`
+**Authentication:** Required (JWT)
+**Description:** Get user's overall profit and loss
+
+**Request Body:** None
+
+**Response:**
+```json
+{
+  "message": "user pnl fetched successfully",
+  "data": {
+    "totalPnL": "number",
+    "realizedPnL": "number",
+    "unrealizedPnL": "number",
+    "totalSOLSpent": "number",
+    "totalSOLReceived": "number",
+    "netSOLFlow": "number"
+  }
+}
+```
+
+### Get Token PnL
+**Endpoint:** `POST /features/get-token-pnl`
+**Authentication:** Required (JWT)
+**Description:** Get PnL for a specific token
+
+**Request Body:**
+```json
+{
+  "mint": "string" // Token mint address
+}
+```
+
+**Response:**
+```json
+{
+  "message": "token pnl fetched successfully",
+  "data": {
+    "realizedPnL": "number",
+    "unrealizedPnL": "number",
+    "totalPnL": "number",
+    "totalTokensBought": "number",
+    "totalTokensSold": "number",
+    "currentHoldings": "number",
+    "averageBuyPrice": "number",
+    "investedAmount": "number",
+    "receivedAmount": "number",
+    "investedInCurrentHoldings": "number"
+  }
+}
+```
+
+### Get User Trade Stats
+**Endpoint:** `POST /features/get-user-trade-stats`
+**Authentication:** Required (JWT)
+**Description:** Get user's trading statistics
+
+**Request Body:** None
+
+**Response:**
+```json
+{
+  "message": "user trade stats fetched successfully",
+  "data": {
+    "totalTrades": "number",
+    "totalBuyTrades": "number",
+    "totalSellTrades": "number",
+    "totalSOLTraded": "number",
+    "totalSOLSpent": "number",
+    "totalSOLReceived": "number",
+    "uniqueTokensTraded": "number",
+    "averageTradeSize": "number",
+    "totalFeesPaid": "number",
+    "firstTradeDate": "date|null",
+    "lastTradeDate": "date|null",
+    "tradingPeriodDays": "number",
+    "winRate": "number",
+    "pnlStats": {
+      "totalPnL": "number",
+      "realizedPnL": "number",
+      "unrealizedPnL": "number",
+      "totalSOLSpent": "number",
+      "totalSOLReceived": "number",
+      "netSOLFlow": "number"
+    }
+  }
+}
+```
+
+### Get User Transaction Details
+**Endpoint:** `POST /features/get-user-transaction-details`
+**Authentication:** Required (JWT)
+**Description:** Get detailed transaction information
+
+**Request Body:** None
+
+**Response:**
+```json
+{
+  "message": "user transaction details fetched successfully",
+  "data": [
+    {
+      "trx": {
+        "id": "string",
+        "agentId": "string",
+        "mint": "string",
+        "action": "string",
+        "amountIn": "number",
+        "amountOut": "number",
+        "executionPrice": "number",
+        "status": "string",
+        "transactionHash": "string",
+        "timestamp": "number",
+        "fees": "number",
+        "notes": "string"
+      },
+      "totalValueSOL": "number",
+      "tokenAmount": "number",
+      "pricePerToken": "number"
+    }
+  ]
+}
+```
+
+### Get User Transactions
+**Endpoint:** `POST /features/get-user-transactions`
+**Authentication:** Required (JWT)
+**Description:** Get user's transaction history
+
+**Request Body:** None
+
+**Response:**
+```json
+{
+  "message": "user transactions fetched successfully",
+  "data": [
+    {
+      "id": "string",
+      "agentId": "string",
+      "mint": "string",
+      "action": "string",
+      "amountIn": "number",
+      "amountOut": "number",
+      "executionPrice": "number",
+      "status": "string",
+      "transactionHash": "string",
+      "timestamp": "number",
+      "fees": "number",
+      "notes": "string"
+    }
+  ]
+}
+```
+
+### Get User Transaction by Mint
+**Endpoint:** `POST /features/get-user-transaction-by-mint`
+**Authentication:** Required (JWT)
+**Description:** Get transactions for a specific token
+
+**Request Body:**
+```json
+{
+  "mint": "string" // Token mint address
+}
+```
+
+**Response:**
+```json
+{
+  "message": "user transaction by mint fetched successfully",
+  "data": [
+    {
+      "id": "string",
+      "agentId": "string",
+      "mint": "string",
+      "action": "string",
+      "amountIn": "number",
+      "amountOut": "number",
+      "executionPrice": "number",
+      "status": "string",
+      "transactionHash": "string",
+      "timestamp": "number",
+      "fees": "number",
+      "notes": "string"
+    }
+  ]
+}
+```
+
+---
+
+## Perform Swap
+
+### Perform Swap
+**Endpoint:** `POST /features/perform-swap`
+**Authentication:** Required (JWT)
+**Description:** Execute a token swap transaction
+
+**Request Body:**
+```json
+{
+  "trade": {
+    "tradeType": "string", // "buy" or "sell"
+    "amount": "number", // Trade amount
+    "mint": "string", // Token mint address
+    "watchConfig": { // Optional watch configuration
+      "takeProfitPercentage": "number",
+      "stopLossPercentage": "number",
+      "enableTrailingStop": "boolean",
+      "trailingPercentage": "number",
+      "maxHoldTimeMinutes": "number"
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "message": "swap transaction queued successfully",
+  "data": {
+    "transactionId": "string",
+    "status": "queued",
+    "tradeType": "string",
+    "amount": "number",
+    "mint": "string"
+  }
+}
+```
+
+---
+
+## Solana Token Discovery Tools
+
+### Search Tokens
+**Endpoint:** `POST /features/search-tokens`
+**Authentication:** Required (JWT)
+**Description:** Search for tokens by query
+
+**Request Body:**
+```json
+{
+  "query": "string", // Search query
+  "page": "number", // Page number (optional)
+  "limit": "number", // Results per page (optional)
+  "sortBy": "string", // Sort field (optional)
+  "sortOrder": "string", // "asc" or "desc" (optional)
+  "showAllPools": "boolean" // Show all pools (optional)
+}
+```
+
+**Response:**
+```json
+{
+  "message": "tokens searched successfully",
+  "data": [
+    {
+      "name": "string",
+      "symbol": "string",
+      "mint": "string",
+      "decimals": "number",
+      "image": "string",
+      "holders": "number",
+      "jupiter": "boolean",
+      "verified": "boolean",
+      "liquidityUsd": "number",
+      "marketCapUsd": "number",
+      "priceUsd": "number",
+      "lpBurn": "number",
+      "market": "string",
+      "freezeAuthority": "string|null",
+      "mintAuthority": "string|null",
+      "poolAddress": "string",
+      "totalBuys": "number",
+      "totalSells": "number",
+      "totalTransactions": "number",
+      "volume_5m": "number",
+      "volume": "number",
+      "volume_15m": "number",
+      "volume_30m": "number",
+      "volume_1h": "number",
+      "volume_6h": "number",
+      "volume_12h": "number",
+      "volume_24h": "number"
+    }
+  ]
+}
+```
+
+### Get Token
+**Endpoint:** `POST /features/get-token`
+**Authentication:** Required (JWT)
+**Description:** Get detailed information about a specific token
+
+**Request Body:**
+```json
+{
+  "tokenAddress": "string" // Token contract address
+}
+```
+
+**Response:**
+```json
+{
+  "message": "token fetched successfully",
+  "data": {
+    "token": {
+      "name": "string",
+      "symbol": "string",  
+      "mint": "string",
+      "uri": "string",
+      "decimals": "number",
+      "description": "string",
+      "image": "string",
+      "hasFileMetaData": "boolean",
+      "createdOn": "number",
+      "showName": "boolean",
+      "twitter": "string",
+      "telegram": "string",
+      "website": "string",
+      "strictSocials": "object"
+    },
+    "pools": "array", // Array of pool information
+    "events": "object", // Price change events
+    "risk": {
+      "rugged": "boolean",
+      "risks": "array",
+      "score": "number",
+      "jupiterVerified": "boolean"
+    },
+    "buys": "number",
+    "sells": "number", 
+    "txns": "number",
+    "holders": "number"
+  }
+}
+```
+
+### Get Trending Tokens
+**Endpoint:** `POST /features/get-trending-tokens`
+**Authentication:** Required (JWT)
+**Description:** Get currently trending tokens
+
+**Request Body:**
+```json
+{
+  "timeframe": "string" // Time period for trending calculation
+}
+```
+
+**Response:**
+```json
+{
+  "message": "trending tokens fetched successfully",
+  "data": [
+    {
+      "name": "string",
+      "symbol": "string",
+      "mint": "string",
+      "decimals": "number",
+      "image": "string",
+      "liquidityUsd": "number",
+      "marketCapUsd": "number",
+      "priceUsd": "number",
+      "volume_24h": "number"
+    }
+  ]
+}
+```
+
+### Get Tokens by Volume
+**Endpoint:** `POST /features/get-tokens-by-volume`
+**Authentication:** Required (JWT)
+**Description:** Get tokens sorted by trading volume
+
+**Request Body:**
+```json
+{
+  "timeframe": "string" // Time period for volume calculation
+}
+```
+
+**Response:**
+```json
+{
+  "message": "tokens by volume fetched successfully",
+  "data": [
+    {
+      "name": "string",
+      "symbol": "string",
+      "mint": "string",
+      "volume_24h": "number",
+      "liquidityUsd": "number",
+      "marketCapUsd": "number",
+      "priceUsd": "number"
+    }
+  ]
+}
+```
+
+### Get Latest Tokens
+**Endpoint:** `POST /features/get-latest-tokens`
+**Authentication:** Required (JWT)
+**Description:** Get newest tokens added to the platform
+
+**Request Body:** None
+
+**Response:**
+```json
+{
+  "message": "new tokens fetched successfully",
+  "data": [
+    {
+      "token": {
+        "name": "string",
+        "symbol": "string",
+        "mint": "string",
+        "decimals": "number",
+        "image": "string",
+        "createdOn": "number"
+      },
+      "pools": "array",
+      "events": "object",
+      "risk": "object",
+      "buys": "number",
+      "sells": "number",
+      "txns": "number"
+    }
+  ]
+}
+```
+
+---
+
+## Data Models
+
+### KOL Trade
+```typescript
+interface KOLTrade {
+  id: string;
+  kolWallet: string;
+  signature: string;
+  timestamp: Date;
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: number;
+  amountOut: number;
+  tradeType: 'buy' | 'sell';
+  mint?: string;
+  dexProgram: string;
+  slotNumber?: number;
+  blockTime?: number;
+  fee?: number;
+}
+```
+
+### User Subscription
+```typescript
+interface UserSubscription {
+  id?: string;
+  userId: string;
+  kolWallet: string;
+  isActive: boolean;
+  copyPercentage?: number; // 0-100%
+  maxAmount?: number;
+  minAmount?: number;
+  privateKey: string; // Encrypted
+  walletAddress?: string;
+  createdAt?: Date;
+  type: "trade" | "watch";
+  updatedAt?: Date;
+  settings?: SubscriptionSettings;
+}
+```
+
+### Subscription Settings
+```typescript
+interface SubscriptionSettings {
+  enableSlippageProtection?: boolean;
+  maxSlippagePercent?: number;
+  enableDexWhitelist?: boolean;
+  allowedDexes?: string[];
+  enableTokenBlacklist?: boolean;
+  blacklistedTokens?: string[];
+  enableTimeRestrictions?: boolean;
+  tradingHours?: {
+    start: string;
+    end: string;
+    timezone: string;
+  };
+}
+```
+
+### Watch Configuration
+```typescript
+interface WatchConfig {
+  takeProfitPercentage: number;
+  stopLossPercentage: number;
+  enableTrailingStop: boolean;
+  trailingPercentage: number;
+  maxHoldTimeMinutes: number;
+}
+```
+
+### Overall PnL
+```typescript
+interface IOverallPnL {
+  totalPnL: number;
+  realizedPnL: number;
+  unrealizedPnL: number;
+  totalSOLSpent: number;
+  totalSOLReceived: number;
+  netSOLFlow: number;
+}
+```
+
+### Token PnL
+```typescript
+interface ITokenPnL {
+  realizedPnL: number;
+  unrealizedPnL: number;
+  totalPnL: number;
+  totalTokensBought: number;
+  totalTokensSold: number;
+  currentHoldings: number;
+  averageBuyPrice: number;
+  investedAmount: number;
+  receivedAmount: number;
+  investedInCurrentHoldings: number;
+}
+```
+
+### Transaction Stats
+```typescript
+interface ITransactionStats {
+  totalTrades: number;
+  totalBuyTrades: number;
+  totalSellTrades: number;
+  totalSOLTraded: number;
+  totalSOLSpent: number;
+  totalSOLReceived: number;
+  uniqueTokensTraded: number;
+  averageTradeSize: number;
+  totalFeesPaid: number;
+  firstTradeDate: Date | null;
+  lastTradeDate: Date | null;
+  tradingPeriodDays: number;
+  winRate: number;
+  pnlStats: IOverallPnL;
+}
+```
+
+### Transaction
+```typescript
+interface ITransaction {
+  id: string;
+  agentId: string;
+  mint: string;
+  action: string;
+  amountIn: number;
+  amountOut: number;
+  executionPrice: number;
+  status: string;
+  transactionHash?: string;
+  timestamp?: number;
+  fees?: number;
+  notes?: string;
+}
+```
+
+### Transaction Details
+```typescript
+interface ITransactionDetails {
+  trx: ITransaction;
+  totalValueSOL: number;
+  tokenAmount: number;
+  pricePerToken: number;
+}
+```
+
+### Swap Data
+```typescript
+interface SwapData {
+  tradeType: 'buy' | 'sell';
+  amount: number;
+  mint: string;
+  watchConfig?: {
+    takeProfitPercentage?: number;
+    stopLossPercentage?: number;
+    enableTrailingStop?: boolean;
+    trailingPercentage?: number;
+    maxHoldTimeMinutes?: number;
+  }
+}
+```
+
+### Search Token Result
+```typescript
+interface SearchTokenResult {
+  name: string;
+  symbol: string;
+  mint: string;
+  decimals: number;
+  image: string;
+  holders: number;
+  jupiter: boolean;
+  verified: boolean;
+  liquidityUsd: number;
+  marketCapUsd: number;
+  priceUsd: number;
+  lpBurn: number;
+  market: string;
+  freezeAuthority: string | null;
+  mintAuthority: string | null;
+  poolAddress: string;
+  totalBuys: number;
+  totalSells: number;
+  totalTransactions: number;
+  volume_5m: number;
+  volume: number;
+  volume_15m: number;
+  volume_30m: number;
+  volume_1h: number;
+  volume_6h: number;
+  volume_12h: number;
+  volume_24h: number;
+}
+```
+
+## Middleware Information
+
+### Authentication Middleware
+- `authenticateJWT`: Validates JWT token in Authorization header
+- Routes requiring this middleware are marked with "Authentication: Required (JWT)"
+
+### Validation Middleware
+- `validateOTP`: Validates OTP format and expiration for `/auth/verify-otp`
+- `checkWhitelist`: Checks if email is whitelisted for `/auth/signup` (active in beta/alpha stages)
+
+### Whitelist System
+The application supports stage-based access control:
+- **Beta/Alpha stages**: Requires email to be whitelisted
+- **Production stage**: Open access
+- Whitelist invitations are marked as used upon successful account creation
+
+## Error Responses
+
+All endpoints may return the following error structure:
+
+```json
+{
+  "message": "Error description",
+  "error": "Detailed error message",
+  "data": null
+}
+```
+
+Common HTTP status codes:
+- `200`: Success
+- `400`: Bad Request
+- `401`: Unauthorized
+- `403`: Forbidden (Whitelist/Permission denied)
+- `404`: Not Found
+- `500`: Internal Server Error
+
+## Authentication Headers
+
+For endpoints requiring authentication, include the JWT token in the Authorization header:
+
+```
+Authorization: Bearer <jwt_token>
+``` 

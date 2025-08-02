@@ -1,0 +1,147 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Requirements Document
+
+## Introduction
+
+Kolplay is a comprehensive web-based Solana copy trading platform that enables retail traders to follow and replicate trades of Key Opinion Leaders (KOLs) while discovering and swapping tokens. The platform combines social copy-trading with token discovery, portfolio management, and an AI chat assistant. This frontend implementation will provide a modern, responsive web interface that integrates with the documented backend APIs to deliver a seamless trading experience.
+
+## Requirements
+
+### Requirement 1: User Authentication & Onboarding
+
+**User Story:** As a new user, I want to create an account and authenticate using multiple methods, so that I can securely access the platform and start copy trading.
+
+#### Acceptance Criteria
+
+1. WHEN a user visits the landing page THEN the system SHALL display platform features and clear "Sign Up" or "Log In" calls-to-action
+2. WHEN a user chooses email/password signup THEN the system SHALL collect email, password, firstName, lastName and call `/auth/signup`
+3. WHEN signup is successful THEN the system SHALL redirect to email verification page and prompt for 6-digit OTP
+4. WHEN a user enters valid OTP THEN the system SHALL call `/auth/verify-otp` and redirect to main dashboard
+5. WHEN a user clicks "Sign in with Google" THEN the system SHALL initiate OAuth flow using `/oauth/google/url` and handle callback
+6. WHEN a user clicks "Connect Wallet" THEN the system SHALL integrate with Phantom wallet using `window.phantom` provider
+7. WHEN a user clicks "Forgot Password" THEN the system SHALL call `/auth/forgot-password` and handle reset flow
+8. IF email is not whitelisted during beta THEN the system SHALL display "Access denied. This application is currently in beta" message
+
+### Requirement 2: Wallet Integration & Balance Display
+
+**User Story:** As a trader, I want to connect my Solana wallet and view my balances, so that I can manage my funds and execute trades.
+
+#### Acceptance Criteria
+
+1. WHEN a user connects Phantom wallet THEN the system SHALL display wallet address and SOL balance in header dropdown
+2. WHEN wallet is connected THEN the system SHALL fetch and display top token balances using Solana RPC
+3. WHEN user clicks wallet dropdown THEN the system SHALL show condensed view of SOL balance, top tokens, and wallet address
+4. WHEN wallet connection status changes THEN the system SHALL update UI to reflect connected/disconnected state
+5. WHEN user disconnects wallet THEN the system SHALL clear wallet data and update connection status
+
+### Requirement 3: KOL Trading Interface
+
+**User Story:** As a copy trader, I want to browse KOLs, view their trading history, and subscribe to copy their trades, so that I can replicate successful trading strategies.
+
+#### Acceptance Criteria
+
+1. WHEN user navigates to KOL list page THEN the system SHALL fetch and display KOLs from `/features/get-kol-wallets`
+2. WHEN displaying KOL list THEN the system SHALL show name, wallet address, subscriber count, and recent trade snippet for each KOL
+3. WHEN user clicks a KOL THEN the system SHALL navigate to KOL detail page showing profile and recent trades from `/features/get-recent-kol-trades`
+4. WHEN user clicks "Subscribe" on KOL THEN the system SHALL call `/features/subscribe-to-kol` with minAmount and subType parameters
+5. WHEN user clicks "Unsubscribe" THEN the system SHALL call `/features/unsubscribe-from-kol` and update UI
+6. WHEN viewing live trades feed THEN the system SHALL display real-time KOL transactions with "Buy" and "Sell" buttons
+7. WHEN user clicks "Buy" on live trade THEN the system SHALL trigger swap dialog for the same token
+
+### Requirement 4: Token Discovery & Search
+
+**User Story:** As a trader, I want to search and discover tokens by various criteria, so that I can find trading opportunities and make informed decisions.
+
+#### Acceptance Criteria
+
+1. WHEN user types in global search box THEN the system SHALL call `/features/search-tokens` and display matching results
+2. WHEN displaying search results THEN the system SHALL show token symbol, name, price, liquidity, and "Buy" button
+3. WHEN user navigates to trending tokens THEN the system SHALL fetch data from `/features/get-trending-tokens` with timeframe filter
+4. WHEN user navigates to high volume tokens THEN the system SHALL fetch data from `/features/get-tokens-by-volume`
+5. WHEN user navigates to latest tokens THEN the system SHALL fetch data from `/features/get-latest-tokens`
+6. WHEN user clicks a token THEN the system SHALL navigate to token detail page showing info from `/features/get-token`
+7. WHEN viewing token details THEN the system SHALL display name, symbol, description, social links, holders, liquidity, and risk indicators
+
+### Requirement 5: Swap & Trading Interface
+
+**User Story:** As a trader, I want to swap tokens with customizable settings, so that I can execute trades with appropriate risk management.
+
+#### Acceptance Criteria
+
+1. WHEN user accesses swap page THEN the system SHALL display "From" and "To" token selection with amount inputs
+2. WHEN user selects tokens THEN the system SHALL fetch exchange rates and display estimated output amount
+3. WHEN user adjusts trade settings THEN the system SHALL provide controls for slippage tolerance and transaction priority
+4. WHEN user enables take-profit/stop-loss THEN the system SHALL show watchConfig fields for TP/SL percentages
+5. WHEN user confirms swap THEN the system SHALL call `/features/perform-swap` with trade parameters and watchConfig
+6. WHEN swap is executed THEN the system SHALL display transaction status and update portfolio on success
+7. WHEN viewing swap interface THEN the system SHALL show live price chart for selected token pair
+
+### Requirement 6: Portfolio & Transaction Management
+
+**User Story:** As a trader, I want to view my portfolio performance and transaction history, so that I can track my trading results and make informed decisions.
+
+#### Acceptance Criteria
+
+1. WHEN user accesses dashboard THEN the system SHALL display total portfolio value and SOL balance
+2. WHEN viewing portfolio THEN the system SHALL fetch and display overall PnL from `/features/get-user-pnl`
+3. WHEN user clicks transaction history THEN the system SHALL fetch data from `/features/get-user-transactions` with filters
+4. WHEN displaying transactions THEN the system SHALL show token, amounts, price, fees, and status for each trade
+5. WHEN user views trade statistics THEN the system SHALL fetch data from `/features/get-user-trade-stats`
+6. WHEN displaying trade stats THEN the system SHALL show total trades, win-rate, SOL spent/received, and unique tokens traded
+7. WHEN user clicks specific token THEN the system SHALL show token-specific PnL from `/features/get-token-pnl`
+
+### Requirement 7: Settings & Configuration
+
+**User Story:** As a trader, I want to configure my trading preferences and account settings, so that I can customize the platform to my trading style.
+
+#### Acceptance Criteria
+
+1. WHEN user accesses trade settings THEN the system SHALL display default slippage, min/max trade amounts, and watchConfig preferences
+2. WHEN user updates trade settings THEN the system SHALL call `/features/update-trading-settings` and save preferences
+3. WHEN user configures KOL subscription settings THEN the system SHALL allow setting copy percentage, trade size limits, and time restrictions
+4. WHEN user links Telegram account THEN the system SHALL call `/auth/link-telegram-user` and show linked status
+5. WHEN user accesses security settings THEN the system SHALL provide options to change password and review OAuth providers
+6. WHEN user updates profile THEN the system SHALL allow editing name, email, and social handles
+
+### Requirement 8: AI Chat Assistant
+
+**User Story:** As a user, I want to interact with an AI assistant for trading queries and commands, so that I can get help and execute actions through natural language.
+
+#### Acceptance Criteria
+
+1. WHEN user clicks chat icon THEN the system SHALL slide out collapsible chat panel from right side
+2. WHEN user types query THEN the system SHALL send message to AI assistant and display response
+3. WHEN assistant provides trading data THEN the system SHALL format responses with portfolio info, token data, and PnL summaries
+4. WHEN user gives trading command THEN the system SHALL interpret instruction and execute appropriate API calls
+5. WHEN on mobile device THEN the system SHALL display chat as overlay with proper responsive design
+6. WHEN chat is active THEN the system SHALL maintain scroll history and provide clear input box
+
+### Requirement 9: Real-time Updates & Notifications
+
+**User Story:** As a trader, I want to receive real-time updates on trades and prices, so that I can stay informed of market movements and trading opportunities.
+
+#### Acceptance Criteria
+
+1. WHEN viewing any trading interface THEN the system SHALL update prices and balances in real-time using WebSocket connections
+2. WHEN subscribed KOL makes trade THEN the system SHALL display notification in live trades feed immediately
+3. WHEN user has Telegram linked THEN the system SHALL send alerts for copied trades and price movements
+4. WHEN data is loading THEN the system SHALL show appropriate loading spinners and states
+5. WHEN API errors occur THEN the system SHALL display user-friendly error messages with retry options
+6. WHEN WebSocket connection drops THEN the system SHALL automatically attempt to reconnect
+
+### Requirement 10: Responsive Design & Accessibility
+
+**User Story:** As a user on any device, I want the platform to work seamlessly across desktop and mobile, so that I can trade from anywhere.
+
+#### Acceptance Criteria
+
+1. WHEN user accesses platform on desktop THEN the system SHALL display full interface with sidebar navigation and data tables
+2. WHEN user accesses platform on mobile THEN the system SHALL adapt layout with collapsible menus and touch-friendly controls
+3. WHEN viewing charts on mobile THEN the system SHALL resize appropriately and maintain functionality
+4. WHEN using keyboard navigation THEN the system SHALL provide proper focus states and tab order
+5. WHEN user has accessibility needs THEN the system SHALL maintain proper color contrast ratios and readable font sizes
+6. WHEN displaying data tables on mobile THEN the system SHALL convert to card-based layouts for better usability

@@ -34,3 +34,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+QUICK_BACKEND_SETUP.md
+SIWS_INSTRUCTIONS_GUIDE.md
+tasks.md

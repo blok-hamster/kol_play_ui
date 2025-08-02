@@ -1,0 +1,35 @@
+{
+  "name": "KOL Play",
+  "short_name": "KOL Play",
+  "description": "Copy Trading Platform - Follow top crypto traders",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#171616",
+  "theme_color": "#14F195",
+  "icons": [
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/6.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/6.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+} 

@@ -3,25 +3,118 @@
 @tailwind utilities;
 
 :root {
+  /* Light theme colors */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #1a1a1a;
+  --primary-foreground: #ffffff;
+  --secondary: #f8f9fa;
+  --secondary-foreground: #1a1a1a;
+  --muted: #f8f9fa;
+  --muted-foreground: #6b7280;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #1a1a1a;
 }
 
+.dark {
+  /* Dark theme colors */
+  --background: #171616;
+  --foreground: #f5f5f5;
+  --card: #1f1f1f;
+  --card-foreground: #f5f5f5;
+  --popover: #1f1f1f;
+  --popover-foreground: #f5f5f5;
+  --primary: #f5f5f5;
+  --primary-foreground: #171616;
+  --secondary: #2a2a2a;
+  --secondary-foreground: #f5f5f5;
+  --muted: #2a2a2a;
+  --muted-foreground: #9ca3af;
+  --border: #374151;
+  --input: #374151;
+  --ring: #f5f5f5;
+}
+
+/* System preference detection */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.light) {
+    --background: #171616;
+    --foreground: #f5f5f5;
+    --card: #1f1f1f;
+    --card-foreground: #f5f5f5;
+    --popover: #1f1f1f;
+    --popover-foreground: #f5f5f5;
+    --primary: #f5f5f5;
+    --primary-foreground: #171616;
+    --secondary: #2a2a2a;
+    --secondary-foreground: #f5f5f5;
+    --muted: #2a2a2a;
+    --muted-foreground: #9ca3af;
+    --border: #374151;
+    --input: #374151;
+    --ring: #f5f5f5;
   }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Custom utilities */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #14f195 0%, #9945ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(135deg, #14f195 0%, #9945ff 100%);
+    border-radius: inherit;
+    padding: 1px;
+  }
+
+  .gradient-border > * {
+    background: var(--background);
+    border-radius: 6px;
   }
 }

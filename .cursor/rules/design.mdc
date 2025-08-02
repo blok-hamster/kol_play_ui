@@ -1,0 +1,358 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Design Document
+
+## Overview
+
+Kolplay frontend is a modern, responsive web application built for Solana copy trading. The application will be developed using React with TypeScript for type safety, Next.js for server-side rendering and routing, and Tailwind CSS for styling. The architecture follows a component-based design with clear separation of concerns, real-time data management, and seamless integration with Solana wallets and backend APIs.
+
+The application emphasizes performance, user experience, and real-time trading capabilities while maintaining a dark, modern aesthetic inspired by contemporary crypto platforms like GMGN.ai, Axiom.trade, and Kolscan.io.
+
+## Architecture
+
+### Frontend Stack
+- **Framework**: Next.js 14 with App Router for modern React development and SSR capabilities
+- **Language**: TypeScript for type safety and better developer experience
+- **Styling**: Tailwind CSS with custom design system based on specified color palette
+- **State Management**: Zustand for lightweight, scalable state management
+- **Real-time Communication**: WebSocket connections to consume RabbitMQ queue data (trade updates and notifications with 1hr TTL)
+- **Wallet Integration**: Solana Wallet Adapter for multi-wallet support
+- **HTTP Client**: Axios with interceptors for API communication
+- **Charts**: Lightweight Chart library or TradingView widgets for price visualization
+- **UI Components**: Headless UI components with custom styling
+
+### Application Structure
+```
+src/
+├── app/                    # Next.js App Router pages
+├── components/             # Reusable UI components
+│   ├── ui/                # Base UI components (buttons, inputs, etc.)
+│   ├── layout/            # Layout components (header, sidebar, etc.)
+│   ├── trading/           # Trading-specific components
+│   └── charts/            # Chart components
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utility libraries and configurations
+├── services/              # API service layer
+├── stores/                # Zustand state stores
+├── types/                 # TypeScript type definitions
+└── utils/                 # Helper functions
+```
+
+### Design System
+- **Theme Support**: Light and dark mode with user preference persistence
+- **Dark Theme Colors**: #171616 (dark gray background), #f5f5f5 (light gray text)
+- **Light Theme Colors**: #ffffff (white background), #1a1a1a (dark text), #f8f9fa (light gray backgrounds)
+- **Accent Gradient**: #eaff8d to #14f195 for buttons and highlights (consistent across themes)
+- **Typography**: Clean, readable fonts with proper hierarchy and theme-appropriate contrast
+- **Components**: Consistent spacing, border radius, and interaction states with theme-aware styling
+- **Theme Toggle**: Accessible theme switcher in header/settings with system preference detection
+
+## Components and Interfaces
+
+### Core Layout Components
+
+#### AppLayout
+- **Purpose**: Main application wrapper with navigation and wallet connection
+- **Props**: `children: ReactNode`
+- **Features**: Header with wallet dropdown, sidebar navigation, responsive design
+- **State**: Wallet connection status, user authentication state
+
+#### Header
+- **Purpose**: Top navigation with search, wallet info, and user menu
+- **Features**: Global token search, wallet balance display, user dropdown
+- **Components**: SearchBar, WalletDropdown, UserMenu, NotificationBell
+
+#### Sidebar
+- **Purpose**: Main navigation menu for different platform sections
+- **Features**: Collapsible on mobile, active state indicators
+- **Navigation Items**: Dashboard, KOLs, Tokens, Swap, Portfolio, Settings
+
+### Authentication Components
+
+#### AuthModal
+- **Purpose**: Unified authentication interface
+- **Features**: Email/password, Google OAuth, Phantom wallet connection
+- **Forms**: SignInForm, SignUpForm, ForgotPasswordForm, OTPVerification
+
+#### WalletConnector
+- **Purpose**: Solana wallet integration component
+- **Features**: Multi-wallet support via Solana Wallet Adapter
+- **Wallets**: Phantom (primary), Solflare, Backpack (future)
+
+### Trading Components
+
+#### KOLList
+- **Purpose**: Display grid of available KOLs for subscription
+- **Features**: Search/filter, subscription status, performance metrics
+- **Data**: KOL profiles, subscriber counts, recent trade summaries
+
+#### KOLDetail
+- **Purpose**: Detailed view of individual KOL with trade history
+- **Features**: Profile info, trade history table, subscribe/unsubscribe actions
+- **Components**: TradeHistoryTable, SubscriptionControls, PerformanceChart
+
+#### LiveTradesFeed
+- **Purpose**: Real-time stream of KOL trades
+- **Features**: WebSocket updates, instant buy/sell actions, filtering
+- **Components**: TradeItem, QuickSwapButton, FilterControls
+
+#### SwapInterface
+- **Purpose**: Token swapping with advanced settings
+- **Features**: Token selection, slippage controls, TP/SL configuration
+- **Components**: TokenSelector, SlippageSettings, WatchConfigForm
+
+### Token Discovery Components
+
+#### TokenSearch
+- **Purpose**: Global search with autocomplete
+- **Features**: Real-time search, token suggestions, quick actions
+- **Integration**: Debounced API calls, keyboard navigation
+
+#### TokenLists
+- **Purpose**: Categorized token displays (trending, volume, latest)
+- **Features**: Filtering, sorting, pagination, quick buy actions
+- **Components**: TokenCard, FilterBar, SortControls
+
+#### TokenDetail
+- **Purpose**: Comprehensive token information page
+- **Features**: Price charts, holder info, risk analysis, social links
+- **Components**: PriceChart, TokenStats, RiskIndicators, SocialLinks
+
+### Portfolio Components
+
+#### Dashboard
+- **Purpose**: Overview of user's trading performance and portfolio
+- **Features**: Portfolio value, PnL summary, recent transactions
+- **Components**: PortfolioSummary, PnLChart, RecentTrades
+
+#### TransactionHistory
+- **Purpose**: Detailed transaction log with filtering
+- **Features**: Date range filters, token filters, export functionality
+- **Components**: TransactionTable, FilterControls, ExportButton
+
+#### TradeStats
+- **Purpose**: Comprehensive trading statistics and analytics
+- **Features**: Win rate, volume metrics, performance charts
+- **Components**: StatsCards, PerformanceChart, ComparisonMetrics
+
+### Utility Components
+
+#### AIChat
+- **Purpose**: Collapsible AI assistant interface
+- **Features**: Natural language queries, trading commands, help system
+- **Components**: ChatWindow, MessageBubble, InputField
+
+#### NotificationSystem
+- **Purpose**: Real-time notifications and alerts
+- **Features**: Toast notifications, Telegram integration, sound alerts
+- **Components**: ToastContainer, NotificationBell, AlertSettings
+
+## Data Models
+
+### Frontend State Models
+
+```typescript
+// User State
+interface UserState {
+  user: User | null;
+  isAuthenticated: boolean;
+  token: string | null;
+  walletAddress: string | null;
+  balance: {
+    sol: number;
+    tokens: TokenBalance[];
+  };
+}
+
+// Trading State
+interface TradingState {
+  subscriptions: KOLSubscription[];
+  liveTradesFeed: LiveTrade[];
+  recentTransactions: Transaction[];
+  portfolioStats: PortfolioStats;
+}
+
+// UI State
+interface UIState {
+  sidebarCollapsed: boolean;
+  chatOpen: boolean;
+  activeModal: string | null;
+  notifications: Notification[];
+  loading: Record<string, boolean>;
+  theme: 'light' | 'dark' | 'system';
+}
+
+// Token State
+interface TokenState {
+  searchResults: Token[];
+  trendingTokens: Token[];
+  watchlist: Token[];
+  selectedToken: Token | null;
+}
+```
+
+### API Integration Models
+
+```typescript
+// API Response Wrapper
+interface APIResponse<T> {
+  message: string;
+  data: T;
+  error?: string;
+}
+
+// WebSocket Message Types
+interface WSMessage {
+  type: 'TRADE_UPDATE' | 'PRICE_UPDATE' | 'BALANCE_UPDATE';
+  payload: any;
+  timestamp: number;
+}
+
+// Real-time Updates
+interface LiveTrade {
+  id: string;
+  kolWallet: string;
+  tokenSymbol: string;
+  tradeType: 'buy' | 'sell';
+  amount: number;
+  price: number;
+  timestamp: number;
+}
+```
+
+## Error Handling
+
+### Error Boundary Strategy
+- **Global Error Boundary**: Catches unhandled React errors
+- **Route-level Boundaries**: Specific error handling for major sections
+- **Component-level**: Graceful degradation for individual components
+
+### API Error Handling
+```typescript
+// Centralized error handling
+class APIErrorHandler {
+  static handle(error: AxiosError): UserFriendlyError {
+    switch (error.response?.status) {
+      case 401: return { message: 'Please log in again', action: 'REDIRECT_LOGIN' };
+      case 403: return { message: 'Access denied', action: 'SHOW_UPGRADE' };
+      case 429: return { message: 'Too many requests, please wait', action: 'RETRY_LATER' };
+      default: return { message: 'Something went wrong', action: 'RETRY' };
+    }
+  }
+}
+```
+
+### Wallet Error Handling
+- **Connection Failures**: Clear messaging with retry options
+- **Transaction Errors**: Detailed error codes with suggested actions
+- **Network Issues**: Automatic retry with exponential backoff
+
+## Testing Strategy
+
+### Unit Testing
+- **Framework**: Jest with React Testing Library
+- **Coverage**: All utility functions, custom hooks, and complex components
+- **Mocking**: API calls, wallet connections, WebSocket connections
+
+### Integration Testing
+- **User Flows**: Complete authentication and trading workflows
+- **API Integration**: Mock backend responses for consistent testing
+- **Wallet Integration**: Mock wallet adapter for transaction testing
+
+### E2E Testing
+- **Framework**: Playwright for cross-browser testing
+- **Critical Paths**: Authentication, trading, portfolio management
+- **Performance**: Core Web Vitals and loading time benchmarks
+
+### Testing Structure
+```typescript
+// Component Testing Example
+describe('SwapInterface', () => {
+  it('should calculate correct exchange rates', () => {
+    // Test implementation
+  });
+  
+  it('should handle slippage settings', () => {
+    // Test implementation
+  });
+  
+  it('should validate trade amounts', () => {
+    // Test implementation
+  });
+});
+```
+
+## Performance Optimization
+
+### Code Splitting
+- **Route-based**: Lazy load major sections (KOLs, Portfolio, Settings)
+- **Component-based**: Dynamic imports for heavy components (charts, tables)
+- **Library splitting**: Separate bundles for wallet adapters and chart libraries
+
+### Data Management
+- **Caching Strategy**: React Query for server state with appropriate cache times
+- **Optimistic Updates**: Immediate UI updates for better UX
+- **Pagination**: Virtual scrolling for large lists (transactions, tokens)
+
+### Real-time Optimization
+- **RabbitMQ Integration**: WebSocket connection to consume trade updates and notifications from two queues with 1hr TTL
+- **WebSocket Management**: Connection pooling and automatic reconnection with exponential backoff
+- **Update Batching**: Batch multiple updates to prevent UI thrashing
+- **Selective Updates**: Only update components with changed data
+- **Queue Management**: Handle message acknowledgment and TTL expiration gracefully
+
+## Security Considerations
+
+### Authentication Security
+- **JWT Storage**: Secure storage in httpOnly cookies where possible
+- **Token Refresh**: Automatic token refresh with proper error handling
+- **Session Management**: Clear session data on logout/expiration
+
+### Wallet Security
+- **Non-custodial**: Never store private keys or seed phrases
+- **Transaction Signing**: All transactions require explicit user approval
+- **Connection Validation**: Verify wallet connection before sensitive operations
+
+### Data Protection
+- **Input Validation**: Client-side validation with server-side verification
+- **XSS Prevention**: Proper sanitization of user inputs and API responses
+- **CSRF Protection**: CSRF tokens for state-changing operations
+
+## Deployment Architecture
+
+### Build Configuration
+```typescript
+// next.config.js
+const nextConfig = {
+  experimental: {
+    appDir: true,
+  },
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
+    NEXT_PUBLIC_SOLANA_RPC: process.env.NEXT_PUBLIC_SOLANA_RPC,
+  },
+  webpack: (config) => {
+    // Wallet adapter polyfills
+    config.resolve.fallback = {
+      fs: false,
+      net: false,
+      tls: false,
+    };
+    return config;
+  },
+};
+```
+
+### Environment Configuration
+- **Development**: Local API endpoints, verbose logging
+- **Staging**: Staging API, performance monitoring
+- **Production**: Production API, error tracking, analytics
+
+### Monitoring and Analytics
+- **Error Tracking**: Sentry for error monitoring and performance
+- **User Analytics**: Privacy-focused analytics for user behavior
+- **Performance Monitoring**: Core Web Vitals and custom metrics
