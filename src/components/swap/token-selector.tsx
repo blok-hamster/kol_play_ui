@@ -25,11 +25,34 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownPosition, setDropdownPosition] = useState<'left' | 'right'>('left');
+  
   const { searchTokens, searchResults, isLoading, clearSearchResults } =
     useTokenSearch();
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate dropdown position based on available space
+  const calculateDropdownPosition = () => {
+    if (!dropdownRef.current) return;
+    
+    const rect = dropdownRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const dropdownWidth = 600; // md:w-[600px] from the dropdown
+    
+    // Check if there's enough space on the right side
+    const spaceOnRight = viewportWidth - rect.right;
+    
+    // If there's not enough space on the right for the dropdown width,
+    // align it to the right edge of the trigger (right-0)
+    // Otherwise, align it to the left edge of the trigger (left-0)
+    if (spaceOnRight < dropdownWidth) {
+      setDropdownPosition('right');
+    } else {
+      setDropdownPosition('left');
+    }
+  };
 
   // Handle search with debouncing
   useEffect(() => {
@@ -77,11 +100,27 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
     }
   }, [isOpen]);
 
-  // Focus search input when dropdown opens
+  // Focus search input when dropdown opens and calculate position
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+    if (isOpen) {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+      // Calculate position after the dropdown is rendered
+      setTimeout(calculateDropdownPosition, 0);
     }
+  }, [isOpen]);
+
+  // Recalculate position on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (isOpen) {
+        calculateDropdownPosition();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [isOpen]);
 
   const handleTokenSelect = (searchResult: SearchTokenResult) => {
@@ -319,7 +358,7 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="fixed inset-x-4 top-20 md:absolute md:top-full md:left-0 md:mt-2 md:w-[600px] md:max-w-[90vw] xl:right-0 xl:left-auto bg-background border border-border rounded-xl shadow-2xl z-[60] min-h-[500px] max-h-[70vh] overflow-hidden md:min-h-[600px]">
+        <div className={`fixed inset-x-4 top-20 md:absolute md:top-full md:mt-2 md:w-[600px] md:max-w-[90vw] bg-background border border-border rounded-xl shadow-2xl z-[60] min-h-[500px] max-h-[70vh] overflow-hidden md:min-h-[600px] ${dropdownPosition === 'left' ? 'md:left-0' : 'md:right-0'}`}>
           {/* Mobile Close Button */}
           <div className="md:hidden absolute top-4 right-4 z-10">
             <button

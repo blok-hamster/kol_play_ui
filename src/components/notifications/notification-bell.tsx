@@ -146,7 +146,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-[60]">
+        <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-[60]">
           {/* Header */}
           <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center justify-between">
