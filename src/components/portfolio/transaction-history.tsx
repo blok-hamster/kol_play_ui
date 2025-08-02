@@ -437,8 +437,9 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                         variant="ghost"
                         onClick={e => {
                           e.stopPropagation();
-                          transaction.id &&
+                          if (transaction.id) {
                             fetchTransactionDetails(transaction.id);
+                          }
                         }}
                         disabled={isLoadingDetails}
                         className="p-1 h-auto hover:bg-muted rounded-lg"

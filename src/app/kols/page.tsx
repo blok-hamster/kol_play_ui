@@ -6,7 +6,6 @@ import KOLList from '@/components/trading/kol-list';
 import TopTraders from '@/components/trading/top-traders';
 import AddCustomKOLModal from '@/components/trading/add-custom-kol-modal';
 import { TrendingUp, Award, Users, Plus } from 'lucide-react';
-import { useModal } from '@/stores/use-ui-store';
 import { Button } from '@/components/ui/button';
 
 interface CategoryTab {

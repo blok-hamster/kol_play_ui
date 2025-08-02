@@ -3,6 +3,9 @@
 import React, { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
 export default function OAuthPopupCallbackPage() {
   const searchParams = useSearchParams();
 

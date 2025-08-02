@@ -14,6 +14,9 @@ import { formatNumber } from '@/lib/utils';
 import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
 export default function TokenSearchPage() {
   const searchParams = useSearchParams();
   const { setSearchResults } = useTokenSearch();

@@ -7,6 +7,9 @@ import { useNotifications } from '@/stores';
 import apiClient from '@/lib/api';
 import AuthService from '@/services/auth.service';
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
 export default function OAuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
