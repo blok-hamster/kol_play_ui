@@ -182,9 +182,11 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
         );
         console.log('🎉 Result:', result);
 
+        // CRITICAL: Store token FIRST so API calls can be authenticated
         SiwsAuthService.storeToken(result.token);
         console.log('🎉 Token stored via SiwsAuthService');
 
+        // Set initial user state (even if account details have errors)
         setUser({
           id: result.user.id,
           email: result.user.email,
@@ -192,6 +194,27 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
           accountDetails: result.user.accountDetails,
         });
         console.log('🎉 User state updated');
+
+        // If account details have errors, try to fetch them now that token is stored
+        if (result.user.accountDetails?._hasError) {
+          console.log('🔄 Account details have error, attempting to fetch after token storage...');
+          try {
+            const freshAccountDetails = await SiwsAuthService.refreshAccountDetails();
+            // Update user with fresh account details
+            setUser(prevUser => ({
+              ...prevUser!,
+              accountDetails: freshAccountDetails
+            }));
+            console.log('✅ Successfully fetched account details after login');
+          } catch (fetchError: any) {
+            console.warn('⚠️ Could not fetch account details after login:', fetchError.message);
+            // User is still logged in, they can use refresh button later
+            showInfo(
+              'Account Details Unavailable',
+              'Your account details could not be loaded. Use the refresh button in the wallet dropdown to try again.'
+            );
+          }
+        }
 
         // Test the token by making a protected API call
         setTimeout(async () => {

@@ -61,6 +61,9 @@ export const API_ENDPOINTS = {
     GET_SOLANA_AGENT_DETAILS: '/features/get-solana-agent-details',
     SETUP_COPY_TRADER: '/features/setup-copy-trader',
 
+    // User Account
+    GET_USER_ACCOUNT_DETAILS: '/features/get-user-account-details',
+
     // Settings
     GET_TRADING_SETTINGS: '/features/get-trading-settings',
     UPDATE_TRADING_SETTINGS: '/features/update-trading-settings',
@@ -141,7 +144,21 @@ export const WALLET_CONFIG = {
   RPC_ENDPOINT: 'https://api.mainnet-beta.solana.com',
   COMMITMENT: 'confirmed',
   // SIWS Configuration
-  DOMAIN: process.env.NEXT_PUBLIC_DOMAIN || 'localhost:3000',
+  DOMAIN: (() => {
+    const envDomain = process.env.NEXT_PUBLIC_DOMAIN;
+    if (!envDomain) return 'localhost:3000';
+    
+    // If domain includes protocol, extract hostname only
+    if (envDomain.includes('://')) {
+      try {
+        const url = new URL(envDomain.startsWith('http') ? envDomain : `https://${envDomain}`);
+        return url.hostname;
+      } catch {
+        return envDomain.replace(/^https?:\/\//, '');
+      }
+    }
+    return envDomain;
+  })(),
   STATEMENT:
     'Sign in to verify your wallet ownership. This request will not trigger any blockchain transaction or cost any gas fees.',
   NETWORK: process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta',

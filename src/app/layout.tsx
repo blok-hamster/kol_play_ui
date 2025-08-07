@@ -9,6 +9,7 @@ import WalletAdapterProvider from '@/components/wallet/wallet-adapter-provider';
 import AuthModalWrapper from '@/components/modals/auth-modal-wrapper';
 import OnboardingWrapper from '@/components/modals/onboarding-wrapper';
 import NotificationProvider from '@/components/providers/notification-provider';
+import AuthInitProvider from '@/components/providers/auth-init-provider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -65,9 +66,11 @@ export default function RootLayout({
         <ThemeProvider>
           <WalletAdapterProvider>
             <NotificationProvider>
-              {children}
-              <AuthModalWrapper />
-              <OnboardingWrapper />
+              <AuthInitProvider>
+                {children}
+                <AuthModalWrapper />
+                <OnboardingWrapper />
+              </AuthInitProvider>
             </NotificationProvider>
           </WalletAdapterProvider>
         </ThemeProvider>

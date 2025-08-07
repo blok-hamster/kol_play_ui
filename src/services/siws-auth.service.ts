@@ -30,8 +30,22 @@ export interface WalletAuthResponse {
   user: {
     id: string;
     email?: string;
-    walletAddress: string;
-    accountDetails?: any;
+    walletAddress: string; // This is the encoded wallet address from backend
+    accountDetails: {
+      address: string; // This is the readable Solana address
+      balance: number;
+      tokens: {
+        mint: string;
+        name: string;
+        symbol: string;
+        image?: string;
+        balance: number;
+        value: number;
+      }[];
+      // Optional error flags for when account details couldn't be fetched
+      _hasError?: boolean;
+      _errorMessage?: string;
+    };
   };
   token: string;
 }
@@ -75,16 +89,38 @@ export class SiwsAuthService {
     }
 
     try {
+      // Get the current origin for URI
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+      
+      // Extract domain (hostname only) from URI or use configured domain
+      let domain = request.domain || WALLET_CONFIG.DOMAIN;
+      let uri = request.uri || currentOrigin;
+
+      // Ensure domain is hostname only (remove protocol if present)
+      if (domain.includes('://')) {
+        try {
+          const domainUrl = new URL(domain.startsWith('http') ? domain : `https://${domain}`);
+          domain = domainUrl.hostname;
+        } catch (e) {
+          // Fallback: remove protocol manually if URL parsing fails
+          domain = domain.replace(/^https?:\/\//, '');
+        }
+      }
+
+      // Ensure URI has protocol
+      if (uri && !uri.startsWith('http')) {
+        uri = `https://${uri}`;
+      }
+
       console.log(
         '🌐 Making backend API call to:',
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}${API_ENDPOINTS.WALLET.CHALLENGE}`
       );
+
       console.log('🌐 Request payload:', {
-        domain: request.domain || WALLET_CONFIG.DOMAIN,
+        domain,
         statement: request.statement || WALLET_CONFIG.STATEMENT,
-        uri:
-          request.uri ||
-          (typeof window !== 'undefined' ? window.location.origin : ''),
+        uri,
         resources: request.resources || [],
       });
 
@@ -92,11 +128,9 @@ export class SiwsAuthService {
       const response = await apiClient.postRaw<any>(
         API_ENDPOINTS.WALLET.CHALLENGE,
         {
-          domain: request.domain || WALLET_CONFIG.DOMAIN,
+          domain,
           statement: request.statement || WALLET_CONFIG.STATEMENT,
-          uri:
-            request.uri ||
-            (typeof window !== 'undefined' ? window.location.origin : ''),
+          uri,
           resources: request.resources || [],
         }
       );
@@ -121,9 +155,29 @@ export class SiwsAuthService {
         response.challenge.chainId = 'mainnet';
       }
 
-      console.log('🌐 Processed challenge:', response.challenge);
+      // Validate the challenge object has required SIWS fields
+      const challenge = response.challenge;
+      const requiredFields = ['domain', 'statement', 'uri', 'version', 'chainId', 'nonce', 'issuedAt'];
+      const missingFields = requiredFields.filter(field => !challenge[field]);
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Backend returned challenge missing required SIWS fields: ${missingFields.join(', ')}`);
+      }
 
-      return { challenge: response.challenge };
+      // Additional validation: ensure domain in response doesn't have protocol
+      if (challenge.domain && challenge.domain.includes('://')) {
+        console.warn('⚠️ Backend returned domain with protocol, fixing...');
+        try {
+          const domainUrl = new URL(challenge.domain.startsWith('http') ? challenge.domain : `https://${challenge.domain}`);
+          challenge.domain = domainUrl.hostname;
+        } catch (e) {
+          challenge.domain = challenge.domain.replace(/^https?:\/\//, '');
+        }
+      }
+
+      console.log('✅ Final SIWS challenge:', JSON.stringify(challenge, null, 2));
+      
+      return { challenge };
     } catch (error: any) {
       console.error('🌐 Backend API Error:', error);
       console.error('🌐 Error response:', error.response?.data);
@@ -227,23 +281,67 @@ export class SiwsAuthService {
 
       console.log('🌐 Signup response:', response);
 
-      // Handle backend response format
-      if (!response || typeof response !== 'object') {
-        throw new Error('Invalid signup response format');
-      }
+      // Validate the response using the utility method
+      this.validateWalletAuthResponse(response);
 
-      if (!response.success) {
-        throw new Error(response.message || 'Signup failed');
+      // Handle account details - allow sign-up even if account details have errors
+      let finalAccountDetails = response.user.accountDetails;
+      
+      if (response.user.accountDetails?._hasError) {
+        console.log('⚠️ Account details has error, user can still sign up. Will need to refresh manually.');
+        // Provide a minimal account details structure with error flag
+        finalAccountDetails = {
+          address: '', // Will be populated when user refreshes
+          balance: 0,
+          tokens: [],
+          _hasError: true,
+          _errorMessage: response.user.accountDetails.error || 'Account details unavailable'
+        };
+      } else if (!response.user.accountDetails || typeof response.user.accountDetails !== 'object') {
+        console.log('⚠️ No account details provided, user can still sign up. Will need to refresh manually.');
+        // Provide a minimal account details structure
+        finalAccountDetails = {
+          address: '',
+          balance: 0,
+          tokens: [],
+          _hasError: true,
+          _errorMessage: 'Account details not provided'
+        };
       }
 
       return {
         success: response.success,
-        user: response.user,
+        user: {
+          id: response.user.id,
+          email: response.user.email || request.email || undefined,
+          walletAddress: response.user.walletAddress,
+          accountDetails: finalAccountDetails
+        },
         token: response.token,
-      };
+      } as WalletAuthResponse;
     } catch (error: any) {
       console.error('🌐 Signup error:', error);
-      throw new Error(apiClient.handleError(error));
+      
+      // Enhanced error handling with specific error types
+      if (error.name === 'NetworkError' || error.code === 'ECONNREFUSED') {
+        throw new Error('Unable to connect to server. Please check your internet connection and try again.');
+      }
+      
+      if (error.response?.status === 400) {
+        throw new Error('Invalid signup data. Please check your information and try again.');
+      }
+      
+      if (error.response?.status === 409) {
+        throw new Error('Wallet already registered. Please sign in instead.');
+      }
+      
+      if (error.response?.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+
+      // Use the original error message if it's already a string
+      const errorMessage = typeof error === 'string' ? error : error.message || 'Signup failed';
+      throw new Error(errorMessage);
     }
   }
 
@@ -317,23 +415,67 @@ export class SiwsAuthService {
 
       console.log('🌐 Signin response:', response);
 
-      // Handle backend response format
-      if (!response || typeof response !== 'object') {
-        throw new Error('Invalid signin response format');
-      }
+      // Validate the response using the utility method
+      this.validateWalletAuthResponse(response);
 
-      if (!response.success) {
-        throw new Error(response.message || 'Signin failed');
+      // Handle account details - allow sign-in even if account details have errors
+      let finalAccountDetails = response.user.accountDetails;
+      
+      if (response.user.accountDetails?._hasError) {
+        console.log('⚠️ Account details has error, user can still sign in. Will need to refresh manually.');
+        // Provide a minimal account details structure with error flag
+        finalAccountDetails = {
+          address: '', // Will be populated when user refreshes
+          balance: 0,
+          tokens: [],
+          _hasError: true,
+          _errorMessage: response.user.accountDetails.error || 'Account details unavailable'
+        };
+      } else if (!response.user.accountDetails || typeof response.user.accountDetails !== 'object') {
+        console.log('⚠️ No account details provided, user can still sign in. Will need to refresh manually.');
+        // Provide a minimal account details structure
+        finalAccountDetails = {
+          address: '',
+          balance: 0,
+          tokens: [],
+          _hasError: true,
+          _errorMessage: 'Account details not provided'
+        };
       }
 
       return {
         success: response.success,
-        user: response.user,
+        user: {
+          id: response.user.id,
+          email: response.user.email || undefined,
+          walletAddress: response.user.walletAddress,
+          accountDetails: finalAccountDetails
+        },
         token: response.token,
-      };
+      } as WalletAuthResponse;
     } catch (error: any) {
       console.error('🌐 Signin error:', error);
-      throw new Error(apiClient.handleError(error));
+      
+      // Enhanced error handling with specific error types
+      if (error.name === 'NetworkError' || error.code === 'ECONNREFUSED') {
+        throw new Error('Unable to connect to server. Please check your internet connection and try again.');
+      }
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please verify your wallet signature and try again.');
+      }
+      
+      if (error.response?.status === 404) {
+        throw new Error('Wallet not registered. Please sign up first.');
+      }
+      
+      if (error.response?.status >= 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+
+      // Use the original error message if it's already a string
+      const errorMessage = typeof error === 'string' ? error : error.message || 'Authentication failed';
+      throw new Error(errorMessage);
     }
   }
 
@@ -398,38 +540,35 @@ export class SiwsAuthService {
   /**
    * Store authentication token
    */
-  static storeToken(token: string): void {
-    console.log(
-      '💾 Storing authentication token:',
-      token.substring(0, 50) + '...'
-    );
-
+  static storeToken(token: string) {
+    console.log('💾 [SiwsAuthService.storeToken] Starting token storage process');
+    console.log('💾 [SiwsAuthService.storeToken] Token preview:', token.substring(0, 50) + '...');
+    
     if (typeof window !== 'undefined') {
-      // Store in localStorage
+      // Store in localStorage using the same key as API client
       localStorage.setItem('authToken', token);
-      console.log('💾 Token stored in localStorage');
+      console.log('💾 [SiwsAuthService.storeToken] Token stored in localStorage with key "authToken"');
 
       // CRITICAL: Update the API client with the new token
       apiClient.setToken(token);
-      console.log('💾 Token set in API client');
+      console.log('💾 [SiwsAuthService.storeToken] Token set in API client');
 
-      // Verify token is stored
+      // Verify token is stored and set properly
       const storedToken = localStorage.getItem('authToken');
-      console.log(
-        '💾 Verification - stored token:',
-        storedToken?.substring(0, 50) + '...'
-      );
-      console.log(
-        '💾 Verification - api client has token:',
-        !!apiClient.getToken()
-      );
+      const apiClientToken = apiClient.getToken();
+      console.log('💾 [SiwsAuthService.storeToken] Verification - localStorage token:', storedToken?.substring(0, 50) + '...');
+      console.log('💾 [SiwsAuthService.storeToken] Verification - API client token:', apiClientToken?.substring(0, 50) + '...');
+      console.log('💾 [SiwsAuthService.storeToken] Verification - tokens match:', storedToken === apiClientToken);
+      console.log('💾 [SiwsAuthService.storeToken] Token storage process completed successfully');
+    } else {
+      console.warn('💾 [SiwsAuthService.storeToken] Window not available, token not stored');
     }
   }
 
   /**
    * Get stored authentication token
    */
-  static getToken(): string | null {
+  static getStoredToken(): string | null {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('authToken');
     }
@@ -437,11 +576,207 @@ export class SiwsAuthService {
   }
 
   /**
-   * Clear authentication token
+   * Initialize authentication - call this on app startup
    */
-  static clearToken(): void {
+  static initializeAuth(): void {
+    const storedToken = this.getStoredToken();
+    if (storedToken) {
+      console.log('🔄 Initializing API client with stored token');
+      apiClient.setToken(storedToken);
+    }
+  }
+
+  /**
+   * Remove stored authentication token
+   */
+  static removeToken() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('authToken');
+      // Also clear from API client
+      apiClient.clearToken();
+      console.log('🗑️ Token removed from both localStorage and API client');
+    }
+  }
+
+  /**
+   * Fetch user account details from features endpoint
+   */
+  static async fetchUserAccountDetails(): Promise<{
+    address: string;
+    balance: number;
+    tokens: {
+      mint: string;
+      name: string;
+      symbol: string;
+      image?: string;
+      balance: number;
+      value: number;
+    }[];
+  } | null> {
+    try {
+      console.log('🔄 Fetching user account details from features endpoint...');
+      
+      const response = await apiClient.get<any>(API_ENDPOINTS.FEATURES.GET_USER_ACCOUNT_DETAILS);
+      
+      console.log('🌐 Raw account details response:', response);
+      
+      // Handle different possible response formats
+      let accountData = null;
+      
+      if (response?.data?.data) {
+        // Standard API response format: { data: { data: accountDetails } }
+        accountData = response.data.data;
+      } else if (response?.data) {
+        // Direct data format: { data: accountDetails }
+        accountData = response.data;
+      } else {
+        console.warn('⚠️ Unexpected response format from account details endpoint');
+        return null;
+      }
+
+      if (!accountData) {
+        console.warn('⚠️ No account details returned from features endpoint');
+        return null;
+      }
+
+      // Check if the response contains an error
+      if (accountData.error) {
+        console.error('❌ Account details endpoint returned error:', accountData.error);
+        throw new Error(`Failed to fetch account details: ${accountData.error}`);
+      }
+
+      // Validate required fields
+      if (!accountData.address && !accountData.walletAddress) {
+        throw new Error('Account details missing required address field');
+      }
+
+      console.log('✅ Account details fetched successfully:', accountData);
+      
+      // Return the account details in the exact expected format
+      return {
+        address: accountData.address || accountData.walletAddress || '',
+        balance: typeof accountData.balance === 'number' ? accountData.balance : 0,
+        tokens: Array.isArray(accountData.tokens) ? accountData.tokens.map(token => ({
+          mint: token.mint || '',
+          name: token.name || 'Unknown Token',
+          symbol: token.symbol || 'UNKNOWN',
+          image: token.image,
+          balance: typeof token.balance === 'number' ? token.balance : 0,
+          value: typeof token.value === 'number' ? token.value : 0,
+        })) : []
+      };
+    } catch (error: any) {
+      console.error('❌ Failed to fetch user account details:', error);
+      
+      // Log more details about the error
+      if (error.response) {
+        console.error('❌ Response status:', error.response.status);
+        console.error('❌ Response data:', error.response.data);
+      }
+      
+      // Re-throw the error instead of returning null so caller knows it failed
+      throw error;
+    }
+  }
+
+  /**
+   * Validate wallet authentication response structure
+   */
+  static validateWalletAuthResponse(response: any): void {
+    console.log('🔍 Validating wallet auth response:', response);
+    
+    if (!response) {
+      throw new Error('Response is null or undefined');
+    }
+    
+    if (typeof response !== 'object') {
+      throw new Error('Response is not an object');
+    }
+    
+    if (!response.success) {
+      throw new Error(`Authentication failed: ${response.message || response.error || 'Unknown error'}`);
+    }
+    
+    if (!response.user) {
+      throw new Error('Missing user data in response');
+    }
+    
+    if (!response.user.id) {
+      throw new Error('Missing user ID in response');
+    }
+    
+    if (!response.user.walletAddress && !response.user.accountDetails?.address) {
+      throw new Error('Missing wallet address information in response');
+    }
+    
+    if (!response.token) {
+      throw new Error('Missing authentication token in response');
+    }
+    
+    // Check if account details contains an error
+    if (response.user.accountDetails && typeof response.user.accountDetails.error === 'string') {
+      console.warn('⚠️ Account details contains error:', response.user.accountDetails.error);
+      // Mark it for fallback fetching
+      response.user.accountDetails._hasError = true;
+    }
+    
+    // Validate and normalize account details structure if present and no error
+    if (response.user.accountDetails && !response.user.accountDetails._hasError) {
+      if (!response.user.accountDetails.address) {
+        console.warn('⚠️ Missing account details address');
+      }
+      if (typeof response.user.accountDetails.balance !== 'number') {
+        console.warn('⚠️ Invalid account details balance format, normalizing to 0');
+        response.user.accountDetails.balance = 0;
+      }
+      if (!Array.isArray(response.user.accountDetails.tokens)) {
+        console.warn('⚠️ Invalid account details tokens format, normalizing to empty array');
+        response.user.accountDetails.tokens = [];
+      }
+    }
+    
+    // Log the validated response structure
+    console.log('✅ Response validation passed');
+    console.log('📋 User ID:', response.user.id);
+    console.log('📋 Wallet Address:', response.user.walletAddress);
+    console.log('📋 Account Details:', response.user.accountDetails);
+    console.log('📋 Token length:', response.token?.length);
+  }
+
+  /**
+   * Refresh account details for authenticated user
+   * This can be called anytime to update the user's account information
+   */
+  static async refreshAccountDetails(): Promise<{
+    address: string;
+    balance: number;
+    tokens: {
+      mint: string;
+      name: string;
+      symbol: string;
+      image?: string;
+      balance: number;
+      value: number;
+    }[];
+  }> {
+    console.log('🔄 [SiwsAuthService.refreshAccountDetails] Starting account details refresh');
+    
+    if (!this.isAuthenticated()) {
+      console.error('❌ [SiwsAuthService.refreshAccountDetails] User not authenticated');
+      throw new Error('User must be authenticated to refresh account details');
+    }
+    
+    console.log('✅ [SiwsAuthService.refreshAccountDetails] User is authenticated, proceeding with API call');
+    const currentToken = apiClient.getToken();
+    console.log('🔑 [SiwsAuthService.refreshAccountDetails] Current API client token:', currentToken?.substring(0, 50) + '...');
+    
+    try {
+      const result = await this.fetchUserAccountDetails();
+      console.log('✅ [SiwsAuthService.refreshAccountDetails] Account details refreshed successfully');
+      return result;
+    } catch (error: any) {
+      console.error('❌ [SiwsAuthService.refreshAccountDetails] Failed to refresh account details:', error);
+      throw error;
     }
   }
 
@@ -449,6 +784,10 @@ export class SiwsAuthService {
    * Check if user is authenticated
    */
   static isAuthenticated(): boolean {
-    return !!this.getToken();
+    const storedToken = this.getStoredToken();
+    if (storedToken) {
+      apiClient.setToken(storedToken);
+    }
+    return !!storedToken;
   }
 }

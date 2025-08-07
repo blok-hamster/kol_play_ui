@@ -1,27 +1,29 @@
 // Authentication Types
-export interface UserWalletToken {
-  mint: string;
-  name: string;
-  symbol: string;
-  image?: string;
-  balance: number;
-  value: number;
-}
-
 export interface AccountDetails {
   address: string;
   balance: number;
-  tokens: UserWalletToken[];
+  tokens: {
+    mint: string;
+    name: string;
+    symbol: string;
+    image?: string;
+    balance: number;
+    value: number;
+  }[];
+  // Optional error flags for when account details couldn't be fetched
+  _hasError?: boolean;
+  _errorMessage?: string;
 }
 
 export interface User {
   id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
+  email?: string; // Optional for wallet-only authentication
+  firstName?: string; // Optional for wallet-only authentication
+  lastName?: string; // Optional for wallet-only authentication
   verified?: boolean;
   telegramId?: string;
   telegramUsername?: string;
+  walletAddress?: string; // For wallet authentication - encoded address from backend
   accountDetails?: AccountDetails;
 }
 

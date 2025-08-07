@@ -43,10 +43,12 @@ interface TokenBalance {
 
 export function WalletDropdown() {
   const { user } = useUserStore();
+  const { refreshAccountDetails } = useUserStore();
   const { showNotification } = useNotifications();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isBalanceVisible, setIsBalanceVisible] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Get trading wallet data from user account details or fallback to empty data
@@ -66,6 +68,8 @@ export function WalletDropdown() {
           value: token.value || 0,
           change24h: 0, // This would need to come from price data
         })) as TokenBalance[],
+        hasError: user.accountDetails._hasError || false,
+        errorMessage: user.accountDetails._errorMessage || ''
       }
     : null;
 
@@ -105,10 +109,16 @@ export function WalletDropdown() {
   };
 
   const handleRefresh = async () => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    showNotification('Balances Updated', 'Wallet balances have been refreshed');
+    setIsRefreshing(true);
+    try {
+      await refreshAccountDetails();
+      showNotification('Account Details Updated', 'Wallet account details have been refreshed successfully');
+    } catch (error: any) {
+      console.error('Failed to refresh account details:', error);
+      showNotification('Refresh Failed', error.message || 'Failed to refresh account details');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const toggleBalanceVisibility = () => {
@@ -175,7 +185,7 @@ export function WalletDropdown() {
                   aria-label="Refresh balances"
                 >
                   <RefreshCw
-                    className={cn('h-4 w-4', false && 'animate-spin')}
+                    className={cn('h-4 w-4', isRefreshing && 'animate-spin')}
                   />
                 </button>
               </div>
@@ -199,24 +209,71 @@ export function WalletDropdown() {
                 </div>
               </div>
               <div className="text-right">
+                {tradingWallet?.hasError ? (
+                  <div className="flex items-center space-x-2">
+                    <div>
+                      <p className="text-sm font-semibold text-yellow-600">
+                        Details Unavailable
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Click refresh to load
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleRefresh}
+                      disabled={isRefreshing}
+                      className="p-1 rounded bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors disabled:opacity-50"
+                      title="Refresh account details"
+                    >
+                      <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
                 <p className="text-sm font-semibold text-foreground">
                   {formatBalance(tradingWallet?.totalValue || 0)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {formatBalance(tradingWallet?.solBalance || 0)} SOL
                 </p>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Address */}
+            {/* Address or Error Message */}
+            {tradingWallet?.hasError ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                <div className="flex items-start space-x-2">
+                  <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-xs font-bold text-white">!</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-800">
+                      Account Details Error
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      {tradingWallet.errorMessage || 'Unable to load account details'}
+                    </p>
+                    <button
+                      onClick={handleRefresh}
+                      disabled={isRefreshing}
+                      className="mt-2 px-3 py-1 text-xs bg-yellow-200 text-yellow-800 rounded hover:bg-yellow-300 transition-colors disabled:opacity-50"
+                    >
+                      {isRefreshing ? 'Refreshing...' : 'Refresh Account Details'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : tradingWallet?.address ? (
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground font-mono">
-                {formatWalletAddress(tradingWallet?.address || '')}
+                  {formatWalletAddress(tradingWallet.address)}
               </span>
               <div className="flex items-center space-x-1">
                 <button
                   onClick={() =>
-                    handleCopyAddress(tradingWallet?.address || '', 'trading')
+                      handleCopyAddress(tradingWallet.address, 'trading')
                   }
                   className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
                   aria-label="Copy trading wallet address"
@@ -231,10 +288,25 @@ export function WalletDropdown() {
                 </button>
               </div>
             </div>
+            ) : (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  No address available
+                </span>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 transition-colors disabled:opacity-50"
+                  title="Refresh account details"
+                >
+                  {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Token Holdings */}
-          {tradingWallet?.tokens.length > 0 && (
+          {tradingWallet && !tradingWallet.hasError && tradingWallet.tokens.length > 0 && (
             <div className="px-4 py-3 border-b border-border">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                 Token Holdings
@@ -288,7 +360,7 @@ export function WalletDropdown() {
           )}
 
           {/* Phantom Wallet Status (Auth Only) */}
-          {user?.accountDetails && (
+          {user?.accountDetails?.address && (
             <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
