@@ -10,9 +10,14 @@ export interface AccountDetails {
     balance: number;
     value: number;
   }[];
+  // USD value fields
+  solValueUsd?: number; // SOL balance in USD
+  totalValueUsd?: number; // Total portfolio value in USD
   // Optional error flags for when account details couldn't be fetched
   _hasError?: boolean;
   _errorMessage?: string;
+  // Sometimes backend sends error property instead of proper structure
+  error?: string;
 }
 
 export interface User {
@@ -20,11 +25,15 @@ export interface User {
   email?: string; // Optional for wallet-only authentication
   firstName?: string; // Optional for wallet-only authentication
   lastName?: string; // Optional for wallet-only authentication
+  displayName?: string; // Display name for user profile
+  avatar?: string; // Avatar URL for user profile
   verified?: boolean;
   telegramId?: string;
   telegramUsername?: string;
   walletAddress?: string; // For wallet authentication - encoded address from backend
   accountDetails?: AccountDetails;
+  createdAt?: string; // Creation timestamp
+  updatedAt?: string; // Last update timestamp
 }
 
 export interface AuthResponse {
@@ -73,9 +82,35 @@ export interface KOLWallet {
   subscriberCount: number;
   isActive: boolean;
   avatar?: string; // Optional avatar/profile image
+  socialLinks?: {
+    twitter?: string;
+    telegram?: string;
+    discord?: string;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export interface PredictionResult {
+  /** Task type this prediction applies to */
+  taskType: string;
+  
+  // Classification-specific fields
+  /** Predicted class index - classification only */
+  classIndex?: number;
+  /** Predicted class label - classification only */
+  classLabel?: string;
+  /** Prediction probability/confidence - classification only */
+  probability?: number;
+  /** All class probabilities (for multi-class) - classification only */
+  probabilities?: number[];
+  
+  // Regression-specific fields
+  /** Predicted numeric value - regression only */
+  value?: number;
+  /** Prediction confidence interval - regression only */
+  confidenceInterval?: [number, number];
+} 
 
 export interface KOLTrade {
   id: string;
@@ -89,10 +124,16 @@ export interface KOLTrade {
   amountOut: number;
   tradeType: 'buy' | 'sell';
   mint?: string;
+  // New optional token metadata fields
+  name?: string;
+  symbol?: string;
+  image?: string;
+  metadataUri?: string;
   dexProgram: string;
   slotNumber?: number;
   blockTime?: number;
   fee?: number;
+  prediction?: PredictionResult;
 }
 
 export interface UserSubscription {
@@ -227,7 +268,7 @@ export interface Token {
   uri?: string;
   decimals: number;
   description?: string;
-  image: string;
+  image?: string;
   logoURI?: string; // Alternative image URL
   hasFileMetaData?: boolean;
   createdOn?: number | string; // Unix timestamp or creation platform URL
@@ -251,21 +292,98 @@ export interface Token {
   jupiter?: boolean;
 }
 
-export interface TokenDetails {
+/** Pair liquidity details */
+export interface Liquidity {
+  quote: number;
+  usd: number;
+}
+
+/** Price information */
+export interface Price {
+  quote: number;
+  usd: number;
+}
+
+/** Market capitalization details */
+export interface MarketCap {
+  quote: number;
+  usd: number;
+}
+
+/** Transaction counts */
+export interface Txns {
+  buys: number;
+  sells: number;
+  total?: number;
+  volume?: number;
+}
+
+/** Security authorities */
+export interface Security {
+  freezeAuthority: string | null;
+  mintAuthority: string | null;
+}
+
+/** Pool entry for a token */
+export interface Pool {
+  poolId: string;
+  liquidity: Liquidity;
+  price: Price;
+  tokenSupply: number;
+  lpBurn: number;
+  tokenAddress: string;
+  marketCap: MarketCap;
+  market: string;
+  quoteToken?: string;
+  decimals: number;
+  security: Security;
+  lastUpdated: number;
+  deployer?: string;
+  txns: Txns;
+  curve?: string;
+  curvePercentage?: number;
+  createdAt?: number;
+}
+
+/** Price change event over intervals */
+export interface PriceChange {
+  priceChangePercentage: number;
+}
+
+/** Collection of price change events keyed by timeframe */
+export type Events = Record<string, PriceChange>;
+
+/** Risk assessment item */
+export interface RiskItem {
+  name: string;
+  description: string;
+  level: string;
+  score: number;
+}
+
+/** Risk assessment for a token */
+export interface Risk {
+  rugged: boolean;
+  risks: RiskItem[];
+  score: number;
+  jupiterVerified?: boolean;
+}
+
+/** Detailed token response from multiple-tokens endpoint */
+export interface GetTokenResponse {
+  mint?: string;
   token: Token;
-  pools: any[];
-  events: Record<string, any>;
-  risk: {
-    rugged: boolean;
-    risks: string[];
-    score: number;
-    jupiterVerified: boolean;
-  };
+  pools: Pool[];
+  events: Events;
+  risk: Risk;
   buys: number;
   sells: number;
   txns: number;
   holders: number;
 }
+
+// Legacy alias for backward compatibility
+export type TokenDetails = GetTokenResponse;
 
 export interface SearchTokenResult {
   name: string;
@@ -328,15 +446,18 @@ export interface NotificationConfig {
 // Backend Notification System Types
 export interface NotificationItem {
   id: string;
-  type: 'trade_alert' | 'price_alert' | 'system' | 'portfolio' | 'security';
+  type: 'trade_alert' | 'price_alert' | 'system' | 'portfolio' | 'security' | 'client_notification';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   title: string;
   message: string;
   data?: any; // Additional context data
-  isRead: boolean;
-  createdAt: string;
+  isRead?: boolean; // Optional since API returns 'read' instead
+  read?: boolean; // API returns this property
+  createdAt?: string; // Optional since API might use timestamp
+  timestamp?: string; // API uses this property
   readAt?: string;
-  telegramSent: boolean;
+  telegramSent?: boolean; // Optional since API might use sentToTelegram
+  sentToTelegram?: boolean; // API uses this property
   userId: string;
 }
 
@@ -366,6 +487,7 @@ export interface TypeStats {
   system: number;
   portfolio: number;
   security: number;
+  client_notification: number;
 }
 
 export interface RecentNotificationSummary {
@@ -419,6 +541,37 @@ export interface WalletInfo {
   address: string;
   balance: number;
   isConnected: boolean;
+}
+
+// Solana Types
+export interface SolanaTokenInfo {
+  mintAddress: string;
+  balance: number;
+  decimals: number;
+  uiAmount: number;
+  name?: string | undefined;
+  symbol?: string | undefined;
+  logoURI?: string | undefined;
+  valueUsd?: number; // USD value of the token holding
+}
+
+export interface SolanaWalletBalance {
+  address: string;
+  solBalance: number; // SOL balance in SOL units
+  tokens: SolanaTokenInfo[];
+  totalTokens: number;
+}
+
+export interface SolanaTokenMetadata {
+  name?: string | undefined;
+  symbol?: string | undefined;
+  logoURI?: string | undefined;
+  decimals: number;
+}
+
+export interface SolanaConnectionConfig {
+  rpcUrl?: string;
+  commitment?: 'processed' | 'confirmed' | 'finalized' | undefined;
 }
 
 // WebSocket Types
@@ -531,16 +684,3 @@ export interface TradeFilters {
   sortBy?: 'timestamp' | 'amount' | 'kolName';
   sortOrder?: 'asc' | 'desc';
 }
-
-export * from './user';
-export * from './auth';
-export * from './trading';
-export * from './token';
-export * from './portfolio';
-export * from './ui';
-export * from './swap';
-export * from './settings';
-export * from './features';
-export * from './websocket';
-export * from './notifications';
-export * from './wallet';

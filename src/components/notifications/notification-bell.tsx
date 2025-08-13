@@ -106,7 +106,8 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
 
   // Handle notification click (mark as read)
   const handleNotificationClick = async (notification: NotificationItem) => {
-    if (!notification.isRead) {
+    const isRead = notification.isRead ?? notification.read ?? false;
+    if (!isRead) {
       await markAsRead(notification.id);
     }
   };
@@ -224,7 +225,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                   onClick={() => handleNotificationClick(notification)}
                   className={cn(
                     'px-4 py-3 cursor-pointer transition-colors hover:bg-muted/50',
-                    !notification.isRead && 'bg-accent/10',
+                    !(notification.isRead ?? notification.read ?? false) && 'bg-accent/10',
                     index < notifications.length - 1 && 'border-b border-border'
                   )}
                 >
@@ -243,7 +244,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                         <h4 className="text-sm font-medium text-foreground line-clamp-1">
                           {notification.title}
                         </h4>
-                        {!notification.isRead && (
+                        {!(notification.isRead ?? notification.read ?? false) && (
                           <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1" />
                         )}
                       </div>
@@ -257,7 +258,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
                           <Clock className="w-3 h-3" />
                           <span>
                             {formatRelativeTime(
-                              new Date(notification.createdAt)
+                              new Date(notification.createdAt || notification.timestamp || Date.now())
                             )}
                           </span>
                         </div>

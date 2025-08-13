@@ -10,6 +10,7 @@ export { default as TradingService } from './trading.service';
 export { default as TokenService } from './token.service';
 export { default as PortfolioService } from './portfolio.service';
 export { default as SwapService } from './swap.service';
+export { default as SolanaService } from './solana.service';
 
 // Real-time Services
 export {
@@ -58,3 +59,11 @@ export type {
   UpdateSubscription,
   BatchingConfig,
 } from './realtime-update.service';
+
+// Export Solana types for convenience
+export type {
+  SolanaTokenInfo,
+  SolanaWalletBalance,
+  SolanaTokenMetadata,
+  SolanaConnectionConfig,
+} from '@/types';

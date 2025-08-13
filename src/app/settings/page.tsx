@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/layout/app-layout';
 import { Settings, User, Shield, Zap, Bell } from 'lucide-react';
 import TradingSettingsComponent from '@/components/settings/trading-settings';
@@ -14,11 +15,21 @@ import { useUserStore } from '@/stores/use-user-store';
 import { useNotifications } from '@/stores/use-ui-store';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Save, RefreshCw } from 'lucide-react';
+import RequireAuth from '@/components/auth/require-auth';
 
 type SettingsTab = 'trading' | 'account' | 'security' | 'notifications';
 
 const SettingsPage: React.FC = () => {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>('trading');
+
+  // Handle tab parameter from URL
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as SettingsTab;
+    if (tabParam && ['trading', 'account', 'security', 'notifications'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   const tabs = [
     {
@@ -63,7 +74,8 @@ const SettingsPage: React.FC = () => {
   };
 
   return (
-    <AppLayout>
+    <RequireAuth title="Settings Access Required" message="Please sign in to manage your account and preferences.">
+      <AppLayout>
       <div className="p-6">
         {/* Page Header */}
         <div className="mb-8">
@@ -128,7 +140,8 @@ const SettingsPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </AppLayout>
+      </AppLayout>
+    </RequireAuth>
   );
 };
 
@@ -351,7 +364,7 @@ const NotificationsSettings: React.FC = () => {
                 handleNotificationChange(
                   'tradeNotificationConfig',
                   'tradeActivity',
-                  e.target.checked
+                  e.target.checked,
                 )
               }
             />
@@ -372,7 +385,7 @@ const NotificationsSettings: React.FC = () => {
                 handleNotificationChange(
                   'tradeNotificationConfig',
                   'kolActivity',
-                  e.target.checked
+                  e.target.checked,
                 )
               }
             />
@@ -402,7 +415,7 @@ const NotificationsSettings: React.FC = () => {
                 handleNotificationChange(
                   'notificationDelieveryConfig',
                   'useEmail',
-                  e.target.checked
+                  e.target.checked,
                 )
               }
             />
@@ -427,7 +440,7 @@ const NotificationsSettings: React.FC = () => {
                 handleNotificationChange(
                   'notificationDelieveryConfig',
                   'useTelegram',
-                  e.target.checked
+                  e.target.checked,
                 )
               }
             />

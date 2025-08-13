@@ -25,6 +25,7 @@ import {
   formatNumber,
   formatRelativeTime,
 } from '@/lib/utils';
+import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
 
 // Updated interfaces to match the real data structure
 interface TokenData {
@@ -144,9 +145,47 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
     }
   };
 
-  const handleQuickBuy = () => {
-    router.push(`/swap?token=${token.mint}`);
-    onClose();
+  const handleQuickBuy = async () => {
+    try {
+      // First check if user has trade config
+      const configCheck = await checkTradeConfig();
+      
+      if (!configCheck.hasConfig) {
+        // Close modal and redirect to settings
+        onClose();
+        router.push('/settings?tab=trading');
+        return;
+      }
+
+      // Execute instant buy
+      const result = await executeInstantBuy(token.mint, token.symbol);
+
+      if (result.success) {
+        showNotification(
+          'Buy Order Executed',
+          `Successfully bought ${token.symbol || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
+        );
+        onClose();
+
+        // Optional: Show transaction details
+        if (result.result?.transactionId) {
+          console.log('Transaction ID:', result.result.transactionId);
+        }
+      } else {
+        showNotification(
+          'Buy Order Failed',
+          result.error || 'Failed to execute buy order',
+          'error'
+        );
+      }
+    } catch (error: any) {
+      console.error('Buy order error:', error);
+      showNotification(
+        'Buy Order Error',
+        error.message || 'An unexpected error occurred',
+        'error'
+      );
+    }
   };
 
   const handleViewOnExplorer = () => {

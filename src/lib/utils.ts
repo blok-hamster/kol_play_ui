@@ -9,13 +9,54 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format currency values
+ * Safely format a number with toFixed, handling null, undefined, and NaN values
+ */
+export function safeToFixed(
+  value: number | undefined | null, 
+  decimals: number = 2, 
+  fallback: string = '0'
+): string {
+  if (value == null || typeof value !== 'number' || isNaN(value)) {
+    return fallback;
+  }
+  return value.toFixed(decimals);
+}
+
+/**
+ * Safely format an amount with abbreviations (K, M, B), handling null/undefined values
+ */
+export function safeFormatAmount(
+  amount: number | undefined | null,
+  decimals: number = 6,
+  fallback: string = '0.000000'
+): string {
+  if (amount == null || typeof amount !== 'number' || isNaN(amount)) {
+    return fallback;
+  }
+  
+  if (amount >= 1000000) return `${(amount / 1000000).toFixed(2)}M`;
+  if (amount >= 1000) return `${(amount / 1000).toFixed(2)}K`;
+  return amount.toFixed(decimals);
+}
+
+/**
+ * Format currency values safely
  */
 export function formatCurrency(
-  amount: number,
+  amount: number | undefined | null,
   currency: string = 'USD',
   decimals: number = 2
 ): string {
+  // Handle null, undefined, or non-numeric values
+  if (amount == null || typeof amount !== 'number' || isNaN(amount)) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(0);
+  }
+  
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
@@ -48,10 +89,13 @@ export function formatNumber(num: number, decimals?: number): string {
  * Format wallet address for display
  */
 export function formatWalletAddress(
-  address: string,
+  address: string | undefined | null,
   startChars: number = 4,
   endChars: number = 4
 ): string {
+  if (!address || typeof address !== 'string') {
+    return 'Unknown Address';
+  }
   if (address.length <= startChars + endChars) {
     return address;
   }

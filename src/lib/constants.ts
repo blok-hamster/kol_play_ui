@@ -78,6 +78,7 @@ export const API_ENDPOINTS = {
     SUBSCRIBE_TO_KOL: '/features/subscribe-to-kol',
     UNSUBSCRIBE_FROM_KOL: '/features/unsubscribe-from-kol',
     GET_USER_SUBSCRIPTIONS: '/features/get-user-subscriptions',
+    UPDATE_USER_SUBSCRIPTION: '/features/update-user-subscription',
 
     // PnL and Statistics
     GET_USER_PNL: '/features/get-user-pnl',
@@ -89,10 +90,12 @@ export const API_ENDPOINTS = {
 
     // Trading
     PERFORM_SWAP: '/features/perform-swap',
+    PREDICT_TRADE: '/features/predict-trade',
 
     // Token Discovery
     SEARCH_TOKENS: '/features/search-tokens',
     GET_TOKEN: '/features/get-token',
+    GET_MULTIPLE_TOKENS: '/features/multiple-tokens',
     GET_TRENDING_TOKENS: '/features/get-trending-tokens',
     GET_TOKENS_BY_VOLUME: '/features/get-tokens-by-volume',
     GET_LATEST_TOKENS: '/features/get-latest-tokens',

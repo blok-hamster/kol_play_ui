@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Darker_Grotesque } from 'next/font/google';
 import './globals.css';
 import {
   ThemeProvider,
@@ -11,7 +11,7 @@ import OnboardingWrapper from '@/components/modals/onboarding-wrapper';
 import NotificationProvider from '@/components/providers/notification-provider';
 import AuthInitProvider from '@/components/providers/auth-init-provider';
 
-const inter = Inter({ subsets: ['latin'] });
+const darkerGrotesque = Darker_Grotesque({ subsets: ['latin'], weight: ['300','400','500','600','700','800','900'] });
 
 export const metadata: Metadata = {
   title: 'KOL Play - Copy Trading Platform',
@@ -61,8 +61,9 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48-white.png" />
         <link rel="icon" type="image/png" sizes="96x96" href="/favicon-48-white.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/favicon-192x192.png" />
+        <style>{`html{font-size:17px}button,[role=button]{font-weight:600 !important}`}</style>
       </head>
-      <body className={inter.className}>
+      <body className={darkerGrotesque.className}>
         <ThemeProvider>
           <WalletAdapterProvider>
             <NotificationProvider>

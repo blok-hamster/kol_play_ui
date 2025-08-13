@@ -1,9 +1,11 @@
 import apiClient from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/constants';
+import { SolanaService } from '@/services/solana.service';
 import type {
   SearchTokenResult,
   SearchTokensRequest,
   TokenDetails,
+  GetTokenResponse,
   TokenFilters,
   ApiResponse,
   AddressSearchResult,
@@ -29,6 +31,13 @@ export class TokenService {
     request: SearchAddressRequest
   ): Promise<ApiResponse<AddressSearchResult>> {
     try {
+      // Validate the address format
+      if (!this.isValidSolanaAddress(request.address)) {
+        throw new Error('Invalid Solana address format');
+      }
+
+      console.log('🔍 Searching address with Solana service:', request.address);
+
       // First, check if this address is a KOL by searching the KOL wallets
       let isKOL = false;
       let kolData = null;
@@ -51,6 +60,7 @@ export class TokenService {
           if (foundKOL) {
             isKOL = true;
             kolData = foundKOL;
+            console.log('✅ Address found in KOL database:', foundKOL.name);
           }
         }
       } catch (error) {
@@ -74,45 +84,87 @@ export class TokenService {
             totalPnL: (Math.random() - 0.3) * 10000, // Mostly positive PnL
             isActive: true,
           };
+          console.log('✅ Address treated as test KOL');
         }
       }
 
-      // Get basic address transaction data
+      // Now use Solana service to get real blockchain data
+      console.log('🔄 Fetching real blockchain data using Solana service...');
+      
+      // Initialize Solana service if needed
+      SolanaService.initialize();
+      
+      // Fetch SOL balance and tokens in parallel
+      const [solBalance, tokens] = await Promise.all([
+        SolanaService.getSolBalance(request.address).catch(error => {
+          console.warn('Failed to fetch SOL balance:', error);
+          return 0;
+        }),
+        SolanaService.getTokens(request.address, true).catch(error => {
+          console.warn('Failed to fetch tokens:', error);
+          return [];
+        })
+      ]);
+
+      console.log('✅ Blockchain data fetched:', { 
+        address: request.address, 
+        solBalance, 
+        tokensCount: tokens.length 
+      });
+
+      // Get basic address transaction data from backend (if available)
       let addressTransactionData = null;
       try {
         const response = await apiClient.get<any>(
-          `${API_ENDPOINTS.FEATURES.GET_ADDRESS_TRANSACTIONS}?address=${request.address}`
+          `${API_ENDPOINTS.FEATURES.GET_ADDRESS_TRANSACTIONS}?address=${encodeURIComponent(
+            request.address
+          )}`
         );
         addressTransactionData = response.data;
+        console.log('✅ Transaction data fetched from backend');
       } catch (error) {
-        // If transaction data fails, continue with minimal data
-        console.warn('Failed to get address transaction data:', error);
+        console.warn('Failed to fetch transaction data from backend:', error);
+        // Continue without transaction data - we have blockchain data
       }
 
-      // Transform the response to AddressSearchResult format
-      const addressData: AddressSearchResult = {
+      // Build the result with real blockchain data
+      const result: AddressSearchResult = {
         address: request.address,
-        isKOL,
-        displayName: kolData?.name || addressTransactionData?.displayName,
-        totalTransactions:
-          addressTransactionData?.totalTransactions ||
-          kolData?.totalTrades ||
-          0,
-        solBalance: addressTransactionData?.solBalance || 0,
-        tokenCount: addressTransactionData?.tokenCount || 0,
-        lastActivity: addressTransactionData?.lastActivity,
-        verified:
-          kolData?.isActive || addressTransactionData?.verified || false,
-        description:
-          kolData?.description || addressTransactionData?.description,
+        ...(isKOL && { isKOL: true }),
+        ...(isKOL && kolData?.name && { displayName: kolData.name }),
+        ...(isKOL && kolData?.description && { description: kolData.description }),
+        ...(isKOL && { verified: true }),
+        solBalance, // Real SOL balance from blockchain
+        tokenCount: tokens.length, // Real token count from blockchain
+        ...(addressTransactionData?.totalTransactions && { 
+          totalTransactions: addressTransactionData.totalTransactions 
+        }),
+        ...(addressTransactionData?.lastActivity && { 
+          lastActivity: addressTransactionData.lastActivity 
+        }),
+      };
+
+      console.log('✅ Address search completed with Solana data:', result);
+
+      return {
+        message: `Address information retrieved for ${request.address}`,
+        data: result,
+      };
+    } catch (error: any) {
+      console.error('❌ Address search failed:', error);
+      
+      // Return a basic result even if Solana service fails
+      const fallbackResult: AddressSearchResult = {
+        address: request.address,
+        isKOL: false,
+        solBalance: 0,
+        tokenCount: 0,
       };
 
       return {
-        message: isKOL ? 'KOL found' : 'Address found',
-        data: addressData,
+        message: `Address found but blockchain data unavailable: ${error.message}`,
+        data: fallbackResult,
       };
-    } catch (error: any) {
-      throw new Error(apiClient.handleError(error));
     }
   }
 
@@ -277,6 +329,151 @@ export class TokenService {
       };
     } catch (error: any) {
       throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get detailed information for multiple tokens with lazy loading
+   * Batches requests in groups of 20 tokens at a time
+   */
+  static async getMultipleTokens(
+    mintAddresses: string[],
+    options: {
+      batchSize?: number;
+      maxConcurrentBatches?: number;
+      onBatchComplete?: (batch: GetTokenResponse[], batchIndex: number, totalBatches: number) => void;
+    } = {}
+  ): Promise<ApiResponse<GetTokenResponse[]>> {
+    try {
+      const {
+        batchSize = 20,
+        maxConcurrentBatches = 3,
+        onBatchComplete
+      } = options;
+
+      if (mintAddresses.length === 0) {
+        return {
+          message: 'No token addresses provided',
+          data: []
+        };
+      }
+
+      // Remove duplicates and validate addresses
+      const uniqueAddresses = Array.from(new Set(mintAddresses)).filter(address => 
+        address && typeof address === 'string' && address.trim().length > 0
+      );
+
+      if (uniqueAddresses.length === 0) {
+        return {
+          message: 'No valid token addresses provided',
+          data: []
+        };
+      }
+
+      console.log(`🔄 Fetching details for ${uniqueAddresses.length} tokens in batches of ${batchSize}`);
+
+      // Split addresses into batches
+      const batches: string[][] = [];
+      for (let i = 0; i < uniqueAddresses.length; i += batchSize) {
+        batches.push(uniqueAddresses.slice(i, i + batchSize));
+      }
+
+      console.log(`📦 Created ${batches.length} batches for processing`);
+
+      // Process batches with concurrency control
+      const allResults: GetTokenResponse[] = [];
+      const processBatch = async (batch: string[], batchIndex: number): Promise<GetTokenResponse[]> => {
+        try {
+          console.log(`🔄 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} tokens`);
+          
+          const response = await apiClient.post<GetTokenResponse[]>(
+            API_ENDPOINTS.FEATURES.GET_MULTIPLE_TOKENS,
+            { tokens: batch }
+          );
+
+          // Handle different response formats
+          let batchResults: GetTokenResponse[] = [];
+          
+          if (response.data && Array.isArray(response.data)) {
+            batchResults = response.data;
+          } else if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+            // Handle nested response format
+            batchResults = Array.isArray((response.data as any).data) ? (response.data as any).data : [];
+          } else {
+            console.warn(`Unexpected response format for batch ${batchIndex + 1}:`, response);
+            batchResults = [];
+          }
+
+          // Validate and normalize results
+          const normalizedResults = batchResults.map(result => ({
+            mint: result.mint || '',
+            token: result.token || {},
+            pools: result.pools || [],
+            events: result.events || {},
+            risk: result.risk || {
+              rugged: false,
+              risks: [],
+              score: 0,
+              jupiterVerified: false
+            },
+            buys: result.buys || 0,
+            sells: result.sells || 0,
+            txns: result.txns || 0,
+            holders: result.holders || 0
+          }));
+
+          console.log(`✅ Batch ${batchIndex + 1} completed: ${normalizedResults.length} tokens processed`);
+          
+          // Call progress callback if provided
+          if (onBatchComplete) {
+            onBatchComplete(normalizedResults, batchIndex, batches.length);
+          }
+
+          return normalizedResults;
+        } catch (error: any) {
+          console.error(`❌ Error processing batch ${batchIndex + 1}:`, error);
+          
+          // Return empty results for this batch but don't fail the entire operation
+          const emptyResults = batch.map(mint => ({
+            mint,
+            token: { name: '', symbol: '', mint, decimals: 0 },
+            pools: [],
+            events: {},
+            risk: { rugged: false, risks: [], score: 0, jupiterVerified: false },
+            buys: 0,
+            sells: 0,
+            txns: 0,
+            holders: 0
+          }));
+
+          if (onBatchComplete) {
+            onBatchComplete(emptyResults, batchIndex, batches.length);
+          }
+
+          return emptyResults;
+        }
+      };
+
+      // Process batches with controlled concurrency
+      for (let i = 0; i < batches.length; i += maxConcurrentBatches) {
+        const concurrentBatches = batches
+          .slice(i, i + maxConcurrentBatches)
+          .map((batch, index) => processBatch(batch, i + index));
+
+        const batchResults = await Promise.all(concurrentBatches);
+        allResults.push(...batchResults.flat());
+      }
+
+      console.log(`✅ All batches completed: ${allResults.length} total tokens processed`);
+
+      return {
+        message: `Successfully fetched details for ${allResults.length} tokens`,
+        data: allResults
+      };
+
+    } catch (error: any) {
+      console.error('Error fetching multiple token details:', error);
+      throw new Error(`Failed to fetch multiple token details: ${error.message}`);
     }
   }
 

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { PortfolioService } from '@/services/portfolio.service';
 import { useNotifications } from '@/stores/use-ui-store';
-import { formatCurrency, formatNumber, formatPercentage } from '@/lib/utils';
+import { formatCurrency, formatNumber, formatPercentage, safeFormatAmount } from '@/lib/utils';
 import type { TransactionStats, TokenPnL } from '@/types';
 
 interface TradingStatsProps {
@@ -132,25 +132,25 @@ const TradingStats: React.FC<TradingStatsProps> = ({
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
           <div className="flex items-center space-x-3">
             <Activity className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-bold text-foreground">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">
               Trading Statistics
             </h2>
           </div>
         </div>
 
         {/* Loading skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-muted/50 rounded-lg p-6">
+            <div key={i} className="bg-muted/50 rounded-lg p-4 sm:p-6">
               <div className="animate-pulse">
                 <div className="flex items-center justify-between mb-4">
                   <div className="h-5 bg-muted rounded w-24"></div>
-                  <div className="h-8 w-8 bg-muted rounded-full"></div>
+                  <div className="h-6 w-6 sm:h-8 sm:w-8 bg-muted rounded-full"></div>
                 </div>
-                <div className="h-8 bg-muted rounded w-20 mb-2"></div>
+                <div className="h-6 sm:h-8 bg-muted rounded w-20 mb-2"></div>
                 <div className="h-4 bg-muted rounded w-16"></div>
               </div>
             </div>
@@ -179,17 +179,17 @@ const TradingStats: React.FC<TradingStatsProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <div className="flex items-center space-x-3">
           <Activity className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-bold text-foreground">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">
             Trading Statistics
           </h2>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex justify-end items-center space-x-2 sm:space-x-4">
           {/* Timeframe selector */}
           <select
-            className="px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            className="px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm flex-shrink-0"
             value={selectedTimeframe}
             onChange={e =>
               setSelectedTimeframe(e.target.value as typeof timeframe)
@@ -200,7 +200,7 @@ const TradingStats: React.FC<TradingStatsProps> = ({
             <option value="30d">Last 30 Days</option>
             <option value="7d">Last 7 Days</option>
           </select>
-          <Button variant="outline" size="sm" onClick={handleRefresh}>
+          <Button variant="ghost" size="sm" onClick={handleRefresh} className="text-muted-foreground hover:text-foreground hover:bg-muted/50 flex-shrink-0">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -208,23 +208,23 @@ const TradingStats: React.FC<TradingStatsProps> = ({
       </div>
 
       {/* Main Statistics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Total Trades */}
-        <div className="bg-muted/50 rounded-lg p-6">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               Total Trades
             </h3>
-            <Activity className="h-8 w-8 text-blue-500" />
+            <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
           </div>
-          <p className="text-3xl font-bold text-foreground">
+          <p className="text-2xl sm:text-3xl font-bold text-foreground">
             {formatNumber(totalTrades)}
           </p>
-          <div className="flex items-center space-x-2 mt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mt-2 space-y-1 sm:space-y-0">
             <span className="text-sm text-muted-foreground">
               Buy: {formatNumber(tradeStats?.totalBuyTrades || 0)}
             </span>
-            <span className="text-sm text-muted-foreground">•</span>
+            <span className="text-sm text-muted-foreground hidden sm:inline">•</span>
             <span className="text-sm text-muted-foreground">
               Sell: {formatNumber(tradeStats?.totalSellTrades || 0)}
             </span>
@@ -232,17 +232,17 @@ const TradingStats: React.FC<TradingStatsProps> = ({
         </div>
 
         {/* Win Rate */}
-        <div className="bg-muted/50 rounded-lg p-6">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               Win Rate
             </h3>
             <Target
-              className={`h-8 w-8 ${winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}
+              className={`h-6 w-6 sm:h-8 sm:w-8 ${winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}
             />
           </div>
           <p
-            className={`text-3xl font-bold ${winRate >= 50 ? 'text-green-600' : 'text-red-600'}`}
+            className={`text-2xl sm:text-3xl font-bold ${winRate >= 50 ? 'text-green-600' : 'text-red-600'}`}
           >
             {formatPercentage(winRate)}
           </p>
@@ -256,26 +256,26 @@ const TradingStats: React.FC<TradingStatsProps> = ({
         </div>
 
         {/* Total P&L */}
-        <div className="bg-muted/50 rounded-lg p-6">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               Total P&L
             </h3>
-            <div className="h-8 w-8 bg-accent-gradient rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">$</span>
+            <div className="h-6 w-6 sm:h-8 sm:w-8 bg-accent-gradient rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-xs sm:text-sm">$</span>
             </div>
           </div>
           <p
-            className={`text-3xl font-bold ${(pnlStats?.totalPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}
+            className={`text-2xl sm:text-3xl font-bold ${(pnlStats?.totalPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}
           >
             {(pnlStats?.totalPnL || 0) >= 0 ? '+' : ''}
             {formatCurrency(pnlStats?.totalPnL || 0)}
           </p>
-          <div className="flex items-center space-x-2 mt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mt-2 space-y-1 sm:space-y-0">
             <span className="text-xs text-green-600">
               Realized: {formatCurrency(pnlStats?.realizedPnL || 0)}
             </span>
-            <span className="text-xs text-muted-foreground">•</span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">•</span>
             <span className="text-xs text-orange-600">
               Unrealized: {formatCurrency(pnlStats?.unrealizedPnL || 0)}
             </span>
@@ -283,70 +283,82 @@ const TradingStats: React.FC<TradingStatsProps> = ({
         </div>
 
         {/* Unique Tokens */}
-        <div className="bg-muted/50 rounded-lg p-6">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               Unique Tokens
             </h3>
-            <Coins className="h-8 w-8 text-purple-500" />
+            <Coins className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
           </div>
-          <p className="text-3xl font-bold text-foreground">
+          <p className="text-2xl sm:text-3xl font-bold text-foreground">
             {formatNumber(tradeStats?.uniqueTokensTraded || 0)}
           </p>
           <p className="text-sm text-muted-foreground mt-2">Traded tokens</p>
         </div>
 
         {/* Average Trade Size */}
-        <div className="bg-muted/50 rounded-lg p-6">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               Avg Trade Size
             </h3>
-            <DollarSign className="h-8 w-8 text-green-500" />
+            <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
           </div>
-          <p className="text-3xl font-bold text-foreground">
-            {formatCurrency(tradeStats?.averageTradeSize || 0)}
+          <p className="text-2xl sm:text-3xl font-bold text-foreground">
+            {(() => {
+              const calculatedAverage = tradeStats && tradeStats.totalTrades > 0 
+                ? tradeStats.totalSOLTraded / tradeStats.totalTrades 
+                : 0;
+              return `${safeFormatAmount(calculatedAverage, 4)} SOL`;
+            })()}
           </p>
-          <p className="text-sm text-muted-foreground mt-2">Per transaction</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Per transaction
+            {tradeStats && tradeStats.totalTrades > 0 && (
+              <span className="block text-xs opacity-75">
+                Based on {tradeStats.totalTrades} trades
+              </span>
+            )}
+          </p>
         </div>
 
         {/* SOL Spent */}
-        <div className="bg-muted/50 rounded-lg p-6">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               SOL Spent
             </h3>
-            <TrendingDown className="h-8 w-8 text-red-500" />
+            <TrendingDown className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
           </div>
-          <p className="text-3xl font-bold text-red-600">
+          <p className="text-2xl sm:text-3xl font-bold text-red-600">
             {formatNumber(pnlStats?.totalSOLSpent || 0, 2)}
           </p>
           <p className="text-sm text-muted-foreground mt-2">SOL</p>
         </div>
 
         {/* SOL Received */}
-        <div className="bg-muted/50 rounded-lg p-6">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               SOL Received
             </h3>
-            <TrendingUp className="h-8 w-8 text-green-500" />
+            <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
           </div>
-          <p className="text-3xl font-bold text-green-600">
+          <p className="text-2xl sm:text-3xl font-bold text-green-600">
             {formatNumber(pnlStats?.totalSOLReceived || 0, 2)}
           </p>
           <p className="text-sm text-muted-foreground mt-2">SOL</p>
         </div>
 
         {/* Trading Period */}
-        <div className="bg-muted/50 rounded-lg p-6">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">
               Trading Period
             </h3>
-            <Calendar className="h-8 w-8 text-orange-500" />
+            <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
           </div>
-          <p className="text-3xl font-bold text-foreground">
+          <p className="text-2xl sm:text-3xl font-bold text-foreground">
             {formatNumber(tradeStats?.tradingPeriodDays || 0)}
           </p>
           <p className="text-sm text-muted-foreground mt-2">Days active</p>
@@ -355,16 +367,17 @@ const TradingStats: React.FC<TradingStatsProps> = ({
 
       {/* Token-Specific P&L Breakdown */}
       {showTokenBreakdown && (
-        <div className="bg-muted/50 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-foreground flex items-center">
+        <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-2 sm:space-y-0">
+            <h3 className="text-lg sm:text-xl font-semibold text-foreground flex items-center">
               <PieChart className="h-5 w-5 mr-2" />
               Token Performance
             </h3>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setShowAllTokens(!showAllTokens)}
+              className="text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full sm:w-auto"
             >
               <Eye className="h-4 w-4 mr-2" />
               {showAllTokens ? 'Show Less' : 'Show All'}
@@ -402,9 +415,9 @@ const TradingStats: React.FC<TradingStatsProps> = ({
                     key={tokenPnL.mint}
                     className="bg-background rounded-lg p-4"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
                           <span className="text-white font-bold text-xs">
                             {tokenPnL.tokenSymbol.charAt(0)}
                           </span>
@@ -418,19 +431,19 @@ const TradingStats: React.FC<TradingStatsProps> = ({
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <p
                           className={`font-bold ${(tokenPnL.totalPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}
                         >
                           {(tokenPnL.totalPnL || 0) >= 0 ? '+' : ''}
                           {formatCurrency(tokenPnL.totalPnL || 0)}
                         </p>
-                        <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 text-xs text-muted-foreground space-y-1 sm:space-y-0">
                           <span>
                             Realized:{' '}
                             {formatCurrency(tokenPnL.realizedPnL || 0)}
                           </span>
-                          <span>•</span>
+                          <span className="hidden sm:inline">•</span>
                           <span>
                             Unrealized:{' '}
                             {formatCurrency(tokenPnL.unrealizedPnL || 0)}

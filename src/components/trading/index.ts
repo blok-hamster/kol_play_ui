@@ -5,4 +5,8 @@ export { default as SubscriptionControls } from './subscription-controls';
 export { default as LiveTradesFeed } from './live-trades-feed';
 export { default as MindShareWidget } from './mind-share-widget';
 
-// TODO: Additional trading components will be added here as they're created
+// Real-time KOL Trade Components
+export { KOLRealtimeTrades } from './kol-realtime-trades';
+export { KOLTradeCard } from './kol-trade-card';
+export { KOLMindmap } from './kol-mindmap';
+export { KOLMindmapGrid } from './kol-mindmap-grid';

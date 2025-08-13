@@ -1,10 +1,11 @@
 // Store exports
-export { default as useUserStore } from './use-user-store';
-export { default as useUIStore } from './use-ui-store';
-export { default as useTradingStore } from './use-trading-store';
+export { useUIStore } from './use-ui-store';
+export { useUserStore } from './use-user-store';
+export { useTradingStore } from './use-trading-store';
 export { useTokenStore } from './use-token-store'; // This is a named export, not default
-export { default as useSwapStore } from './use-swap-store';
 export { useNotificationStore } from './use-notification-store';
+export { useKOLTradeStore } from './use-kol-trade-store';
+export { useKOLStore } from './use-kol-store';
 
 // Helper Hooks for UI Store
 export { useNotifications, useModal, useLoading } from './use-ui-store';

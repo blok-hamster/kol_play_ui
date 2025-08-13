@@ -11,11 +11,14 @@ import {
   TradingSettings,
 } from '@/types';
 import { STORAGE_KEYS } from '@/lib/constants';
+import { TradingService } from '@/services/trading.service';
+import type { UpdateUserSubscriptionRequest } from '@/services/trading.service';
 
 interface TradingState {
   // KOL Subscriptions
   subscriptions: UserSubscription[];
   isLoadingSubscriptions: boolean;
+  hasLoadedSubscriptions: boolean; // Add flag to track if subscriptions have been loaded
 
   // Live trades feed
   liveTradesFeed: KOLTrade[];
@@ -48,6 +51,13 @@ interface TradingState {
     updates: Partial<UserSubscription>
   ) => void;
   setLoadingSubscriptions: (loading: boolean) => void;
+  setHasLoadedSubscriptions: (loaded: boolean) => void;
+  initializeSubscriptions: () => Promise<void>; // Add initialization function
+  refreshSubscriptions: () => Promise<void>; // Add refresh function
+  updateSubscriptionSettings: (
+    kolWallet: string,
+    updates: Partial<UserSubscription>
+  ) => Promise<void>; // Add update subscription settings function
 
   // Live trades actions
   setLiveTradesFeed: (trades: KOLTrade[]) => void;
@@ -80,6 +90,7 @@ export const useTradingStore = create<TradingState>()(
       // Initial state
       subscriptions: [],
       isLoadingSubscriptions: false,
+      hasLoadedSubscriptions: false,
       liveTradesFeed: [],
       isLoadingLiveTradesFeed: false,
       recentTransactions: [],
@@ -130,6 +141,196 @@ export const useTradingStore = create<TradingState>()(
 
       setLoadingSubscriptions: isLoadingSubscriptions =>
         set({ isLoadingSubscriptions }),
+
+      setHasLoadedSubscriptions: hasLoadedSubscriptions =>
+        set({ hasLoadedSubscriptions }),
+
+      initializeSubscriptions: async () => {
+        const state = get();
+        if (state.hasLoadedSubscriptions || state.isLoadingSubscriptions) {
+          return; // Prevent duplicate calls
+        }
+        
+        set({ isLoadingSubscriptions: true });
+        try {
+          console.log('Initializing subscriptions from store...');
+          const response = await TradingService.getUserSubscriptions();
+          console.log('Store API Response:', response);
+
+          if (response.data) {
+            // Filter out subscriptions without kolWallet and transform dates
+            const validSubscriptions = response.data
+              .filter(sub => sub.kolWallet) // Only include subscriptions with kolWallet
+              .map(sub => ({
+                ...sub,
+                createdAt: sub.createdAt ? new Date(sub.createdAt) : new Date(),
+                updatedAt: sub.updatedAt ? new Date(sub.updatedAt) : new Date(),
+              }));
+
+            set({ 
+              subscriptions: validSubscriptions,
+              hasLoadedSubscriptions: true,
+              error: null
+            });
+            console.log('Store: Successfully loaded subscriptions:', validSubscriptions);
+          } else {
+            throw new Error(response.message || 'Failed to fetch subscriptions');
+          }
+        } catch (error: any) {
+          console.error('Store: Error fetching subscriptions:', error);
+
+          // Check if it's a network/API error (endpoint not implemented yet)
+          if (
+            error.message?.includes('404') ||
+            error.message?.includes('Not Found')
+          ) {
+            console.warn(
+              'Store: Subscriptions API endpoint not yet implemented, using mock data for development'
+            );
+
+            // Use mock data for development until API is ready
+            const mockData = [
+              {
+                id: '1',
+                userId: 'user123',
+                kolWallet: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
+                isActive: true,
+                copyPercentage: 50,
+                maxAmount: 1.0,
+                minAmount: 0.1,
+                privateKey: 'encrypted_key_1',
+                createdAt: new Date('2024-01-15'),
+                type: 'trade' as const,
+                updatedAt: new Date('2024-01-15'),
+              },
+              {
+                id: '2',
+                userId: 'user123',
+                kolWallet: 'DRiP2Pn2K6fuMLKQmt5rZWxa91wSmeSgmRW5Q6UWQ5CW',
+                isActive: false,
+                privateKey: 'encrypted_key_2',
+                createdAt: new Date('2024-01-10'),
+                type: 'watch' as const,
+                updatedAt: new Date('2024-01-10'),
+              },
+              {
+                id: '3',
+                userId: 'user123',
+                kolWallet: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+                isActive: true,
+                copyPercentage: 25,
+                maxAmount: 0.5,
+                minAmount: 0.05,
+                privateKey: 'encrypted_key_3',
+                createdAt: new Date('2024-01-20'),
+                type: 'trade' as const,
+                updatedAt: new Date('2024-01-20'),
+              },
+            ];
+
+            set({ 
+              subscriptions: mockData,
+              hasLoadedSubscriptions: true,
+              error: null
+            });
+          } else {
+            // Other types of errors
+            set({ 
+              error: error.message || 'Failed to load subscriptions',
+              subscriptions: [],
+              hasLoadedSubscriptions: true // Mark as loaded even on error to prevent retries
+            });
+          }
+        } finally {
+          set({ isLoadingSubscriptions: false });
+        }
+      },
+
+      refreshSubscriptions: async () => {
+        set({ 
+          hasLoadedSubscriptions: false,
+          isLoadingSubscriptions: true 
+        });
+        
+        try {
+          console.log('Refreshing subscriptions from store...');
+          const response = await TradingService.getUserSubscriptions();
+          console.log('Store Refresh API Response:', response);
+
+          if (response.data) {
+            // Filter out subscriptions without kolWallet and transform dates
+            const validSubscriptions = response.data
+              .filter(sub => sub.kolWallet) // Only include subscriptions with kolWallet
+              .map(sub => ({
+                ...sub,
+                createdAt: sub.createdAt ? new Date(sub.createdAt) : new Date(),
+                updatedAt: sub.updatedAt ? new Date(sub.updatedAt) : new Date(),
+              }));
+
+            set({ 
+              subscriptions: validSubscriptions,
+              hasLoadedSubscriptions: true,
+              error: null
+            });
+            console.log('Store: Successfully refreshed subscriptions:', validSubscriptions);
+          } else {
+            throw new Error(response.message || 'Failed to refresh subscriptions');
+          }
+        } catch (error: any) {
+          console.error('Store: Error refreshing subscriptions:', error);
+          set({ 
+            error: error.message || 'Failed to refresh subscriptions',
+            hasLoadedSubscriptions: true // Mark as loaded even on error to prevent retries
+          });
+        } finally {
+          set({ isLoadingSubscriptions: false });
+        }
+      },
+
+      updateSubscriptionSettings: async (kolWallet, updates) => {
+        const current = get().subscriptions;
+        const subscription = current.find(sub => sub.kolWallet === kolWallet);
+        
+        if (!subscription) {
+          throw new Error('Subscription not found');
+        }
+
+        try {
+          console.log('Updating subscription settings for:', kolWallet);
+          
+          // Prepare the update request
+          const updateRequest: UpdateUserSubscriptionRequest = {
+            kolWallet,
+            minAmount: updates.minAmount,
+            maxAmount: updates.maxAmount,
+            tokenBuyCount: (updates as any).tokenBuyCount,
+            isActive: updates.isActive,
+            type: updates.type,
+            settings: updates.settings,
+            watchConfig: updates.watchConfig,
+          };
+
+          const response = await TradingService.updateUserSubscription(updateRequest);
+          console.log('Store Update Subscription API Response:', response);
+
+          if (response.data) {
+            // Update the subscription in the store with the response data
+            const updatedSubscriptions = current.map(sub =>
+              sub.kolWallet === kolWallet 
+                ? { ...sub, ...response.data, updatedAt: new Date() }
+                : sub
+            );
+            set({ subscriptions: updatedSubscriptions, error: null });
+            console.log('Store: Successfully updated subscription settings for:', kolWallet);
+          } else {
+            throw new Error(response.message || 'Failed to update subscription settings');
+          }
+        } catch (error: any) {
+          console.error('Store: Error updating subscription settings:', error);
+          set({ error: error.message || 'Failed to update subscription settings' });
+          throw error;
+        }
+      },
 
       // Live trades actions
       setLiveTradesFeed: liveTradesFeed => set({ liveTradesFeed }),
@@ -207,21 +408,31 @@ export const useSubscriptions = () => {
   const {
     subscriptions,
     isLoadingSubscriptions,
+    hasLoadedSubscriptions,
     setSubscriptions,
     addSubscription,
     removeSubscription,
     updateSubscription,
     setLoadingSubscriptions,
+    setHasLoadedSubscriptions,
+    initializeSubscriptions,
+    refreshSubscriptions,
+    updateSubscriptionSettings,
   } = useTradingStore();
 
   return {
     subscriptions,
     isLoadingSubscriptions,
+    hasLoadedSubscriptions,
     setSubscriptions,
     addSubscription,
     removeSubscription,
     updateSubscription,
     setLoadingSubscriptions,
+    setHasLoadedSubscriptions,
+    initializeSubscriptions,
+    refreshSubscriptions,
+    updateSubscriptionSettings,
     // Convenience methods
     isSubscribedToKOL: (kolWallet: string) =>
       subscriptions.some(sub => sub.kolWallet === kolWallet && sub.isActive),

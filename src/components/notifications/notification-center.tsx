@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import { useNotificationStore } from '@/stores/use-notification-store';
 import { NotificationItem } from '@/types';
+import TradeDetailsModal from './trade-details-modal';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -48,6 +49,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
+  const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
 
   // Fetch notifications and stats on mount
   useEffect(() => {
@@ -85,6 +88,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
     switch (type) {
       case 'trade_alert':
+      case 'client_notification':
         return <TrendingUp className={iconClass} />;
       case 'price_alert':
         return <Bell className={iconClass} />;
@@ -119,11 +123,23 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
       ? notifications
       : notifications.filter(n => n.type === typeFilter);
 
-  // Handle notification click (mark as read)
+  // Handle notification click (mark as read and potentially show trade details)
   const handleNotificationClick = async (notification: NotificationItem) => {
-    if (!notification.isRead) {
+    const isRead = notification.isRead ?? notification.read ?? false;
+    if (!isRead) {
       await markAsRead(notification.id);
     }
+
+    // Check if notification has trade data
+    if (notification.data?.trade) {
+      setSelectedNotification(notification);
+      setIsTradeModalOpen(true);
+    }
+  };
+
+  const handleTradeModalClose = () => {
+    setIsTradeModalOpen(false);
+    setSelectedNotification(null);
   };
 
   if (!isOpen && !embedded) return null;
@@ -197,6 +213,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             >
               <option value="all">All Types</option>
               <option value="trade_alert">Trade Alerts</option>
+              <option value="client_notification">Client Notifications</option>
               <option value="price_alert">Price Alerts</option>
               <option value="portfolio">Portfolio</option>
               <option value="security">Security</option>
@@ -260,15 +277,19 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             </div>
           ) : (
             <div className="space-y-0">
-              {filteredNotifications.map(notification => (
+              {filteredNotifications.map((notification, index) => {
+                return (
                 <div
                   key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
+                  onClick={() => {
+                    handleNotificationClick(notification);
+                  }}
                   className={cn(
                     'p-3 sm:p-4 border-b border-border cursor-pointer transition-all duration-200',
                     'hover:bg-muted/50 active:bg-muted border-l-4',
                     getPriorityColor(notification.priority),
-                    !notification.isRead ? 'bg-accent/20' : 'opacity-75'
+                    !(notification.isRead ?? notification.read ?? false) ? 'bg-accent/20' : 'opacity-75',
+                    notification.data?.trade && 'hover:border-l-primary' // Highlight trade notifications
                   )}
                 >
                   <div className="flex items-start space-x-3">
@@ -285,9 +306,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                       <div className="flex items-start justify-between gap-2">
                         <h4 className="text-sm font-medium text-foreground line-clamp-2">
                           {notification.title}
+                          {notification.data?.trade && (
+                            <span className="ml-2 text-xs text-primary">
+                              • Click for details
+                            </span>
+                          )}
                         </h4>
 
-                        {!notification.isRead && (
+                        {!(notification.isRead ?? notification.read ?? false) && (
                           <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1" />
                         )}
                       </div>
@@ -301,13 +327,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                           <Clock className="w-3 h-3" />
                           <span>
                             {formatRelativeTime(
-                              new Date(notification.createdAt)
+                              new Date(notification.createdAt || notification.timestamp || Date.now())
                             )}
                           </span>
                         </div>
 
                         <div className="flex items-center space-x-1">
-                          {notification.telegramSent && (
+                          {(notification.telegramSent || notification.sentToTelegram) && (
                             <div
                               className="w-2 h-2 bg-green-500 rounded-full"
                               title="Sent via Telegram"
@@ -321,7 +347,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -343,6 +370,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             </Button>
           </div>
         )}
+
+        {/* Trade Details Modal */}
+        <TradeDetailsModal
+          isOpen={isTradeModalOpen}
+          onClose={handleTradeModalClose}
+          notification={selectedNotification}
+        />
       </div>
     );
   }
@@ -427,6 +461,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             >
               <option value="all">All Types</option>
               <option value="trade_alert">Trade Alerts</option>
+              <option value="client_notification">Client Notifications</option>
               <option value="price_alert">Price Alerts</option>
               <option value="portfolio">Portfolio</option>
               <option value="security">Security</option>
@@ -498,7 +533,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                     'p-3 sm:p-4 border-b border-border cursor-pointer transition-all duration-200',
                     'hover:bg-muted/50 active:bg-muted border-l-4',
                     getPriorityColor(notification.priority),
-                    !notification.isRead ? 'bg-accent/20' : 'opacity-75'
+                    !(notification.isRead ?? notification.read ?? false) ? 'bg-accent/20' : 'opacity-75',
+                    notification.data?.trade && 'hover:border-l-primary' // Highlight trade notifications
                   )}
                 >
                   <div className="flex items-start space-x-3">
@@ -515,9 +551,14 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                       <div className="flex items-start justify-between gap-2">
                         <h4 className="text-sm font-medium text-foreground line-clamp-2">
                           {notification.title}
+                          {notification.data?.trade && (
+                            <span className="ml-2 text-xs text-primary">
+                              • Click for details
+                            </span>
+                          )}
                         </h4>
 
-                        {!notification.isRead && (
+                        {!(notification.isRead ?? notification.read ?? false) && (
                           <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1" />
                         )}
                       </div>
@@ -531,13 +572,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
                           <Clock className="w-3 h-3" />
                           <span>
                             {formatRelativeTime(
-                              new Date(notification.createdAt)
+                              new Date(notification.createdAt || notification.timestamp || Date.now())
                             )}
                           </span>
                         </div>
 
                         <div className="flex items-center space-x-1">
-                          {notification.telegramSent && (
+                          {(notification.telegramSent || notification.sentToTelegram) && (
                             <div
                               className="w-2 h-2 bg-green-500 rounded-full"
                               title="Sent via Telegram"
@@ -573,6 +614,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
             </Button>
           </div>
         )}
+
+        {/* Trade Details Modal */}
+        <TradeDetailsModal
+          isOpen={isTradeModalOpen}
+          onClose={handleTradeModalClose}
+          notification={selectedNotification}
+        />
       </div>
     </>
   );

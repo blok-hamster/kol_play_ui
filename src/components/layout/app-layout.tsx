@@ -48,7 +48,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           {/* Main content */}
           <main
             id="main-content"
-            className="flex-1 focus:outline-none pt-20 lg:pt-32"
+            className="flex-1 focus:outline-none pt-24 lg:pt-36"
           >
             <div className="h-full">{children}</div>
           </main>

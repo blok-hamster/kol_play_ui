@@ -40,7 +40,7 @@ const AccountSettingsComponent: React.FC = () => {
   });
 
   const { showSuccess, showError } = useNotifications();
-  const { user } = useUserStore();
+  const { user, updateUserProfile } = useUserStore();
 
   const fetchAccountData = async () => {
     try {
@@ -121,6 +121,15 @@ const AccountSettingsComponent: React.FC = () => {
     try {
       setIsSaving(true);
       await SettingsService.updateUserSettings(settings);
+      
+      // Update the user store with the new profile information
+      if (settings.accountConfig) {
+        updateUserProfile({
+          displayName: settings.accountConfig.displayName,
+          avatar: settings.accountConfig.avatar,
+        });
+      }
+      
       setHasChanges(false);
       showSuccess(
         'Profile Updated',

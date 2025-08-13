@@ -3,6 +3,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -27,6 +28,10 @@ const Modal: React.FC<ModalProps> = ({
   closeOnOverlayClick = true,
   className,
 }) => {
+  // Track mount to avoid SSR/hydration issues when using document in portal
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
   // Close modal on Escape key
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -47,7 +52,7 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const sizeClasses = {
     sm: 'max-w-sm',
@@ -62,8 +67,8 @@ const Modal: React.FC<ModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-20 pb-4">
+  const modalContent = (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -73,7 +78,7 @@ const Modal: React.FC<ModalProps> = ({
       {/* Modal */}
       <div
         className={cn(
-          'relative z-10 w-full max-h-[calc(100vh-6rem)] overflow-hidden bg-background border border-border rounded-lg shadow-xl flex flex-col my-auto',
+          'relative z-10 w-full max-h-[90vh] overflow-hidden bg-background border border-border rounded-lg shadow-xl flex flex-col',
           sizeClasses[size],
           className
         )}
@@ -116,6 +121,8 @@ const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export { Modal };

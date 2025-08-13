@@ -1,6 +1,7 @@
 import apiClient from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/constants';
 import { ApiResponse, TradingSettings, WatchConfig } from '@/types';
+import type { PredictionResult } from '@/types';
 
 export interface SetupCopyTraderResponse {
   userId: string;
@@ -299,6 +300,23 @@ export class FeaturesService {
           },
         },
       };
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Predict trade outcomes for one or multiple token mints
+   */
+  static async predictTrade(params: { mints: string[] }): Promise<
+    ApiResponse<PredictionResult[]>
+  > {
+    try {
+      const response = await apiClient.post<PredictionResult[]>(
+        API_ENDPOINTS.FEATURES.PREDICT_TRADE,
+        params
+      );
+      return response;
     } catch (error: any) {
       throw new Error(apiClient.handleError(error));
     }

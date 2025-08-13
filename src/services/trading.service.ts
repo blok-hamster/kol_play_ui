@@ -34,6 +34,36 @@ export interface SubscribeToKOLRequest {
   };
 }
 
+export interface UpdateUserSubscriptionRequest {
+  kolWallet: string;
+  minAmount?: number;
+  maxAmount?: number;
+  tokenBuyCount?: number;
+  isActive?: boolean;
+  settings?: {
+    enableSlippageProtection?: boolean;
+    maxSlippagePercent?: number;
+    enableDexWhitelist?: boolean;
+    allowedDexes?: string[];
+    enableTokenBlacklist?: boolean;
+    blacklistedTokens?: string[];
+    enableTimeRestrictions?: boolean;
+    tradingHours?: {
+      start: string;
+      end: string;
+      timezone: string;
+    };
+  };
+  type?: "trade" | "watch";
+  watchConfig?: {
+    takeProfitPercentage?: number;
+    stopLossPercentage?: number;
+    enableTrailingStop?: boolean;
+    trailingPercentage?: number;
+    maxHoldTimeMinutes?: number;
+  };
+}
+
 export interface RecentKOLTradesRequest {
   walletAddress: string;
   limit?: number;
@@ -177,6 +207,25 @@ export class TradingService {
       const response = await apiClient.post<{ message: string }>(
         API_ENDPOINTS.FEATURES.UNSUBSCRIBE_FROM_KOL,
         { walletAddress }
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Update user subscription settings
+   */
+  static async updateUserSubscription(
+    request: UpdateUserSubscriptionRequest
+  ): Promise<ApiResponse<UserSubscription>> {
+    try {
+      const response = await apiClient.put<UserSubscription>(
+        API_ENDPOINTS.FEATURES.UPDATE_USER_SUBSCRIPTION,
+        {
+          updateUserSubscription: request,
+        }
       );
       return response;
     } catch (error: any) {

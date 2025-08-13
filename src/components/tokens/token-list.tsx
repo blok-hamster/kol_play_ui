@@ -2,14 +2,16 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, TrendingUp, DollarSign, Clock } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TokenService } from '@/services/token.service';
 import { useTokenStore } from '@/stores/use-token-store';
 import { useLoading } from '@/stores/use-ui-store';
 import { useNotifications } from '@/stores/use-ui-store';
 import { formatNumber, formatRelativeTime, cn } from '@/lib/utils';
+import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
 import TokenDetailModal from './token-detail-modal';
+import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 import type { SearchTokenResult, TokenFilters } from '@/types';
 
 interface TokenListProps {
@@ -45,7 +47,7 @@ const TokenList: React.FC<TokenListProps> = ({
 }) => {
   const router = useRouter();
   const { isLoading, setLoading } = useLoading();
-  const { showError } = useNotifications();
+  const { showError, showSuccess } = useNotifications();
   const { cacheTokens } = useTokenStore();
 
   // Component state
@@ -55,6 +57,13 @@ const TokenList: React.FC<TokenListProps> = ({
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any | null>(null);
+
+  // Trade config prompt state
+  const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
+  const [pendingBuyToken, setPendingBuyToken] = useState<SearchTokenResult | null>(null);
+
+  // Instant buy loading state
+  const [buyingTokens, setBuyingTokens] = useState<Set<string>>(new Set());
 
   // Filter state
   const [filters, setFilters] = useState<TokenListFilters>({
@@ -284,14 +293,72 @@ const TokenList: React.FC<TokenListProps> = ({
     setIsModalOpen(true);
   }, []);
 
-  // Handle quick buy
+  // Handle quick buy with instant trading
   const handleQuickBuy = useCallback(
-    (token: SearchTokenResult, e: React.MouseEvent) => {
+    async (token: SearchTokenResult, e: React.MouseEvent) => {
       e.stopPropagation();
-      router.push(`/swap?token=${token.mint}`);
+
+      // Check if already buying this token
+      if (buyingTokens.has(token.mint)) {
+        return;
+      }
+
+      try {
+        // First check if user has trade config
+        const configCheck = await checkTradeConfig();
+        
+        if (!configCheck.hasConfig) {
+          // Show trade config prompt
+          setPendingBuyToken(token);
+          setShowTradeConfigPrompt(true);
+          return;
+        }
+
+        // Add token to buying set
+        setBuyingTokens(prev => new Set(prev).add(token.mint));
+
+        // Execute instant buy
+        const result = await executeInstantBuy(token.mint, token.symbol);
+
+        if (result.success) {
+          showSuccess(
+            'Buy Order Executed',
+            `Successfully bought ${token.symbol || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
+          );
+
+          // Optional: Show transaction details
+          if (result.result?.transactionId) {
+            console.log('Transaction ID:', result.result.transactionId);
+          }
+        } else {
+          showError(
+            'Buy Order Failed',
+            result.error || 'Failed to execute buy order'
+          );
+        }
+      } catch (error: any) {
+        console.error('Buy order error:', error);
+        showError(
+          'Buy Order Error',
+          error.message || 'An unexpected error occurred'
+        );
+      } finally {
+        // Remove token from buying set
+        setBuyingTokens(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(token.mint);
+          return newSet;
+        });
+      }
     },
-    [router]
+    [buyingTokens, showError, showSuccess]
   );
+
+  // Handle trade config prompt close
+  const handleTradeConfigPromptClose = useCallback(() => {
+    setShowTradeConfigPrompt(false);
+    setPendingBuyToken(null);
+  }, []);
 
   // Get timeframe display text
   const getTimeframeText = useCallback((timeframe: string) => {
@@ -364,6 +431,8 @@ const TokenList: React.FC<TokenListProps> = ({
   // Render token card
   const renderTokenCard = useCallback(
     (token: SearchTokenResult, index: number) => {
+      const isBuying = buyingTokens.has(token.mint);
+      
       // New horizontal card design matching the uploaded image
       return (
         <div
@@ -440,13 +509,23 @@ const TokenList: React.FC<TokenListProps> = ({
             {/* Right section - Buy button */}
             <Button
               size="sm"
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium flex items-center space-x-2"
+              disabled={isBuying}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-6 py-2 rounded-lg font-medium flex items-center space-x-2 min-w-[80px]"
               onClick={e => handleQuickBuy(token, e)}
             >
-              <span className="w-4 h-4 bg-green-400 rounded-full flex items-center justify-center">
-                <span className="text-green-900 font-bold text-xs">⚡</span>
-              </span>
-              <span>Buy</span>
+              {isBuying ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Buying...</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-4 h-4 bg-green-400 rounded-full flex items-center justify-center">
+                    <span className="text-green-900 font-bold text-xs">⚡</span>
+                  </span>
+                  <span>Buy</span>
+                </>
+              )}
             </Button>
           </div>
 
@@ -524,7 +603,7 @@ const TokenList: React.FC<TokenListProps> = ({
         </div>
       );
     },
-    [category, handleTokenClick, handleQuickBuy]
+    [category, handleTokenClick, handleQuickBuy, buyingTokens]
   );
 
   return (
@@ -718,6 +797,13 @@ const TokenList: React.FC<TokenListProps> = ({
           tokenData={selectedToken}
         />
       )}
+
+      {/* Trade Config Prompt */}
+      <TradeConfigPrompt
+        isOpen={showTradeConfigPrompt}
+        onClose={handleTradeConfigPromptClose}
+        tokenSymbol={pendingBuyToken?.symbol || pendingBuyToken?.name}
+      />
     </div>
   );
 };

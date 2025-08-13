@@ -5,18 +5,43 @@ import AppLayout from '@/components/layout/app-layout';
 import { Button } from '@/components/ui/button';
 import { useModal } from '@/stores/use-ui-store';
 import { useUserStore } from '@/stores/use-user-store';
-import {
-  TrendingUp,
-  Search,
-  ArrowRightLeft,
-  PieChart,
-  MessageCircle,
-  Shield,
-} from 'lucide-react';
+import PredictTradeInput from '@/components/features/predict-trade-input';
+import KOLList from '@/components/trading/kol-list';
+import LiveTradesFeed from '@/components/trading/live-trades-feed';
+import RotatingSubheader from '../components/features/rotating-subheader';
+import { LayoutGrid, List as ListIcon } from 'lucide-react';
+import { CompactLiveTrades } from '@/components/trading/compact-live-trades';
+import { useNotifications } from '@/stores/use-ui-store';
+import { useSearchParams } from 'next/navigation';
 
 const HomePage: React.FC = () => {
   const { openModal } = useModal();
   const { isAuthenticated, user } = useUserStore();
+  const { showInfo } = useNotifications();
+  const searchParams = useSearchParams();
+  const [isKOLsExpanded, setIsKOLsExpanded] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+  const [kolViewMode, setKolViewMode] = React.useState<'grid' | 'list'>('grid');
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 767px)');
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mql.matches);
+    // Prefer list on mobile for denser info
+    if (mql.matches) setKolViewMode('list');
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  // If redirected here for sign-in, open modal and show message
+  React.useEffect(() => {
+    const shouldPromptSignin = searchParams?.get('signin') === '1';
+    if (shouldPromptSignin) {
+      openModal('auth');
+      showInfo('Please sign in', 'Sign in to access this page.');
+    }
+  }, [searchParams, openModal, showInfo]);
 
   const handleGetStarted = () => {
     if (isAuthenticated) {
@@ -27,206 +52,103 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleTakeTour = () => {
-    openModal('onboarding');
-  };
+  // Removed tour handler and tour button from hero
 
   return (
     <AppLayout>
       <div className="min-h-full">
         {/* Hero Section */}
-        <div className="relative bg-gradient-to-br from-background via-background to-muted/30">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-14">
             <div className="text-center">
-              <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
-                The Ultimate{' '}
-                <span className="bg-accent-gradient bg-clip-text text-transparent">
-                  Solana
-                </span>{' '}
-                Copy Trading Platform
+              <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight tracking-tight">
+                <span className="block bg-accent-gradient bg-clip-text text-transparent">Machine Learning Powered</span>
+                <span className="block">Solana Copy Trading</span>
               </h1>
+              {/* Rotating subheader */}
+              <RotatingSubheader className="mb-6 md:mb-8" />
 
-              <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-                Follow top KOLs, copy their trades automatically, and maximize
-                your DeFi profits on Solana. Advanced trading tools, real-time
-                analytics, and AI-powered insights.
-              </p>
+              {/* Removed hero CTA button as requested */}
+              {/* Removed authenticated status hint */}
+            </div>
+          </div>
+        </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        {/* Prediction Section */}
+        <section className="py-6 md:py-10">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p className="mb-2 md:mb-3 text-sm md:text-base text-muted-foreground/90">
+              Experimental feature: ML predictions are a work in progress and may be inaccurate.
+            </p>
+            <PredictTradeInput />
+            <CompactLiveTrades className="mt-3" limit={24} defaultExpanded={false} />
+          </div>
+        </section>
+
+        {/* Featured KOLs with Live Trades */}
+        <section className="py-10 md:py-16 bg-muted/20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
+              <h2 className="text-2xl md:text-4xl font-bold text-foreground">Featured KOLs</h2>
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center rounded-lg border border-border p-1 bg-background">
+                  <Button
+                    size="sm"
+                    variant={kolViewMode === 'grid' ? 'default' : 'ghost'}
+                    onClick={() => setKolViewMode('grid')}
+                    aria-pressed={kolViewMode === 'grid'}
+                    className="h-8 px-2"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={kolViewMode === 'list' ? 'default' : 'ghost'}
+                    onClick={() => setKolViewMode('list')}
+                    aria-pressed={kolViewMode === 'list'}
+                    className="h-8 px-2"
+                  >
+                    <ListIcon className="w-4 h-4" />
+                  </Button>
+                </div>
                 <Button
-                  size="lg"
-                  variant="gradient"
-                  onClick={handleGetStarted}
-                  className="text-lg px-8 py-4 text-white"
-                >
-                  {isAuthenticated
-                    ? `Welcome Back, ${user?.firstName}`
-                    : 'Get Started Free'}
-                </Button>
-
-                <Button
-                  size="lg"
+                  size="sm"
                   variant="outline"
-                  onClick={handleTakeTour}
-                  className="text-lg px-8 py-4"
+                  onClick={() => setIsKOLsExpanded(prev => !prev)}
+                  aria-expanded={isKOLsExpanded}
                 >
-                  Take Platform Tour
+                  {isKOLsExpanded ? 'Collapse' : 'Expand'}
                 </Button>
               </div>
+            </div>
+            <div className={`${isKOLsExpanded ? 'max-h-none' : 'max-h-[55vh] md:max-h-[60vh]'} overflow-y-auto pr-1 bg-background border border-border rounded-xl p-3 md:p-4 shadow-sm`}>
+              <KOLList showHeader={false} compactMode={isMobile} viewMode={kolViewMode} />
+            </div>
 
-              {isAuthenticated && (
-                <p className="text-sm text-muted-foreground mt-4">
-                  Your trading wallet and AI assistant are ready!
-                </p>
-              )}
+            <div className="mt-10 md:mt-12">
+              <LiveTradesFeed showHeader={false} limit={isMobile ? 15 : 30} hideEmptyState hideStatus compactMode={isMobile} />
             </div>
           </div>
-        </div>
-
-        {/* Features Section */}
-        <div className="py-20 bg-muted/20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-                Powerful Trading Features
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Everything you need to succeed in Solana DeFi trading, powered
-                by cutting-edge technology.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {/* KOL Copy Trading */}
-              <div className="bg-background rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-accent-gradient rounded-lg flex items-center justify-center mb-4">
-                  <TrendingUp className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  KOL Copy Trading
-                </h3>
-                <p className="text-muted-foreground">
-                  Follow successful traders and automatically copy their
-                  positions with customizable risk settings.
-                </p>
-              </div>
-
-              {/* Token Discovery */}
-              <div className="bg-background rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mb-4">
-                  <Search className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Token Discovery
-                </h3>
-                <p className="text-muted-foreground">
-                  Find trending tokens, volume leaders, and new launches with
-                  advanced filtering and analytics.
-                </p>
-              </div>
-
-              {/* Advanced Swap */}
-              <div className="bg-background rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mb-4">
-                  <ArrowRightLeft className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Advanced Swap
-                </h3>
-                <p className="text-muted-foreground">
-                  Swap SOL for tokens with take-profit, stop-loss, and real-time
-                  price charts.
-                </p>
-              </div>
-
-              {/* Portfolio Analytics */}
-              <div className="bg-background rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-4">
-                  <PieChart className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Portfolio Analytics
-                </h3>
-                <p className="text-muted-foreground">
-                  Track your P&L, transaction history, and performance metrics
-                  with detailed insights.
-                </p>
-              </div>
-
-              {/* AI Assistant */}
-              <div className="bg-background rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mb-4">
-                  <MessageCircle className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  AI Trading Assistant
-                </h3>
-                <p className="text-muted-foreground">
-                  Get personalized trading insights and portfolio analysis from
-                  your AI assistant.
-                </p>
-              </div>
-
-              {/* Security */}
-              <div className="bg-background rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center mb-4">
-                  <Shield className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Bank-Grade Security
-                </h3>
-                <p className="text-muted-foreground">
-                  Your funds are protected with enterprise-level security and
-                  non-custodial architecture.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Section */}
-        <div className="py-16 bg-background">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-              <div>
-                <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-                  $50M+
-                </div>
-                <div className="text-muted-foreground">Total Volume Traded</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-                  25K+
-                </div>
-                <div className="text-muted-foreground">Active Traders</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-                  150+
-                </div>
-                <div className="text-muted-foreground">Top KOLs</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        </section>
+        {/* Removed Features and Stats sections as requested */}
 
         {/* CTA Section */}
-        <div className="py-20 bg-gradient-to-br from-accent-from/10 to-accent-to/10">
+        <div className="py-16 md:py-20 bg-gradient-to-br from-accent-from/10 to-accent-to/10">
           <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 md:mb-4">
               Ready to Start Copy Trading?
             </h2>
-            <p className="text-lg text-muted-foreground mb-8">
+            <p className="text-base md:text-lg text-muted-foreground mb-6 md:mb-8">
               Join thousands of traders already using KOL Play to maximize their
               Solana DeFi profits.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
               <Button
                 size="lg"
                 variant="gradient"
                 onClick={handleGetStarted}
-                className="text-lg px-8 py-4 text-white"
+                className="text-base md:text-lg px-7 md:px-8 py-4 text-white"
               >
                 Start Trading Now
               </Button>
@@ -234,10 +156,10 @@ const HomePage: React.FC = () => {
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => window.open('/demo', '_blank')}
-                className="text-lg px-8 py-4"
+                onClick={() => window.open('/kol-trades-demo', '_self')}
+                className="text-base md:text-lg px-7 md:px-8 py-4"
               >
-                View Demo
+                View Live Trades
               </Button>
             </div>
           </div>

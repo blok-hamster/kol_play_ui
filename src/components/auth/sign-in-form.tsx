@@ -36,7 +36,7 @@ const SignInForm: React.FC<SignInFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { signIn } = useUserStore();
-  const { showSuccess, showError } = useNotifications();
+  const { showSuccess, showError, showInfo } = useNotifications();
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -91,7 +91,20 @@ const SignInForm: React.FC<SignInFormProps> = ({
 
     try {
       await signIn(formData.email, formData.password);
-      showSuccess('Welcome back!', SUCCESS_MESSAGES.LOGIN_SUCCESS);
+      
+      // Check if user has account details errors after signin
+      const { user } = useUserStore.getState();
+      if (user?.accountDetails?._hasError) {
+        // Show success for signin but info about account details
+        showSuccess('Welcome back!', SUCCESS_MESSAGES.LOGIN_SUCCESS);
+        showInfo(
+          'Account Details Unavailable',
+          'Your account details could not be loaded. Use the refresh button in the wallet dropdown to try again.'
+        );
+      } else {
+        showSuccess('Welcome back!', SUCCESS_MESSAGES.LOGIN_SUCCESS);
+      }
+      
       onSuccess?.();
     } catch (error: any) {
       setErrors({ general: error.message });

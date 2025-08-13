@@ -11,7 +11,6 @@ import {
   UserCircle,
   TrendingUp,
   Search,
-  ArrowRightLeft,
   PieChart,
   MessageCircle,
   CheckCircle,
@@ -132,7 +131,7 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({
     {
       id: 'token-discovery',
       title: 'Discover Tokens',
-      description: 'Find trending and high-potential Solana tokens',
+      description: 'Search and analyze tokens with instant buying',
       icon: <Search className="h-8 w-8 text-accent-from" />,
       content: (
         <div className="space-y-4">
@@ -141,85 +140,36 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({
               <Search className="h-8 w-8 text-white" />
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-2">
-              Token Discovery
+              Token Discovery & Analysis
             </h3>
             <p className="text-muted-foreground mb-4">
-              Explore trending tokens, volume leaders, and new launches on
-              Solana.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3">
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium text-foreground">
-                🔥 Trending Tokens
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Most talked about tokens right now
-              </p>
-            </div>
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium text-foreground">
-                📈 Volume Leaders
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Tokens with highest trading volume
-              </p>
-            </div>
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium text-foreground">
-                ✨ New Launches
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Recently launched tokens to watch
-              </p>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'swap-interface',
-      title: 'Swap Tokens',
-      description: 'Trade SOL for tokens with advanced features',
-      icon: <ArrowRightLeft className="h-8 w-8 text-accent-from" />,
-      content: (
-        <div className="space-y-4">
-          <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-accent-gradient rounded-full flex items-center justify-center mb-4">
-              <ArrowRightLeft className="h-8 w-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">
-              Advanced Swap Interface
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              Swap SOL for any token with take-profit and stop-loss features.
+              Search for tokens, analyze their metrics, and buy instantly with one click.
             </p>
           </div>
 
           <div className="space-y-3">
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-sm font-medium text-foreground">
-                ⚡ Instant Swaps
+                🔍 Smart Search
               </p>
               <p className="text-xs text-muted-foreground">
-                Fast execution with customizable slippage
+                Find tokens by name, symbol, or contract address
               </p>
             </div>
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-sm font-medium text-foreground">
-                🎯 Take Profit / Stop Loss
+                ⚡ Instant Buy
               </p>
               <p className="text-xs text-muted-foreground">
-                Set automatic exit strategies
+                Buy tokens instantly with your pre-configured settings
               </p>
             </div>
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-sm font-medium text-foreground">
-                📊 Real-time Charts
+                📊 Real-time Data
               </p>
               <p className="text-xs text-muted-foreground">
-                View price action while trading
+                View market cap, liquidity, and trading volume
               </p>
             </div>
           </div>

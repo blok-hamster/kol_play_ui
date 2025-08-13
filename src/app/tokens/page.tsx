@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/layout/app-layout';
 import TokenList from '@/components/tokens/token-list';
-import { TrendingUp, DollarSign, Clock, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { TrendingUp, DollarSign, Clock } from 'lucide-react';
 
 interface CategoryTab {
   id: 'trending' | 'volume' | 'latest';
@@ -15,10 +13,20 @@ interface CategoryTab {
 }
 
 export default function TokensPage() {
-  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<
     'trending' | 'volume' | 'latest'
   >('trending');
+
+  // Treat controls as regular buttons on mobile (no tab semantics)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 767px)');
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   const categories: CategoryTab[] = [
     {
@@ -54,43 +62,35 @@ export default function TokensPage() {
 
   return (
     <AppLayout>
-      <div className="p-6">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Token Discovery
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Explore trending tokens, high volume movers, and the latest
-              launches on Solana
-            </p>
-          </div>
-
-          <Button
-            onClick={() => router.push('/tokens/search')}
-            variant="outline"
-            className="flex items-center space-x-2"
-          >
-            <Search className="w-4 h-4" />
-            <span>Advanced Search</span>
-          </Button>
-        </div>
+      <div className="p-4 md:p-6">
+        <h1 className="sr-only">Tokens</h1>
 
         {/* Category Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div
+          className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8"
+          role={isMobile ? undefined : 'tablist'}
+          aria-label={isMobile ? undefined : 'Token categories'}
+        >
           {categories.map(category => (
             <button
               key={category.id}
+              id={`tab-${category.id}`}
               className={`
-                text-left p-4 rounded-lg border-2 transition-all duration-200
+                w-full text-left p-3 sm:p-4 md:min-h-[56px] rounded-lg border md:border-2 transition-all duration-200
                 ${
                   activeCategory === category.id
                     ? 'border-primary bg-primary/10'
                     : 'border-border hover:border-muted-foreground bg-background'
                 }
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background
               `}
               onClick={() => handleCategoryClick(category.id)}
+              role={isMobile ? undefined : 'tab'}
+              aria-selected={isMobile ? undefined : activeCategory === category.id}
+              tabIndex={0}
+              title={`${category.label} tokens`}
+              type="button"
+              aria-controls={isMobile ? undefined : 'category-panel'}
             >
               <div className="flex items-center space-x-3">
                 <div
@@ -106,10 +106,10 @@ export default function TokensPage() {
                   {category.icon}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">
+                  <h3 className="font-semibold text-foreground text-base md:text-lg">
                     {category.label}
                   </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                     {category.description}
                   </p>
                 </div>
@@ -121,16 +121,16 @@ export default function TokensPage() {
         {/* Active Category Display */}
         <div className="bg-background rounded-lg border border-border">
           {/* Category Header */}
-          <div className="px-6 py-4 border-b border-border">
+          <div className="px-4 py-3 md:px-6 md:py-4 border-b border-border">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-primary/10 text-primary rounded-lg">
                 {activeTab.icon}
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-foreground">
+                <h2 className="text-lg md:text-xl font-semibold text-foreground">
                   {activeTab.label} Tokens
                 </h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {activeTab.description}
                 </p>
               </div>
@@ -138,7 +138,12 @@ export default function TokensPage() {
           </div>
 
           {/* Token List Content */}
-          <div className="p-6">
+          <div
+            className="p-4 md:p-6"
+            role={isMobile ? undefined : 'tabpanel'}
+            id={isMobile ? undefined : 'category-panel'}
+            aria-labelledby={isMobile ? undefined : `tab-${activeCategory}`}
+          >
             <TokenList
               category={activeCategory}
               title=""

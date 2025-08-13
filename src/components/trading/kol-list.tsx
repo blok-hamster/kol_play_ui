@@ -9,8 +9,9 @@ import React, {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { TradingService } from '@/services/trading.service';
-import { useSubscriptions, useLoading, useNotifications } from '@/stores';
+import { useSubscriptions, useLoading, useNotifications, useKOLStore } from '@/stores';
 import { useLiveTradesUpdates } from '@/hooks';
+import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
 import { APP_CONFIG } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -27,6 +28,13 @@ import {
   SortAsc,
   SortDesc,
   Eye,
+  Activity,
+  Brain,
+  Target,
+  Twitter as TwitterIcon,
+  Send as TelegramIcon,
+  MessageCircle as DiscordIcon,
+  Circle as CircleIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import KOLTradesModal from './kol-trades-modal';
@@ -37,6 +45,7 @@ interface KOLListProps {
   limit?: number;
   showHeader?: boolean;
   compactMode?: boolean;
+  viewMode?: 'grid' | 'list';
 }
 
 interface KOLListFilters extends SearchFilters {
@@ -47,10 +56,50 @@ interface KOLListFilters extends SearchFilters {
 interface KOLWithTrades extends KOLWallet {
   recentTrades?: KOLTrade[];
   tradesLoading?: boolean;
-  socialLinks?: {
-    twitter?: string;
-    telegram?: string;
-  };
+}
+
+// Helper: extract Twitter/X username from URL and build an avatar URL via Unavatar
+function extractTwitterUsername(profileUrl?: string): string | null {
+  if (!profileUrl) return null;
+  try {
+    const url = new URL(profileUrl);
+    const hostname = url.hostname.toLowerCase();
+    const isTwitter = hostname === 'twitter.com' || hostname === 'www.twitter.com';
+    const isX = hostname === 'x.com' || hostname === 'www.x.com';
+    if (!isTwitter && !isX) return null;
+
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    if (pathParts.length === 0) return null;
+    const username = pathParts[0];
+    if (!username) return null;
+
+    // Strip possible trailing ".json" or other artifacts
+    return username.replace(/\.json$/i, '');
+  } catch {
+    return null;
+  }
+}
+
+function getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
+  const username = extractTwitterUsername(twitterUrl);
+  if (!username) return undefined;
+  const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
+  if (fallbackSeed && fallbackSeed.trim().length > 0) {
+    const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
+    return `${base}?fallback=${encodeURIComponent(fallback)}`;
+  }
+  return base;
+}
+
+function findTwitterUrlFromText(text?: string): string | undefined {
+  if (!text) return undefined;
+  const match = text.match(/https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+/i);
+  return match ? match[0] : undefined;
+}
+
+function findTwitterUrlFromKOL(kol: KOLWallet): string | undefined {
+  // Prefer explicit social link, otherwise parse any Twitter/X URL from description.
+  return kol.socialLinks?.twitter || findTwitterUrlFromText(kol.description);
 }
 
 export default function KOLList({
@@ -58,11 +107,25 @@ export default function KOLList({
   limit,
   showHeader = true,
   compactMode = false,
+  viewMode = 'grid',
 }: KOLListProps) {
+  console.log('🚀 KOLList component initialized');
+  
   const router = useRouter();
   const { isSubscribedToKOL } = useSubscriptions();
   const { isLoading, setLoading } = useLoading();
   const { showError } = useNotifications();
+
+  // Add real-time trade data
+  const { recentTrades: allRecentTrades, isConnected: isTradeSocketConnected } = useKOLTradeSocket();
+  const { setKOLs } = useKOLStore();
+
+  console.log('🔍 KOLList state:', {
+    allRecentTradesCount: allRecentTrades.length,
+    isTradeSocketConnected,
+    limit,
+    showHeader
+  });
 
   // State
   const [kolWallets, setKolWallets] = useState<KOLWithTrades[]>([]);
@@ -83,6 +146,15 @@ export default function KOLList({
   const hasLoadedInitialData = useRef(false);
   const isCurrentlyFetching = useRef(false);
 
+  // Stable references to prevent unnecessary re-renders
+  const stableShowError = useCallback((title: string, message: string) => {
+    showError(title, message);
+  }, [showError]);
+
+  const stableSetLoading = useCallback((key: string, loading: boolean) => {
+    setLoading(key, loading);
+  }, [setLoading]);
+
   // Fetch data on mount and filter changes
   useEffect(() => {
     // Prevent multiple simultaneous calls
@@ -90,54 +162,149 @@ export default function KOLList({
       return;
     }
 
+    // Only fetch on initial load, page change, search change, or limit change
+    // Don't fetch for sort changes (handled client-side)
+    const shouldFetch = !hasLoadedInitialData.current || 
+                       (filters.page && filters.page > 1) || 
+                       searchQuery !== '';
+
+    if (!shouldFetch) {
+      return;
+    }
+
     const fetchKOLWallets = async () => {
       isCurrentlyFetching.current = true;
 
       try {
-        setLoading('kolList', true);
+        stableSetLoading('kolList', true);
 
-        // Build search filters with proper optional property handling
+        // Build search filters - only include what's necessary
         const searchFilters: Partial<SearchFilters> = {};
-        if (filters.page) searchFilters.page = filters.page;
-        if (filters.limit) searchFilters.limit = filters.limit;
-        if (searchQuery) searchFilters.query = searchQuery;
-        if (filters.sortBy) searchFilters.sortBy = filters.sortBy;
-        if (filters.sortOrder) searchFilters.sortOrder = filters.sortOrder;
+        
+        if (filters.page) {
+          searchFilters.page = filters.page;
+        }
+        
+        if (filters.limit) {
+          searchFilters.limit = filters.limit;
+        }
+        
+        if (searchQuery.trim()) {
+          searchFilters.query = searchQuery.trim();
+        }
 
-        const response = await TradingService.getKOLWallets(
-          searchFilters as SearchFilters
-        );
+        const response = await TradingService.getKOLWallets(searchFilters as SearchFilters);
 
         let newKOLs: KOLWithTrades[];
         if (filters.page === 1) {
-          newKOLs = response.data.map(kol => ({
+          newKOLs = response.data.map(kol => {
+            const twitterUrl = findTwitterUrlFromKOL(kol);
+            const twitterAvatar = getTwitterAvatarUrl(
+              twitterUrl,
+              kol.name || kol.walletAddress || 'KOL'
+            );
+            const preferredAvatar = twitterAvatar ?? kol.avatar;
+            return {
             ...kol,
+              ...(preferredAvatar ? { avatar: preferredAvatar } as Partial<KOLWithTrades> : {}),
             recentTrades: [],
             tradesLoading: false,
-          }));
+            } as KOLWithTrades;
+          });
+          
+          // Prime store with fetched KOLs (use original response to preserve exact shape)
+          try { setKOLs(response.data); } catch {}
+          
           setKolWallets(newKOLs);
         } else {
-          newKOLs = response.data.map(kol => ({
+          newKOLs = response.data.map(kol => {
+            const twitterUrl = findTwitterUrlFromKOL(kol);
+            const twitterAvatar = getTwitterAvatarUrl(
+              twitterUrl,
+              kol.name || kol.walletAddress || 'KOL'
+            );
+            const preferredAvatar = twitterAvatar ?? kol.avatar;
+            return {
             ...kol,
+              ...(preferredAvatar ? { avatar: preferredAvatar } as Partial<KOLWithTrades> : {}),
             recentTrades: [],
             tradesLoading: false,
-          }));
+            } as KOLWithTrades;
+          });
+          try { setKOLs(response.data); } catch {}
           setKolWallets(prev => [...prev, ...newKOLs]);
         }
 
         setHasMore(response.data.length === filters.limit);
         hasLoadedInitialData.current = true;
       } catch (error: any) {
-        showError('Load Error', error.message || 'Failed to load KOL wallets');
+        stableShowError('Load Error', error.message || 'Failed to load KOL wallets');
         console.error('Failed to fetch KOL wallets:', error);
       } finally {
-        setLoading('kolList', false);
+        stableSetLoading('kolList', false);
         isCurrentlyFetching.current = false;
       }
     };
 
     fetchKOLWallets();
-  }, [filters.page, filters.sortBy, filters.sortOrder, searchQuery]);
+  }, [
+    filters.page,
+    filters.limit,
+    searchQuery,
+    stableSetLoading,
+    stableShowError,
+    isLoading,
+    setKOLs
+  ]);
+
+  // Separate effect for sorting existing KOLs when subscription status might change
+  const sortedKolWallets = useMemo(() => {
+    const sorted = [...kolWallets];
+    
+    // Sort KOLs: subscribed first, then by selected criteria
+    sorted.sort((a, b) => {
+      const aIsSubscribed = isSubscribedToKOL(a.walletAddress || '');
+      const bIsSubscribed = isSubscribedToKOL(b.walletAddress || '');
+      
+      // If subscription status is different, prioritize subscribed
+      if (aIsSubscribed !== bIsSubscribed) {
+        return bIsSubscribed ? 1 : -1;
+      }
+      
+      // If both have same subscription status, sort by selected criteria
+      const sortBy = filters.sortBy || 'subscriberCount';
+      const sortOrder = filters.sortOrder || 'desc';
+      
+      let aValue: number = 0;
+      let bValue: number = 0;
+      
+      switch (sortBy) {
+        case 'subscriberCount':
+          aValue = a.subscriberCount || 0;
+          bValue = b.subscriberCount || 0;
+          break;
+        case 'totalTrades':
+          aValue = a.totalTrades || 0;
+          bValue = b.totalTrades || 0;
+          break;
+        case 'totalPnL':
+          aValue = a.totalPnL || 0;
+          bValue = b.totalPnL || 0;
+          break;
+        case 'winRate':
+          aValue = a.winRate || 0;
+          bValue = b.winRate || 0;
+          break;
+        default:
+          aValue = a.subscriberCount || 0;
+          bValue = b.subscriberCount || 0;
+      }
+      
+      return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
+    });
+    
+    return sorted;
+  }, [kolWallets, filters.sortBy, filters.sortOrder, isSubscribedToKOL]);
 
   // Real-time updates for live trades
   useLiveTradesUpdates({
@@ -160,7 +327,7 @@ export default function KOLList({
   const handleSort = useCallback((sortBy: KOLListFilters['sortBy']) => {
     setFilters(prev => ({
       ...prev,
-      sortBy,
+      sortBy: sortBy || 'subscriberCount',
       sortOrder:
         prev.sortBy === sortBy && prev.sortOrder === 'desc' ? 'asc' : 'desc',
       page: 1,
@@ -170,21 +337,86 @@ export default function KOLList({
   // Handle load more
   const handleLoadMore = useCallback(() => {
     if (!isLoading('kolList') && hasMore) {
-      setFilters(prev => ({ ...prev, page: prev.page + 1 }));
+      setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }));
     }
   }, [isLoading, hasMore]);
+
+  // Function to get recent trades for a specific KOL
+  const getKOLRecentTrades = useCallback((kolWallet: string) => {
+    const filtered = allRecentTrades
+      .filter(trade => trade.kolWallet?.toLowerCase() === kolWallet.toLowerCase())
+      .slice(0, 3); // Show last 3 trades
+
+    // Debug logging for recent trades
+    console.log(`🔍 KOL List - Recent trades for ${kolWallet}:`, {
+      totalTrades: allRecentTrades.length,
+      filteredTrades: filtered.length,
+      trades: filtered.map(trade => {
+        // Get prediction from either top-level or nested in tradeData
+        const prediction = trade.prediction || (trade.tradeData as any)?.prediction;
+        const isBuyTrade = (trade.tradeData?.tradeType ?? 'sell') === 'buy';
+        const shouldShowPrediction = prediction && isBuyTrade;
+        return {
+          id: trade.id,
+          kolWallet: trade.kolWallet,
+          tradeType: trade.tradeData?.tradeType,
+          dexProgram: trade.tradeData?.dexProgram, // Add dexProgram info
+          rawAmountIn: trade.tradeData?.amountIn,
+          rawAmountOut: trade.tradeData?.amountOut,
+          displayedSOLAmount: (() => {
+            const isBuy = (trade.tradeData?.tradeType ?? 'sell') === 'buy';
+            return isBuy ? trade.tradeData?.amountOut : trade.tradeData?.amountIn;
+          })(),
+          topLevelPrediction: trade.prediction,
+          nestedPrediction: (trade.tradeData as any)?.prediction,
+          extractedPrediction: prediction,
+          isBuyTrade: isBuyTrade,
+          shouldShowPrediction: shouldShowPrediction,
+          hasPrediction: !!prediction,
+          predictionDetails: prediction ? {
+            classLabel: prediction.classLabel,
+            probability: prediction.probability,
+            probabilityPercentage: (prediction.probability * 100).toFixed(1) + '%'
+          } : 'No prediction'
+        };
+      })
+    });
+
+    return filtered;
+  }, [allRecentTrades]);
 
   // Render KOL card
   const renderKOLCard = useCallback(
     (kol: KOLWithTrades) => {
       const isSubscribed = isSubscribedToKOL(kol.walletAddress || '');
+      const recentTrades = kol.walletAddress ? getKOLRecentTrades(kol.walletAddress) : [];
+      const twitterUrl = findTwitterUrlFromKOL(kol);
 
       return (
         <div
           key={kol.walletAddress || `kol-${Math.random()}`}
-          className="bg-background border border-border rounded-xl p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group"
+          className={`bg-background border rounded-xl p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group ${
+            isSubscribed 
+              ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' 
+              : 'border-border'
+          }`}
           onClick={() => kol.walletAddress && handleKOLClick(kol)}
         >
+          {/* Subscribed badge */}
+          {isSubscribed && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 px-3 py-1 bg-primary/10 rounded-full">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                  <span className="text-xs font-medium text-primary">Subscribed</span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Priority KOL
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Main content row */}
           <div className="flex items-center justify-between mb-3">
             {/* Left section - KOL info */}
@@ -194,10 +426,14 @@ export default function KOLList({
                 <img
                   src={kol.avatar}
                   alt={kol.name || 'KOL Avatar'}
-                  className="w-12 h-12 rounded-full flex-shrink-0 border-2 border-muted"
+                  className={`w-12 h-12 rounded-full flex-shrink-0 border-2 ${
+                    isSubscribed ? 'border-primary' : 'border-muted'
+                  }`}
                 />
               ) : (
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 border-muted">
+                <div className={`w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 ${
+                  isSubscribed ? 'border-primary' : 'border-muted'
+                }`}>
                   <span className="text-primary-foreground font-bold text-sm">
                     {(
                       kol.name ||
@@ -231,20 +467,17 @@ export default function KOLList({
                       </svg>
                     </div>
                   )}
+                  {/* Real-time indicator */}
+                  {isTradeSocketConnected && recentTrades.length > 0 && (
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Live trades available" />
+                  )}
                 </div>
                 <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                  <span>
-                    {(kol.subscriberCount || 0).toLocaleString()} followers
-                  </span>
                   <span className="font-mono">
                     {kol.walletAddress
                       ? `${kol.walletAddress.slice(0, 4)}...${kol.walletAddress.slice(-4)}`
                       : 'Unknown'}
                   </span>
-                  <div className="flex items-center space-x-1">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                    <span>{kol.totalTrades?.toLocaleString() || 0} trades</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -258,44 +491,115 @@ export default function KOLList({
             </div>
           </div>
 
+          {/* Recent Trades Section - hide in list view */}
+          {viewMode !== 'list' && recentTrades.length > 0 && (
+            <div className="mb-3 p-3 bg-muted/20 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-medium text-muted-foreground flex items-center space-x-1">
+                  <Activity className="w-3 h-3" />
+                  <span>Recent Live Trades</span>
+                </h4>
+                <div className="flex items-center space-x-1 text-xs text-green-600">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  <span>Live</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                {recentTrades.map((trade, idx) => (
+                  <div key={`${trade.id}-${idx}`} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          (trade.tradeData?.tradeType ?? 'sell') === 'buy' ? 'bg-green-500' : 'bg-red-500'
+                        }`} />
+                        {/* Token pill: image + symbol/name fallback to mint */}
+                        {(trade.tradeData?.symbol || trade.tradeData?.name || trade.tradeData?.image || trade.tradeData?.mint) && (
+                          <div className="flex items-center space-x-1">
+                            {trade.tradeData?.image && (
+                              <img src={trade.tradeData.image} alt={trade.tradeData.symbol || trade.tradeData.name || 'Token'} className="w-3.5 h-3.5 rounded" />
+                            )}
+                            <span className="font-medium">
+                              {(() => {
+                                const name = trade.tradeData?.name?.trim();
+                                const symbol = trade.tradeData?.symbol?.trim();
+                                if (name && symbol) return `${name} (${symbol})`;
+                                if (name) return name;
+                                if (symbol) return symbol;
+                                return trade.tradeData?.mint ? `${trade.tradeData.mint.slice(0,4)}...${trade.tradeData.mint.slice(-4)}` : 'Token';
+                              })()}
+                            </span>
+                          </div>
+                        )}
+                        <span className="text-muted-foreground">
+                          {(trade.tradeData?.tradeType ?? 'sell').toUpperCase()}
+                        </span>
+                        <span className="font-medium">
+                          {(() => {
+                            const isBuy = (trade.tradeData?.tradeType ?? 'sell') === 'buy';
+                            if (isBuy) {
+                              // For buy: show SOL spent
+                              return `${trade.tradeData?.amountOut?.toFixed(2) || '0.00'} SOL`;
+                            } else {
+                              // For sell: show SOL received
+                              return `${trade.tradeData?.amountIn?.toFixed(2) || '0.00'} SOL`;
+                            }
+                          })()}
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {trade.timestamp ? 
+                          new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                          'Now'
+                        }
+                      </span>
+                    </div>
+                    {/* ML Prediction for each trade - only for buy trades (with skeleton for consistent spacing) */}
+                    {(() => {
+                      const prediction = trade.prediction || (trade.tradeData as any)?.prediction;
+                      const isBuyTrade = (trade.tradeData?.tradeType ?? 'sell') === 'buy';
+                      const shouldShowPrediction = prediction && isBuyTrade;
+                      
+                      return shouldShowPrediction ? (
+                        <div className="flex items-center justify-between text-xs bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded">
+                          <div className="flex items-center space-x-1">
+                            <Brain className="w-3 h-3 text-purple-500" />
+                            <span className="text-purple-700 dark:text-purple-300 font-medium">
+                              {prediction.classLabel} (Buy)
+                            </span>
+                          </div>
+                          <span className="font-medium text-purple-600 dark:text-purple-400">
+                            {(prediction.probability * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      ) : (
+                        // Skeleton placeholder for consistent spacing (for sell trades)
+                        <div className="flex items-center justify-between text-xs bg-muted/10 px-2 py-1 rounded">
+                          <div className="flex items-center space-x-1">
+                            <div className="w-3 h-3 bg-muted/40 rounded animate-pulse" />
+                            <div className="w-16 h-3 bg-muted/40 rounded animate-pulse" />
+                          </div>
+                          <div className="w-8 h-3 bg-muted/40 rounded animate-pulse" />
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Stats row */}
           <div className="flex items-center justify-between text-sm">
             {/* Left stats */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-1">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    (kol.winRate || 0) >= 60
-                      ? 'bg-green-500'
-                      : (kol.winRate || 0) >= 40
-                        ? 'bg-yellow-500'
-                        : 'bg-red-500'
-                  }`}
-                ></span>
-                <span className="text-muted-foreground">
-                  {kol.winRate?.toFixed(1) || '0.0'}% win rate
-                </span>
-              </div>
+            <div className="flex items-center">
               <div className="flex items-center space-x-1 px-2 py-1 bg-muted rounded text-xs">
-                <span className="text-blue-400">📈</span>
-                <span className="text-muted-foreground">Active</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    (kol.totalPnL || 0) >= 0 ? 'bg-green-500' : 'bg-red-500'
-                  }`}
-                ></span>
-                <span
-                  className={`${
-                    (kol.totalPnL || 0) >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {kol.totalPnL !== undefined
-                    ? `${kol.totalPnL >= 0 ? '+' : ''}${kol.totalPnL.toFixed(2)} SOL`
-                    : '0.00 SOL'}
+                {isTradeSocketConnected && recentTrades.length > 0 ? (
+                  <Activity className="w-3 h-3 text-green-500" />
+                ) : (
+                  <CircleIcon className="w-3 h-3 text-blue-500" />
+                )}
+                <span className="text-muted-foreground">
+                  {isTradeSocketConnected && recentTrades.length > 0 ? 'Live' : 'Active'}
                 </span>
               </div>
             </div>
@@ -307,12 +611,11 @@ export default function KOLList({
                   href={kol.socialLinks.twitter}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-4 h-4 text-blue-500 hover:text-blue-600 transition-colors"
+                  className="text-blue-500 hover:text-blue-600 transition-colors"
                   onClick={e => e.stopPropagation()}
+                  aria-label="Twitter profile"
                 >
-                  <svg fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
-                  </svg>
+                  <TwitterIcon className="w-4 h-4" />
                 </a>
               )}
               {kol.socialLinks?.telegram && (
@@ -320,23 +623,43 @@ export default function KOLList({
                   href={kol.socialLinks.telegram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-4 h-4 text-blue-500 hover:text-blue-600 transition-colors"
+                  className="text-blue-500 hover:text-blue-600 transition-colors"
                   onClick={e => e.stopPropagation()}
+                  aria-label="Telegram profile"
                 >
-                  <svg fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.062 7.81c.455 2.546-1.217 8.423-1.74 11.176-.221 1.164-.652 1.554-1.07 1.594-.91.084-1.601-.602-2.483-1.18l-3.86-2.723c-1.685-1.226-2.973-2.006-2.41-3.178.564-1.177 2.114-.552 3.328.184 1.214.736 2.703 1.729 3.828 2.462l1.36.881c.456.309.87.594 1.302.871.432.277.79.425 1.223.425.65 0 1.27-.272 1.708-.747.328-.355.529-.804.567-1.283.11-1.39-.234-2.79-.234-2.79s.004-1.177-.004-1.762c-.007-.57-.045-1.107-.104-1.56-.13-1.009-.462-1.647-.913-2.048-.45-.4-1.05-.621-1.796-.621-.746 0-1.346.221-1.796.621-.237.21-.419.476-.544.78z" />
-                  </svg>
+                  <TelegramIcon className="w-4 h-4" />
                 </a>
               )}
-              <div className="text-xs">
-                Rank #{Math.floor(Math.random() * 100) + 1}
-              </div>
+              {kol.socialLinks?.discord && (
+                <a
+                  href={kol.socialLinks.discord}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-500 hover:text-indigo-600 transition-colors"
+                  onClick={e => e.stopPropagation()}
+                  aria-label="Discord profile"
+                >
+                  <DiscordIcon className="w-4 h-4" />
+                </a>
+              )}
+              {!kol.socialLinks?.twitter && twitterUrl && (
+                <a
+                  href={twitterUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:text-blue-600 transition-colors"
+                  onClick={e => e.stopPropagation()}
+                  aria-label="Twitter profile"
+                >
+                  <TwitterIcon className="w-4 h-4" />
+                </a>
+              )}
             </div>
           </div>
         </div>
       );
     },
-    [isSubscribedToKOL, handleKOLClick, compactMode]
+    [isSubscribedToKOL, handleKOLClick, compactMode, isTradeSocketConnected, getKOLRecentTrades, viewMode]
   );
 
   // Render loading state
@@ -391,9 +714,21 @@ export default function KOLList({
       {/* Header */}
       {showHeader && (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            KOL Wallets
-          </h2>
+          <div className="flex flex-col space-y-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              KOL Wallets
+            </h2>
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <div className="flex items-center space-x-1">
+                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                <span>Subscribed KOLs shown first</span>
+              </div>
+              <span>•</span>
+              <span>{sortedKolWallets.filter(kol => isSubscribedToKOL(kol.walletAddress || '')).length} subscribed</span>
+              <span>•</span>
+              <span>{sortedKolWallets.length} total</span>
+            </div>
+          </div>
 
           {/* Controls */}
           <div className="flex items-center space-x-4">
@@ -417,6 +752,7 @@ export default function KOLList({
 
             {/* Sort */}
             <div className="flex items-center space-x-2">
+              <span className="text-sm text-muted-foreground">Sort by:</span>
               <button
                 onClick={() => handleSort('subscriberCount')}
                 className={`
@@ -461,9 +797,9 @@ export default function KOLList({
         </div>
       )}
 
-      {/* KOL Grid */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {kolWallets.map(renderKOLCard)}
+      {/* KOL Grid/List */}
+      <div className={viewMode === 'list' ? 'space-y-2' : 'grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}>
+        {sortedKolWallets.map(renderKOLCard)}
       </div>
 
       {/* Load More */}

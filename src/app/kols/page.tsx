@@ -5,8 +5,11 @@ import AppLayout from '@/components/layout/app-layout';
 import KOLList from '@/components/trading/kol-list';
 import TopTraders from '@/components/trading/top-traders';
 import AddCustomKOLModal from '@/components/trading/add-custom-kol-modal';
-import { TrendingUp, Award, Users, Plus } from 'lucide-react';
+import { Award, Users, Plus, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import RequireAuth from '@/components/auth/require-auth';
+
+console.log('🧪 KOLs page loaded - testing console logging');
 
 interface CategoryTab {
   id: 'featured' | 'top-traders';
@@ -20,6 +23,7 @@ const KOLsPage: React.FC = () => {
     'featured' | 'top-traders'
   >('featured');
   const [isAddCustomKOLModalOpen, setIsAddCustomKOLModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const categories: CategoryTab[] = [
     {
@@ -45,50 +49,64 @@ const KOLsPage: React.FC = () => {
   const activeTab = categories.find(cat => cat.id === activeCategory)!;
 
   return (
-    <AppLayout>
+    <RequireAuth title="Sign In Required" message="Please sign in to view KOLs and start copying trades.">
+      <AppLayout>
       <div className="p-6">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center space-x-3 mb-2">
-              <TrendingUp className="h-8 w-8 text-primary" />
-              <h1 className="text-3xl font-bold text-foreground">
-                KOL Marketplace
-              </h1>
+        {/* Category Tabs + Action (mobile-optimized) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+          <div className="w-full sm:w-auto">
+            <div className="flex flex-wrap gap-2 bg-muted/30 p-1 rounded-lg">
+              {categories.map(category => (
+                <button
+                  key={category.id}
+                  onClick={() => handleCategoryClick(category.id)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                    activeCategory === category.id
+                      ? 'bg-background text-foreground shadow-sm border border-border'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  {category.icon}
+                  <span>{category.label}</span>
+                </button>
+              ))}
             </div>
-            <p className="text-muted-foreground">
-              Discover and copy trade from top-performing traders and verified
-              KOLs
-            </p>
           </div>
-
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center bg-muted rounded-lg p-1 w-full sm:w-auto">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center space-x-1 ${
+                  viewMode === 'grid'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span className="hidden sm:inline">Grid</span>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center space-x-1 ${
+                  viewMode === 'list'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                aria-label="List view"
+              >
+                <ListIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">List</span>
+              </button>
+            </div>
             <Button
-              className="flex items-center space-x-2"
+              className="w-full sm:w-auto justify-center flex items-center space-x-2"
               onClick={() => setIsAddCustomKOLModalOpen(true)}
             >
               <Plus className="w-4 h-4" />
               <span>Add Custom KOL</span>
             </Button>
           </div>
-        </div>
-
-        {/* Category Tabs */}
-        <div className="flex items-center space-x-1 mb-6 bg-muted/30 p-1 rounded-lg">
-          {categories.map(category => (
-            <button
-              key={category.id}
-              onClick={() => handleCategoryClick(category.id)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                activeCategory === category.id
-                  ? 'bg-background text-foreground shadow-sm border border-border'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
-            >
-              {category.icon}
-              <span>{category.label}</span>
-            </button>
-          ))}
         </div>
 
         {/* Active Category Display */}
@@ -116,6 +134,7 @@ const KOLsPage: React.FC = () => {
               <KOLList
                 showHeader={false}
                 compactMode={false}
+                viewMode={viewMode}
                 className="space-y-4"
               />
             ) : (
@@ -138,7 +157,8 @@ const KOLsPage: React.FC = () => {
         isOpen={isAddCustomKOLModalOpen}
         onClose={() => setIsAddCustomKOLModalOpen(false)}
       />
-    </AppLayout>
+      </AppLayout>
+    </RequireAuth>
   );
 };
 

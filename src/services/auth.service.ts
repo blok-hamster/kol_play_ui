@@ -95,20 +95,66 @@ export class AuthService {
       console.log('🔐 AuthService.signIn - extracted token:', token);
       console.log('🔐 AuthService.signIn - extracted user:', user);
 
-      // Log account details if present
+      // Handle account details - allow sign-in even if account details have errors
+      let finalUser = { ...user };
+      
       if (user.accountDetails) {
-        console.log(
-          '🔐 AuthService.signIn - user wallet address:',
-          user.accountDetails.address
-        );
-        console.log(
-          '🔐 AuthService.signIn - user SOL balance:',
-          user.accountDetails.balance
-        );
-        console.log(
-          '🔐 AuthService.signIn - user tokens count:',
-          user.accountDetails.tokens.length
-        );
+        // Check if account details has an error (string) or _hasError flag or error property
+        if (typeof user.accountDetails === 'string' && user.accountDetails.includes('Error')) {
+          console.log('⚠️ Account details has error, user can still sign in. Will need to refresh manually.');
+          // Provide a minimal account details structure with error flag
+          finalUser.accountDetails = {
+            address: '', // Will be populated when user refreshes
+            balance: 0,
+            tokens: [],
+            _hasError: true,
+            _errorMessage: user.accountDetails || 'Account details unavailable'
+          };
+        } else if (user.accountDetails._hasError) {
+          console.log('⚠️ Account details has error flag, user can still sign in. Will need to refresh manually.');
+          // Ensure proper error structure
+          finalUser.accountDetails = {
+            address: '', 
+            balance: 0,
+            tokens: [],
+            _hasError: true,
+            _errorMessage: user.accountDetails.error || user.accountDetails._errorMessage || 'Account details unavailable'
+          };
+        } else if (user.accountDetails.error) {
+          console.log('⚠️ Account details has error property, user can still sign in. Will need to refresh manually.');
+          // Handle the case where accountDetails has an error property (like the user's example)
+          finalUser.accountDetails = {
+            address: '', 
+            balance: 0,
+            tokens: [],
+            _hasError: true,
+            _errorMessage: user.accountDetails.error || 'Account details unavailable'
+          };
+        } else {
+          // Account details are valid, log them
+          console.log(
+            '🔐 AuthService.signIn - user wallet address:',
+            user.accountDetails.address
+          );
+          console.log(
+            '🔐 AuthService.signIn - user SOL balance:',
+            user.accountDetails.balance
+          );
+          console.log(
+            '🔐 AuthService.signIn - user tokens count:',
+            user.accountDetails.tokens?.length || 0
+          );
+        }
+      } else {
+        console.log('⚠️ No account details provided, user can still sign in. Will need to refresh manually.');
+        // Provide a minimal account details structure
+        finalUser.accountDetails = {
+          address: '',
+          balance: 0,
+          tokens: [],
+          _hasError: true,
+          _errorMessage: 'Account details not provided'
+        };
       }
 
       // Store token in API client
@@ -119,7 +165,7 @@ export class AuthService {
       return {
         message: 'Sign in successful',
         data: {
-          user,
+          user: finalUser,
           token,
           ...(isNewUser !== undefined && { isNewUser }),
         },

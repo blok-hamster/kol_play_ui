@@ -2,11 +2,14 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ExternalLink, User, Coins } from 'lucide-react';
+import { Search, ExternalLink, User, Coins, Loader2 } from 'lucide-react';
 import { cn, formatWalletAddress } from '@/lib/utils';
 import { useTokenSearch } from '@/stores/use-token-store';
+import { useNotifications } from '@/stores/use-ui-store';
+import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
 import TokenDetailModal from './token-detail-modal';
 import KOLTradesModal from '../trading/kol-trades-modal';
+import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 import { TokenService } from '@/services/token.service';
 import type {
   Token,
@@ -22,6 +25,7 @@ export interface TokenSearchProps {
   onAddressSelect?: (address: AddressSearchResult) => void;
   className?: string;
   enableAddressSearch?: boolean;
+  enableInstantBuy?: boolean; // New prop to enable/disable instant buy
 }
 
 const TokenSearch: React.FC<TokenSearchProps> = ({
@@ -31,11 +35,13 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
   onAddressSelect,
   className,
   enableAddressSearch = true,
+  enableInstantBuy = true, // Default to true
 }) => {
   // For testing: addresses starting with 9,8,7,A,B,C,D,E,F will show KOL modal
   // Real KOLs from the database will always show the KOL modal
 
   const { setSearchResults, setSearchQuery } = useTokenSearch();
+  const { showError, showSuccess } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [localQuery, setLocalQuery] = useState('');
@@ -52,6 +58,13 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
     null
   );
   const [selectedKOLData, setSelectedKOLData] = useState<any | null>(null);
+
+  // Trade config prompt state
+  const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
+  const [pendingBuyToken, setPendingBuyToken] = useState<SearchTokenResult | null>(null);
+
+  // Instant buy loading state
+  const [buyingTokens, setBuyingTokens] = useState<Set<string>>(new Set());
 
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -318,6 +331,77 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
     [onTokenSelect, onAddressSelect]
   );
 
+  // Handle instant buy
+  const handleInstantBuy = useCallback(
+    async (token: SearchTokenResult, e: React.MouseEvent) => {
+      e.stopPropagation();
+
+      // Check if already buying this token
+      if (buyingTokens.has(token.mint)) {
+        return;
+      }
+
+      try {
+        // First check if user has trade config
+        const configCheck = await checkTradeConfig();
+        
+        if (!configCheck.hasConfig) {
+          // Show trade config prompt
+          setPendingBuyToken(token);
+          setShowTradeConfigPrompt(true);
+          return;
+        }
+
+        // Add token to buying set
+        setBuyingTokens(prev => new Set(prev).add(token.mint));
+
+        // Execute instant buy
+        const result = await executeInstantBuy(token.mint, token.symbol);
+
+        if (result.success) {
+          showSuccess(
+            'Buy Order Executed',
+            `Successfully bought ${token.symbol || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
+          );
+
+          // Close search results after successful buy
+          setIsOpen(false);
+          setLocalQuery('');
+
+          // Optional: Show transaction details
+          if (result.result?.transactionId) {
+            console.log('Transaction ID:', result.result.transactionId);
+          }
+        } else {
+          showError(
+            'Buy Order Failed',
+            result.error || 'Failed to execute buy order'
+          );
+        }
+      } catch (error: any) {
+        console.error('Buy order error:', error);
+        showError(
+          'Buy Order Error',
+          error.message || 'An unexpected error occurred'
+        );
+      } finally {
+        // Remove token from buying set
+        setBuyingTokens(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(token.mint);
+          return newSet;
+        });
+      }
+    },
+    [buyingTokens, showError, showSuccess]
+  );
+
+  // Handle trade config prompt close
+  const handleTradeConfigPromptClose = useCallback(() => {
+    setShowTradeConfigPrompt(false);
+    setPendingBuyToken(null);
+  }, []);
+
   // Render search result item
   const renderResultItem = useCallback(
     (result: UnifiedSearchResult, index: number) => {
@@ -325,6 +409,8 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
 
       if (result.type === 'token') {
         const token = result.data as SearchTokenResult;
+        const isBuying = buyingTokens.has(token.mint);
+        
         return (
           <div
             key={`token-${token.mint}`}
@@ -388,7 +474,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
               </div>
             </div>
 
-            {/* Token Stats */}
+            {/* Token Stats and Buy Button */}
             <div className="flex items-center space-x-3 flex-shrink-0">
               {(token.marketCap || token.marketCapUsd) && (
                 <div className="text-right">
@@ -404,6 +490,27 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
                     Market Cap
                   </p>
                 </div>
+              )}
+              
+              {/* Instant Buy Button */}
+              {enableInstantBuy && !onTokenSelect && (
+                <button
+                  onClick={(e) => handleInstantBuy(token, e)}
+                  disabled={isBuying}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-3 py-1 rounded text-xs font-medium flex items-center space-x-1 min-w-[60px]"
+                >
+                  {isBuying ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs">⚡</span>
+                      <span>Buy</span>
+                    </>
+                  )}
+                </button>
               )}
             </div>
           </div>
@@ -487,7 +594,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
         );
       }
     },
-    [selectedIndex, handleResultSelect]
+    [selectedIndex, handleResultSelect, enableInstantBuy, onTokenSelect, handleInstantBuy, buyingTokens]
   );
 
   return (
@@ -565,6 +672,13 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
           kol={selectedKOLData}
         />
       )}
+
+      {/* Trade Config Prompt */}
+      <TradeConfigPrompt
+        isOpen={showTradeConfigPrompt}
+        onClose={handleTradeConfigPromptClose}
+        tokenSymbol={pendingBuyToken?.symbol || pendingBuyToken?.name}
+      />
     </>
   );
 };

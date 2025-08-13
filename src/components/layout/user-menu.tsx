@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUserStore } from '@/stores/use-user-store';
 import { useModal } from '@/stores/use-ui-store';
+import { useRouter } from 'next/navigation';
 import {
   User,
   Settings,
@@ -19,6 +20,7 @@ const UserMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
 
   const { user, signOut } = useUserStore();
   const { openModal } = useModal();
@@ -60,20 +62,20 @@ const UserMenu: React.FC = () => {
 
     switch (action) {
       case 'profile':
-        // Navigate to profile page or open profile modal
-        console.log('Open profile');
+        // Navigate to settings page with account tab active
+        router.push('/settings?tab=account');
         break;
       case 'settings':
         // Navigate to settings page
-        console.log('Open settings');
+        router.push('/settings');
         break;
       case 'notifications':
-        // Open notifications
-        console.log('Open notifications');
+        // Navigate to notifications page
+        router.push('/notifications');
         break;
       case 'help':
-        // Open help/support
-        console.log('Open help');
+        // Navigate to help page (will create if doesn't exist)
+        router.push('/help');
         break;
       case 'onboarding':
         // Restart onboarding tour
@@ -89,7 +91,16 @@ const UserMenu: React.FC = () => {
   }
 
   const userInitials =
-    `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase();
+    `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase() || 'WU';
+
+  // Determine display name - prioritize displayName, then firstName/lastName, then wallet address
+  const displayName = user.displayName || 
+    `${user.firstName || ''} ${user.lastName || ''}`.trim() || 
+    (user.walletAddress ? `${user.walletAddress.slice(0, 4)}...${user.walletAddress.slice(-4)}` : 'User');
+
+  // Determine display email - show wallet address if no email
+  const displayEmail = user.email || 
+    (user.walletAddress ? `Wallet: ${user.walletAddress.slice(0, 8)}...` : '');
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -104,13 +115,13 @@ const UserMenu: React.FC = () => {
         {/* User Avatar */}
         <div className="w-6 h-6 bg-accent-gradient rounded-full flex items-center justify-center">
           <span className="text-xs font-bold text-white">
-            {userInitials || 'U'}
+            {userInitials}
           </span>
         </div>
 
         {/* User Name (hidden on small screens) */}
         <span className="hidden md:inline-block text-sm font-medium truncate max-w-20">
-          {user.firstName || 'User'}
+          {user.displayName || user.firstName || (user.walletAddress ? 'Wallet' : 'User')}
         </span>
 
         <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -124,16 +135,15 @@ const UserMenu: React.FC = () => {
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-accent-gradient rounded-full flex items-center justify-center">
                 <span className="text-sm font-bold text-white">
-                  {userInitials || 'U'}
+                  {userInitials}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">
-                  {`${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-                    'User'}
+                  {displayName}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {user.email}
+                  {displayEmail}
                 </p>
               </div>
             </div>

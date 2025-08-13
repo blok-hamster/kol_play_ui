@@ -5,6 +5,7 @@ import {
   SolanaSignInOutput,
 } from '@solana/wallet-standard-features';
 import { ApiResponse } from '@/types';
+import { SolanaService } from '@/services/solana.service';
 
 export interface CreateChallengeRequest {
   domain?: string;
@@ -771,8 +772,82 @@ export class SiwsAuthService {
     console.log('🔑 [SiwsAuthService.refreshAccountDetails] Current API client token:', currentToken?.substring(0, 50) + '...');
     
     try {
-      const result = await this.fetchUserAccountDetails();
-      console.log('✅ [SiwsAuthService.refreshAccountDetails] Account details refreshed successfully');
+      // First, get the wallet address from the backend
+      console.log('🔄 Fetching wallet address from backend...');
+      const response = await apiClient.get<any>(API_ENDPOINTS.FEATURES.GET_USER_ACCOUNT_DETAILS);
+      
+      console.log('🌐 Raw account details response:', response);
+      
+      // Handle different possible response formats to extract the address
+      let accountData = null;
+      
+      if (response?.data?.data) {
+        // Standard API response format: { data: { data: accountDetails } }
+        accountData = response.data.data;
+      } else if (response?.data) {
+        // Direct data format: { data: accountDetails }
+        accountData = response.data;
+      } else {
+        console.warn('⚠️ Unexpected response format from account details endpoint');
+        throw new Error('Unexpected response format from backend');
+      }
+
+      if (!accountData) {
+        console.warn('⚠️ No account details returned from features endpoint');
+        throw new Error('No account data returned from backend');
+      }
+
+      // Check if the response contains an error
+      if (accountData.error) {
+        console.error('❌ Account details endpoint returned error:', accountData.error);
+        throw new Error(`Failed to fetch account details: ${accountData.error}`);
+      }
+
+      // Extract the wallet address
+      const walletAddress = accountData.address || accountData.walletAddress;
+      if (!walletAddress) {
+        throw new Error('Account details missing required address field');
+      }
+
+      console.log('✅ Wallet address obtained from backend:', walletAddress);
+      
+      // Now use Solana service to get real blockchain data with USD values
+      console.log('🔄 Fetching real blockchain data with USD values using Solana service...');
+      
+      // Initialize Solana service if needed
+      SolanaService.initialize();
+      
+      // Fetch wallet balance with USD values
+      const walletData = await SolanaService.getWalletBalanceWithUsd(walletAddress);
+
+      console.log('✅ Blockchain data with USD values fetched:', { 
+        address: walletData.address, 
+        solBalance: walletData.solBalance,
+        solValueUsd: walletData.solValueUsd,
+        totalValueUsd: walletData.totalValueUsd,
+        tokensCount: walletData.tokens.length 
+      });
+
+      // Transform tokens to match expected format
+      const formattedTokens = walletData.tokens.map(token => ({
+        mint: token.mintAddress,
+        name: token.name || 'Unknown Token',
+        symbol: token.symbol || 'UNKNOWN',
+        image: token.logoURI,
+        balance: token.uiAmount || 0,
+        value: (token as any).valueUsd || 0, // USD value from pricing API
+      }));
+
+      const result = {
+        address: walletAddress,
+        balance: walletData.solBalance,
+        tokens: formattedTokens,
+        // Additional USD value fields for better tracking
+        solValueUsd: walletData.solValueUsd,
+        totalValueUsd: walletData.totalValueUsd,
+      };
+      
+      console.log('✅ [SiwsAuthService.refreshAccountDetails] Account details refreshed successfully with Solana data');
       return result;
     } catch (error: any) {
       console.error('❌ [SiwsAuthService.refreshAccountDetails] Failed to refresh account details:', error);

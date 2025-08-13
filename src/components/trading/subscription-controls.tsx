@@ -10,6 +10,7 @@ import {
 } from '@/services/trading.service';
 import { UserSubscription } from '@/types';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import {
   Settings,
@@ -24,6 +25,8 @@ import {
   TrendingDown,
   BarChart3,
   Timer,
+  Play,
+  Pause,
 } from 'lucide-react';
 
 interface SubscriptionControlsProps {
@@ -58,6 +61,11 @@ interface SubscriptionSettings {
     trailingPercentage: number;
     maxHoldTimeMinutes: number;
   };
+  // additions
+  // @ts-expect-error extended in component for update payload
+  tokenBuyCount: number;
+  // @ts-expect-error extended in component for update payload
+  isActive: boolean;
 }
 
 export default function SubscriptionControls({
@@ -76,6 +84,7 @@ export default function SubscriptionControls({
     addSubscription,
     removeSubscription,
     updateSubscription,
+    updateSubscriptionSettings,
   } = useSubscriptions();
   const { isLoading, setLoading } = useLoading();
   const { showSuccess, showError } = useNotifications();
@@ -103,6 +112,11 @@ export default function SubscriptionControls({
       trailingPercentage: 5,
       maxHoldTimeMinutes: 1440, // 24 hours
     },
+    // additions
+    // @ts-expect-error extended in component for update payload
+    tokenBuyCount: 0,
+    // @ts-expect-error extended in component for update payload
+    isActive: true,
   });
 
   // Check subscription status
@@ -219,16 +233,14 @@ export default function SubscriptionControls({
     try {
       setLoading('subscription', true);
 
-      // In a real app, we might have an update subscription endpoint
-      // For now, we'll simulate by unsubscribing and resubscribing
-      await TradingService.unsubscribeFromKOL(kolWallet);
-
-      const request: SubscribeToKOLRequest = {
-        walletAddress: kolWallet,
+      // Use the new efficient update endpoint instead of unsubscribe/resubscribe
+      await updateSubscriptionSettings(kolWallet, {
         minAmount: settings.minAmount || 0.01,
-        subType: settings.subType,
-        copyPercentage: settings.copyPercentage,
         maxAmount: settings.maxAmount || 1.0,
+        type: settings.subType,
+        // @ts-expect-error backend supports tokenBuyCount in update request
+        tokenBuyCount: (settings as any).tokenBuyCount,
+        isActive: (settings as any).isActive,
         settings: {
           enableSlippageProtection: settings.enableSlippageProtection,
           maxSlippagePercent: settings.maxSlippagePercent || 1.0,
@@ -248,12 +260,7 @@ export default function SubscriptionControls({
                 settings.watchConfig.maxHoldTimeMinutes || 1440,
             },
           }),
-      };
-
-      const response = await TradingService.subscribeToKOL(request);
-
-      // Update local state
-      updateSubscription(kolWallet, response.data);
+      });
 
       showSuccess(
         'Settings Updated',
@@ -272,7 +279,7 @@ export default function SubscriptionControls({
   }, [
     kolWallet,
     settings,
-    updateSubscription,
+    updateSubscriptionSettings,
     showSuccess,
     showError,
     setLoading,
@@ -388,6 +395,65 @@ export default function SubscriptionControls({
               </div>
             </div>
 
+            {/* General Settings */}
+            <div className="bg-muted/50 rounded-lg p-4 sm:p-6">
+              <h4 className="text-base sm:text-lg font-semibold text-foreground mb-4">General</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Token Buy Count
+                  </label>
+                  <Input
+                    type="number"
+                    value={(settings as any).tokenBuyCount ?? 0}
+                    onChange={e =>
+                      handleSettingsChange({
+                        // @ts-expect-error extended locally
+                        tokenBuyCount:
+                          e.target.value === '' ? 0 : parseInt(e.target.value),
+                      })
+                    }
+                    min="0"
+                    step="1"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Status
+                  </label>
+                  <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-background">
+                    <span className="text-sm text-muted-foreground">
+                      {(settings as any).isActive ? 'Active' : 'Paused'}
+                    </span>
+                    <Button
+                      variant={(settings as any).isActive ? 'secondary' : 'default'}
+                      size="sm"
+                      onClick={() =>
+                        handleSettingsChange({
+                          // @ts-expect-error extended locally
+                          isActive: !(settings as any).isActive,
+                        })
+                      }
+                      className="flex items-center space-x-2"
+                    >
+                      {(settings as any).isActive ? (
+                        <>
+                          <Pause className="w-4 h-4" />
+                          <span>Pause</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4" />
+                          <span>Resume</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Amount Settings */}
             {settings.subType === 'trade' && (
               <div className="bg-muted/50 rounded-lg p-6">
@@ -439,30 +505,7 @@ export default function SubscriptionControls({
                   </div>
                 </div>
 
-                <div className="mt-6">
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Copy Percentage ({settings.copyPercentage}%)
-                  </label>
-                  <div className="space-y-3">
-                    <input
-                      type="range"
-                      value={settings.copyPercentage}
-                      onChange={e =>
-                        handleSettingsChange({
-                          copyPercentage: parseInt(e.target.value),
-                        })
-                      }
-                      min="1"
-                      max="100"
-                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>1%</span>
-                      <span>50%</span>
-                      <span>100%</span>
-                    </div>
-                  </div>
-                </div>
+                {/* Copy Percentage slider removed for a more minimal design */}
               </div>
             )}
 
@@ -473,27 +516,19 @@ export default function SubscriptionControls({
                   <div className="flex items-center space-x-2">
                     <BarChart3 className="h-5 w-5 text-primary" />
                     <div>
-                      <h4 className="text-lg font-semibold text-foreground">
-                        Watch Configuration
-                      </h4>
+                      <h4 className="text-lg font-semibold text-foreground">TP/SL settings</h4>
                       <p className="text-sm text-muted-foreground">
                         Add automated profit-taking and stop-loss to your copy
                         trades
                       </p>
                     </div>
                   </div>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      className="w-5 h-5 text-primary bg-background border-border rounded focus:ring-primary"
-                      checked={settings.enableWatchConfig}
-                      onChange={e =>
-                        handleSettingsChange({
-                          enableWatchConfig: e.target.checked,
-                        })
-                      }
-                    />
-                  </label>
+                  <Switch
+                    checked={settings.enableWatchConfig}
+                    onCheckedChange={checked =>
+                      handleSettingsChange({ enableWatchConfig: checked })
+                    }
+                  />
                 </div>
 
                 {settings.enableWatchConfig && (
@@ -575,23 +610,17 @@ export default function SubscriptionControls({
                             </p>
                           </div>
                         </div>
-                        <label className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            className="w-5 h-5 text-primary bg-background border-border rounded focus:ring-primary"
-                            checked={
-                              settings.watchConfig?.enableTrailingStop || false
-                            }
-                            onChange={e =>
-                              handleSettingsChange({
-                                watchConfig: {
-                                  ...settings.watchConfig!,
-                                  enableTrailingStop: e.target.checked,
-                                },
-                              })
-                            }
-                          />
-                        </label>
+                        <Switch
+                          checked={settings.watchConfig?.enableTrailingStop || false}
+                          onCheckedChange={checked =>
+                            handleSettingsChange({
+                              watchConfig: {
+                                ...settings.watchConfig!,
+                                enableTrailingStop: checked,
+                              },
+                            })
+                          }
+                        />
                       </div>
 
                       {settings.watchConfig?.enableTrailingStop && (
@@ -677,18 +706,12 @@ export default function SubscriptionControls({
                     </p>
                   </div>
                 </div>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 text-primary bg-background border-border rounded focus:ring-primary"
-                    checked={settings.enableSlippageProtection}
-                    onChange={e =>
-                      handleSettingsChange({
-                        enableSlippageProtection: e.target.checked,
-                      })
-                    }
-                  />
-                </label>
+                <Switch
+                  checked={settings.enableSlippageProtection}
+                  onCheckedChange={checked =>
+                    handleSettingsChange({ enableSlippageProtection: checked })
+                  }
+                />
               </div>
               {settings.enableSlippageProtection && (
                 <div>
@@ -729,18 +752,12 @@ export default function SubscriptionControls({
                     </p>
                   </div>
                 </div>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 text-primary bg-background border-border rounded focus:ring-primary"
-                    checked={settings.enableTimeRestrictions}
-                    onChange={e =>
-                      handleSettingsChange({
-                        enableTimeRestrictions: e.target.checked,
-                      })
-                    }
-                  />
-                </label>
+                <Switch
+                  checked={settings.enableTimeRestrictions}
+                  onCheckedChange={checked =>
+                    handleSettingsChange({ enableTimeRestrictions: checked })
+                  }
+                />
               </div>
               {settings.enableTimeRestrictions && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -76,6 +76,11 @@ class ApiClient {
     if (typeof window !== 'undefined') {
       localStorage.setItem('authToken', token);
       console.log('🔑 API Client - Token stored in localStorage');
+
+      // Set a lightweight auth presence cookie for middleware checks
+      const isSecure = window.location.protocol === 'https:';
+      const maxAge = 60 * 60 * 24 * 30; // 30 days
+      document.cookie = `isAuth=1; Path=/; Max-Age=${maxAge}; SameSite=Lax${isSecure ? '; Secure' : ''}`;
     }
   }
 
@@ -84,6 +89,8 @@ class ApiClient {
     this.token = null;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('authToken');
+      // Clear auth presence cookie
+      document.cookie = 'isAuth=; Path=/; Max-Age=0; SameSite=Lax';
     }
   }
 

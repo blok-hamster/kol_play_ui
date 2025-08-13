@@ -14,3 +14,7 @@ export type {
   RealTimeSubscription,
   UseRealTimeUpdatesOptions,
 } from './use-realtime-updates';
+
+// KOL Trade Hooks
+export { useKOLTradeSocket } from './use-kol-trade-socket';
+export type { KOLTrade, MindmapUpdate } from './use-kol-trade-socket';

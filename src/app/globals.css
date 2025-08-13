@@ -40,6 +40,17 @@
   --ring: #f5f5f5;
 }
 
+/* Scale up root font size so all rem-based text (Tailwind) increases */
+html {
+  font-size: 17px;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 18px;
+  }
+}
+
 /* System preference detection */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
@@ -61,11 +72,30 @@
   }
 }
 
+/* Base typography adjustments */
+@layer base {
+  body {
+    @apply font-semibold;
+  }
+  header, nav, header a, nav a {
+    font-weight: 600 !important;
+  }
+  h1 {
+    font-size: clamp(2.25rem, 5vw, 3.75rem);
+    line-height: 1.1;
+  }
+  /* If a hero wrapper/class exists, make hero titles larger */
+  .hero h1, .hero-title {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    line-height: 1.05;
+  }
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
   font-family:
-    'Inter',
+    'Darker Grotesque',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -117,4 +147,112 @@ body {
     background: var(--background);
     border-radius: 6px;
   }
+}
+
+/* Mindmap Grid Styles */
+.mindmap-grid {
+  @apply w-full;
+}
+
+.mindmap-header {
+  @apply mb-6 space-y-4;
+}
+
+.header-section {
+  @apply flex items-center justify-between;
+}
+
+.header-section h2 {
+  @apply text-2xl font-bold;
+}
+
+.connection-status {
+  @apply text-sm font-medium;
+}
+
+.mindmap-controls {
+  @apply flex items-center space-x-4;
+}
+
+.view-toggle {
+  @apply flex space-x-1 bg-muted p-1 rounded-lg;
+}
+
+.view-toggle button {
+  @apply px-3 py-1.5 text-sm font-medium rounded transition-colors;
+}
+
+.view-toggle button.active {
+  @apply bg-background shadow-sm;
+}
+
+.token-select {
+  @apply px-3 py-2 border border-border rounded-lg bg-background text-sm font-mono;
+}
+
+.mindmap-grid-container {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+}
+
+.mindmap-card {
+  @apply bg-card border border-border rounded-lg overflow-hidden;
+}
+
+.mindmap-card-header {
+  @apply p-4 border-b border-border flex items-center justify-between;
+}
+
+.mindmap-card-header h4 {
+  @apply font-semibold;
+}
+
+.kol-count {
+  @apply text-sm text-muted-foreground bg-muted px-2 py-1 rounded;
+}
+
+.empty-state {
+  @apply text-center py-12 text-muted-foreground;
+}
+
+.loading-state {
+  @apply flex flex-col items-center justify-center py-12;
+}
+
+.loading-spinner {
+  @apply w-8 h-8 border-2 border-muted border-t-primary rounded-full animate-spin mb-4;
+}
+
+/* Real-time update animations */
+@keyframes realtime-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes new-data-flash {
+  0% {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.5);
+  }
+  100% {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+}
+
+.realtime-indicator {
+  animation: realtime-pulse 2s ease-in-out infinite;
+}
+
+.new-data-highlight {
+  animation: new-data-flash 1s ease-in-out 3;
 }

@@ -12,12 +12,12 @@ import {
   X,
   TrendingUp,
   Search,
-  ArrowRightLeft,
   PieChart,
   Settings,
   Users,
   Zap,
   HelpCircle,
+  Activity,
 } from 'lucide-react';
 import WalletDropdown from './wallet-dropdown';
 import UserMenu from './user-menu';
@@ -46,6 +46,14 @@ const navigationItems: NavigationItem[] = [
     // requiresAuth: true, // Temporarily removed for development
   },
   {
+    name: 'Live Trades',
+    href: '/kol-trades',
+    icon: Activity,
+    description: 'Real-time KOL trades & network maps',
+    badge: 'Live',
+    // requiresAuth: true, // Temporarily removed for development
+  },
+  {
     name: 'Subscriptions',
     href: '/subscriptions',
     icon: Users,
@@ -57,13 +65,6 @@ const navigationItems: NavigationItem[] = [
     href: '/tokens',
     icon: Search,
     description: 'Discover and analyze tokens',
-  },
-  {
-    name: 'Swap',
-    href: '/swap',
-    icon: ArrowRightLeft,
-    description: 'Trade SOL for tokens',
-    // requiresAuth: true, // Temporarily removed for development
   },
   {
     name: 'Portfolio',
@@ -84,7 +85,7 @@ const navigationItems: NavigationItem[] = [
 const secondaryItems: NavigationItem[] = [
   {
     name: 'AI Assistant',
-    href: '/ai-chat',
+    href: '/agent',
     icon: Zap,
     description: 'Trading insights and help',
     badge: 'Beta',
@@ -110,7 +111,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ className }) => {
   const pathname = usePathname();
-  const { isAuthenticated } = useUserStore();
+  const { isAuthenticated, user } = useUserStore();
   const { openModal } = useModal();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -189,7 +190,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
         key={item.name}
         href={isDisabled ? '#' : item.href}
         className={cn(
-          'group flex items-center rounded-lg px-2 py-1.5 text-sm font-medium transition-all duration-200',
+          'group flex items-center rounded-lg px-2 py-1.5 text-base font-medium transition-all duration-200',
           'hover:bg-muted focus:bg-muted focus:outline-none',
           isActive && 'bg-accent-gradient text-white shadow-sm',
           isDisabled && 'opacity-50 cursor-not-allowed',
@@ -205,7 +206,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       >
         <IconComponent
           className={cn(
-            'h-4 w-4 flex-shrink-0 transition-colors',
+            'h-5 w-5 flex-shrink-0 transition-colors',
             isActive
               ? 'text-white'
               : 'text-muted-foreground group-hover:text-foreground',
@@ -219,14 +220,14 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             isActive
               ? 'text-white'
               : 'text-foreground group-hover:text-foreground',
-            !isMobile && 'text-xs text-center'
+            !isMobile && 'text-sm md:text-base text-center'
           )}
         >
           {item.name}
         </span>
 
         {item.badge && (
-          <span className="ml-2 rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
+          <span className="ml-2 rounded-full bg-primary px-1.5 py-0.5 text-sm font-medium text-primary-foreground">
             {item.badge}
           </span>
         )}
@@ -325,7 +326,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
 
       {/* Navigation Bar - Desktop Only */}
       <div className="border-t border-border bg-muted/30 hidden lg:block relative z-50 pointer-events-auto">
-        <div className="px-6 py-2">
+        <div className="px-6 py-1.5">
           <nav className="flex items-center justify-between">
             {/* Main Navigation Items */}
             <div className="flex items-center justify-evenly flex-1 max-w-2xl">

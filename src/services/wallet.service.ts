@@ -1,4 +1,5 @@
 import { WalletInfo } from '@/types';
+import { SolanaService } from './solana.service';
 
 // Phantom wallet types
 interface PhantomProvider {
@@ -128,9 +129,8 @@ export class WalletService {
         throw new Error('No wallet address available');
       }
 
-      // For now, return 0 - we'll implement RPC calls later when needed
-      // In practice, you would make an RPC call to Solana to get the balance
-      return 0;
+      // Use SolanaService to get actual SOL balance
+      return await SolanaService.getSolBalance(walletAddress);
     } catch (error: any) {
       console.error('Failed to get wallet balance:', error);
       return 0;
