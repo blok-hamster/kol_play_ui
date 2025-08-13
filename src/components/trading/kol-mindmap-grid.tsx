@@ -37,7 +37,7 @@ export const KOLMindmapGrid: React.FC = () => {
 
   // Debug logging
   React.useEffect(() => {
-    console.log('🔍 KOLMindmapGrid Debug:', {
+    void 0 && ('🔍 KOLMindmapGrid Debug:', {
       availableTokens: availableTokens.length,
       isLoadingInitialData,
       isConnected,
@@ -78,7 +78,7 @@ export const KOLMindmapGrid: React.FC = () => {
 
   // Debug filtered tokens
   React.useEffect(() => {
-    console.log('🔍 Filtered Tokens Debug:', {
+    void 0 && ('🔍 Filtered Tokens Debug:', {
       totalAvailable: availableTokens.length,
       afterFiltering: filteredTokens.length,
       filteredTokens: filteredTokens.slice(0, 5), // Show first 5
@@ -89,14 +89,14 @@ export const KOLMindmapGrid: React.FC = () => {
   // Auto-subscribe to mindmap updates for visible tokens
   React.useEffect(() => {
     if (socket && isConnected && availableTokens.length > 0) {
-      console.log(`🗺️ Auto-subscribing to mindmap updates for ${availableTokens.length} available tokens`);
+      void 0 && (`🗺️ Auto-subscribing to mindmap updates for ${availableTokens.length} available tokens`);
       availableTokens.forEach(tokenMint => {
         socket.emit('subscribe_mindmap', { tokenMint });
       });
       
       // Also request any additional tokens with KOL activity that might not be loaded yet
       socket.emit('request_all_active_tokens');
-      console.log('🔄 Requested all active tokens from server');
+      void 0 && ('🔄 Requested all active tokens from server');
     }
   }, [socket, isConnected, availableTokens.length]);
 

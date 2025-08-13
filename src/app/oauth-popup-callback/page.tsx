@@ -16,7 +16,7 @@ export default function OAuthPopupCallbackPage() {
         const token = searchParams.get('token');
         const error = searchParams.get('error');
 
-        console.log('🔐 Popup Callback - URL params:', { token, error });
+        void 0 && ('🔐 Popup Callback - URL params:', { token, error });
 
         if (error) {
           // Send error message to parent window
@@ -25,7 +25,7 @@ export default function OAuthPopupCallbackPage() {
             error: error,
           };
 
-          console.log('🔐 Sending error message to parent:', errorMessage);
+          void 0 && ('🔐 Sending error message to parent:', errorMessage);
           window.opener?.postMessage(errorMessage, window.location.origin);
         } else if (token) {
           // Send success message to parent window
@@ -37,7 +37,7 @@ export default function OAuthPopupCallbackPage() {
             isNewUser: false, // This will be determined by the parent
           };
 
-          console.log('🔐 Sending success message to parent:', successMessage);
+          void 0 && ('🔐 Sending success message to parent:', successMessage);
           window.opener?.postMessage(successMessage, window.location.origin);
         } else {
           // No valid parameters
@@ -46,7 +46,7 @@ export default function OAuthPopupCallbackPage() {
             error: 'No valid OAuth parameters received',
           };
 
-          console.log('🔐 Sending no-params error to parent:', errorMessage);
+          void 0 && ('🔐 Sending no-params error to parent:', errorMessage);
           window.opener?.postMessage(errorMessage, window.location.origin);
         }
 

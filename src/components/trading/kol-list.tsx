@@ -109,7 +109,7 @@ export default function KOLList({
   compactMode = false,
   viewMode = 'grid',
 }: KOLListProps) {
-  console.log('🚀 KOLList component initialized');
+  void 0 && ('🚀 KOLList component initialized');
   
   const router = useRouter();
   const { isSubscribedToKOL } = useSubscriptions();
@@ -120,7 +120,7 @@ export default function KOLList({
   const { recentTrades: allRecentTrades, isConnected: isTradeSocketConnected } = useKOLTradeSocket();
   const { setKOLs } = useKOLStore();
 
-  console.log('🔍 KOLList state:', {
+  void 0 && ('🔍 KOLList state:', {
     allRecentTradesCount: allRecentTrades.length,
     isTradeSocketConnected,
     limit,
@@ -348,7 +348,7 @@ export default function KOLList({
       .slice(0, 3); // Show last 3 trades
 
     // Debug logging for recent trades
-    console.log(`🔍 KOL List - Recent trades for ${kolWallet}:`, {
+    void 0 && (`🔍 KOL List - Recent trades for ${kolWallet}:`, {
       totalTrades: allRecentTrades.length,
       filteredTrades: filtered.length,
       trades: filtered.map(trade => {

@@ -14,9 +14,9 @@ const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC token 
  */
 export async function getWalletSolBalance() {
   try {
-    console.log('🔍 Getting SOL balance...');
+    void 0 && ('🔍 Getting SOL balance...');
     const balance = await SolanaService.getSolBalance(EXAMPLE_WALLET);
-    console.log(`💰 SOL Balance: ${balance} SOL`);
+    void 0 && (`💰 SOL Balance: ${balance} SOL`);
     return balance;
   } catch (error) {
     console.error('❌ Error getting SOL balance:', error);
@@ -29,15 +29,15 @@ export async function getWalletSolBalance() {
  */
 export async function getWalletTokens() {
   try {
-    console.log('🔍 Getting all SPL tokens...');
+    void 0 && ('🔍 Getting all SPL tokens...');
     const tokens = await SolanaService.getTokens(EXAMPLE_WALLET);
-    console.log(`🪙 Found ${tokens.length} tokens:`);
+    void 0 && (`🪙 Found ${tokens.length} tokens:`);
     
     tokens.forEach((token, index) => {
-      console.log(`${index + 1}. ${token.symbol || 'Unknown'} (${token.mintAddress})`);
-      console.log(`   Balance: ${token.uiAmount} tokens`);
-      console.log(`   Decimals: ${token.decimals}`);
-      console.log('');
+      void 0 && (`${index + 1}. ${token.symbol || 'Unknown'} (${token.mintAddress})`);
+      void 0 && (`   Balance: ${token.uiAmount} tokens`);
+      void 0 && (`   Decimals: ${token.decimals}`);
+      void 0 && ('');
     });
     
     return tokens;
@@ -52,19 +52,19 @@ export async function getWalletTokens() {
  */
 export async function getCompleteWalletBalance() {
   try {
-    console.log('🔍 Getting complete wallet balance...');
+    void 0 && ('🔍 Getting complete wallet balance...');
     const walletBalance = await SolanaService.getWalletBalance(EXAMPLE_WALLET);
     
-    console.log('📊 Complete Wallet Balance:');
-    console.log(`Address: ${walletBalance.address}`);
-    console.log(`SOL Balance: ${walletBalance.solBalance} SOL`);
-    console.log(`Total Tokens: ${walletBalance.totalTokens}`);
-    console.log('');
+    void 0 && ('📊 Complete Wallet Balance:');
+    void 0 && (`Address: ${walletBalance.address}`);
+    void 0 && (`SOL Balance: ${walletBalance.solBalance} SOL`);
+    void 0 && (`Total Tokens: ${walletBalance.totalTokens}`);
+    void 0 && ('');
     
     if (walletBalance.tokens.length > 0) {
-      console.log('🪙 Token Holdings:');
+      void 0 && ('🪙 Token Holdings:');
       walletBalance.tokens.forEach((token, index) => {
-        console.log(`${index + 1}. ${token.symbol || 'Unknown'}: ${token.uiAmount}`);
+        void 0 && (`${index + 1}. ${token.symbol || 'Unknown'}: ${token.uiAmount}`);
       });
     }
     
@@ -80,19 +80,19 @@ export async function getCompleteWalletBalance() {
  */
 export async function getSpecificTokenBalance() {
   try {
-    console.log('🔍 Getting USDC balance...');
+    void 0 && ('🔍 Getting USDC balance...');
     const tokenBalance = await SolanaService.getSpecificTokenBalance(
       EXAMPLE_WALLET,
       USDC_MINT
     );
     
     if (tokenBalance) {
-      console.log('💵 USDC Balance:');
-      console.log(`Amount: ${tokenBalance.uiAmount} USDC`);
-      console.log(`Mint: ${tokenBalance.mintAddress}`);
-      console.log(`Decimals: ${tokenBalance.decimals}`);
+      void 0 && ('💵 USDC Balance:');
+      void 0 && (`Amount: ${tokenBalance.uiAmount} USDC`);
+      void 0 && (`Mint: ${tokenBalance.mintAddress}`);
+      void 0 && (`Decimals: ${tokenBalance.decimals}`);
     } else {
-      console.log('❌ No USDC balance found for this wallet');
+      void 0 && ('❌ No USDC balance found for this wallet');
     }
     
     return tokenBalance;
@@ -107,16 +107,16 @@ export async function getSpecificTokenBalance() {
  */
 export async function testConnectionAndValidation() {
   try {
-    console.log('🔍 Testing connection...');
+    void 0 && ('🔍 Testing connection...');
     const isConnected = await SolanaService.testConnection();
-    console.log(`🌐 Connection status: ${isConnected ? '✅ Connected' : '❌ Failed'}`);
+    void 0 && (`🌐 Connection status: ${isConnected ? '✅ Connected' : '❌ Failed'}`);
     
-    console.log('🔍 Validating address...');
+    void 0 && ('🔍 Validating address...');
     const isValid = SolanaService.isValidAddress(EXAMPLE_WALLET);
-    console.log(`📝 Address validation: ${isValid ? '✅ Valid' : '❌ Invalid'}`);
+    void 0 && (`📝 Address validation: ${isValid ? '✅ Valid' : '❌ Invalid'}`);
     
-    console.log('🔍 Current RPC endpoint:');
-    console.log(`🌐 RPC URL: ${SolanaService.getRpcEndpoint()}`);
+    void 0 && ('🔍 Current RPC endpoint:');
+    void 0 && (`🌐 RPC URL: ${SolanaService.getRpcEndpoint()}`);
     
     return { isConnected, isValid };
   } catch (error) {
@@ -130,17 +130,17 @@ export async function testConnectionAndValidation() {
  */
 export async function setCustomRpcEndpoint() {
   try {
-    console.log('🔧 Setting custom RPC endpoint...');
+    void 0 && ('🔧 Setting custom RPC endpoint...');
     
     // Example with a custom RPC (you can replace with your own)
     // SolanaService.setRpcEndpoint('https://your-custom-rpc-url.com', 'confirmed');
     
     // For demo, we'll just show the current endpoint
-    console.log(`Current RPC: ${SolanaService.getRpcEndpoint()}`);
+    void 0 && (`Current RPC: ${SolanaService.getRpcEndpoint()}`);
     
     // Test the connection
     const isConnected = await SolanaService.testConnection();
-    console.log(`Connection test: ${isConnected ? '✅' : '❌'}`);
+    void 0 && (`Connection test: ${isConnected ? '✅' : '❌'}`);
     
     return isConnected;
   } catch (error) {
@@ -153,27 +153,27 @@ export async function setCustomRpcEndpoint() {
  * Run all examples
  */
 export async function runAllExamples() {
-  console.log('🚀 Starting Solana Service Examples...\n');
+  void 0 && ('🚀 Starting Solana Service Examples...\n');
   
   try {
     await testConnectionAndValidation();
-    console.log('\n' + '='.repeat(50) + '\n');
+    void 0 && ('\n' + '='.repeat(50) + '\n');
     
     await getWalletSolBalance();
-    console.log('\n' + '='.repeat(50) + '\n');
+    void 0 && ('\n' + '='.repeat(50) + '\n');
     
     await getWalletTokens();
-    console.log('\n' + '='.repeat(50) + '\n');
+    void 0 && ('\n' + '='.repeat(50) + '\n');
     
     await getCompleteWalletBalance();
-    console.log('\n' + '='.repeat(50) + '\n');
+    void 0 && ('\n' + '='.repeat(50) + '\n');
     
     await getSpecificTokenBalance();
-    console.log('\n' + '='.repeat(50) + '\n');
+    void 0 && ('\n' + '='.repeat(50) + '\n');
     
     await setCustomRpcEndpoint();
     
-    console.log('\n✅ All examples completed successfully!');
+    void 0 && ('\n✅ All examples completed successfully!');
   } catch (error) {
     console.error('\n❌ Example execution failed:', error);
   }

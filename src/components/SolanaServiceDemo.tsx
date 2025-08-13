@@ -37,7 +37,7 @@ export function SolanaServiceDemo() {
     setError(null);
     
     try {
-      console.log(`🚀 Starting ${includeMetadata ? 'enhanced' : 'basic'} token fetch...`);
+      void 0 && (`🚀 Starting ${includeMetadata ? 'enhanced' : 'basic'} token fetch...`);
       const startTime = performance.now();
       
       const tokenList = await SolanaService.getTokens(address, includeMetadata);
@@ -47,10 +47,10 @@ export function SolanaServiceDemo() {
       
       if (includeMetadata) {
         const tokensWithMetadata = tokenList.filter(t => t.name || t.symbol).length;
-        console.log(`✅ Fetched ${tokenList.length} tokens (${tokensWithMetadata} with metadata) in ${duration}ms`);
-        console.log(`📊 Efficiency: ~${((tokensWithMetadata / tokenList.length) * 100).toFixed(0)}% metadata coverage with minimal requests`);
+        void 0 && (`✅ Fetched ${tokenList.length} tokens (${tokensWithMetadata} with metadata) in ${duration}ms`);
+        void 0 && (`📊 Efficiency: ~${((tokensWithMetadata / tokenList.length) * 100).toFixed(0)}% metadata coverage with minimal requests`);
       } else {
-        console.log(`✅ Fetched ${tokenList.length} tokens in ${duration}ms (basic mode - no metadata)`);
+        void 0 && (`✅ Fetched ${tokenList.length} tokens in ${duration}ms (basic mode - no metadata)`);
       }
       setTokens(tokenList);
     } catch (err) {
@@ -67,7 +67,7 @@ export function SolanaServiceDemo() {
     setError(null);
     
     try {
-      console.log('🚀 Starting complete balance fetch with parallel requests...');
+      void 0 && ('🚀 Starting complete balance fetch with parallel requests...');
       const startTime = performance.now();
       
       const balance = await SolanaService.getWalletBalance(address);
@@ -75,7 +75,7 @@ export function SolanaServiceDemo() {
       const endTime = performance.now();
       const duration = (endTime - startTime).toFixed(2);
       
-      console.log(`✅ Fetched complete wallet balance (SOL + ${balance.totalTokens} tokens) in ${duration}ms`);
+      void 0 && (`✅ Fetched complete wallet balance (SOL + ${balance.totalTokens} tokens) in ${duration}ms`);
       setWalletBalance(balance);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get wallet balance');

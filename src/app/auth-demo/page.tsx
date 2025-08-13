@@ -6,7 +6,7 @@ import { WalletDebug } from '@/components/auth/wallet-debug';
 
 export default function AuthDemoPage() {
   const handleSuccess = () => {
-    console.log('Authentication successful!');
+    void 0 && ('Authentication successful!');
     // In a real app, you would redirect or update state here
   };
 

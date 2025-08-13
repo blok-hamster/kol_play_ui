@@ -105,7 +105,7 @@ export const useUserStore = create<UserState>()(
 
           // If account details have errors, try to fetch them now that token is stored
           if (response.data.user.accountDetails?._hasError) {
-            console.log('🔄 Account details have error, attempting to fetch after token storage...');
+            void 0 && ('🔄 Account details have error, attempting to fetch after token storage...');
             try {
               const freshAccountDetails = await SiwsAuthService.refreshAccountDetails();
               // Update user with fresh account details
@@ -118,7 +118,7 @@ export const useUserStore = create<UserState>()(
                   }
                 });
               }
-              console.log('✅ Successfully fetched account details after login');
+              void 0 && ('✅ Successfully fetched account details after login');
             } catch (fetchError: any) {
               console.warn('⚠️ Could not fetch account details after login:', fetchError.message);
               // User is still logged in, they can use refresh button later
@@ -292,7 +292,7 @@ export const useUserStore = create<UserState>()(
             isLoading: false,
             error: null
           });
-          console.log('✅ Account details refreshed successfully');
+          void 0 && ('✅ Account details refreshed successfully');
         } catch (error: any) {
           console.error('❌ Failed to refresh account details:', error);
           set({
@@ -316,7 +316,7 @@ export const useUserStore = create<UserState>()(
           const isWalletAuth = SiwsAuthService.isAuthenticated();
           
           if (isEmailAuth || isWalletAuth) {
-            console.log('🔄 User authenticated via:', isEmailAuth ? 'email' : 'wallet');
+            void 0 && ('🔄 User authenticated via:', isEmailAuth ? 'email' : 'wallet');
             set({ isAuthenticated: true });
             
             // If wallet authenticated, ensure we have a user profile
@@ -325,7 +325,7 @@ export const useUserStore = create<UserState>()(
                 const storedUser = get().user; // Check if we have persisted user data
                 
                 if (!storedUser) {
-                  console.log('🔄 No stored user found, creating minimal wallet user profile...');
+                  void 0 && ('🔄 No stored user found, creating minimal wallet user profile...');
                   // Create a minimal user object for wallet authentication
                   const minimalUser: User = {
                     id: `wallet_user_${Date.now()}`,
@@ -338,15 +338,15 @@ export const useUserStore = create<UserState>()(
                     updatedAt: new Date().toISOString(),
                   };
                   set({ user: minimalUser });
-                  console.log('✅ Created minimal wallet user profile:', minimalUser);
+                  void 0 && ('✅ Created minimal wallet user profile:', minimalUser);
                 } else {
                   // We have persisted user data, just ensure it's set
-                  console.log('✅ Using persisted wallet user profile:', storedUser);
+                  void 0 && ('✅ Using persisted wallet user profile:', storedUser);
                 }
                 
                 // Try to fetch account details for wallet users to get the wallet address
                 try {
-                  console.log('🔄 Fetching account details for wallet user...');
+                  void 0 && ('🔄 Fetching account details for wallet user...');
                   const accountDetails = await SiwsAuthService.refreshAccountDetails();
                   const currentUser = get().user;
                   if (currentUser) {
@@ -357,7 +357,7 @@ export const useUserStore = create<UserState>()(
                       walletAddress: currentUser.walletAddress || accountDetails.address
                     };
                     set({ user: updatedUser });
-                    console.log('✅ Loaded account details and updated wallet user:', updatedUser);
+                    void 0 && ('✅ Loaded account details and updated wallet user:', updatedUser);
                   }
                 } catch (accountError) {
                   console.warn('⚠️ Could not load account details during initialization:', accountError);
@@ -376,7 +376,7 @@ export const useUserStore = create<UserState>()(
                       updatedAt: new Date().toISOString(),
                     };
                     set({ user: fallbackUser });
-                    console.log('✅ Created fallback wallet user profile:', fallbackUser);
+                    void 0 && ('✅ Created fallback wallet user profile:', fallbackUser);
                   }
                 }
               } catch (profileError) {

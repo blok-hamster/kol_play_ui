@@ -88,7 +88,7 @@ const PortfolioPage: React.FC = () => {
     maxConcurrentBatches: 3,
     cacheEnabled: true,
     onProgress: (loaded, total, currentBatch, totalBatches) => {
-      console.log(`Loading token details: ${loaded}/${total} (batch ${currentBatch}/${totalBatches})`);
+      void 0 && (`Loading token details: ${loaded}/${total} (batch ${currentBatch}/${totalBatches})`);
     },
     onError: (error) => {
       console.error('Token details loading error:', error);
@@ -100,7 +100,7 @@ const PortfolioPage: React.FC = () => {
 
     try {
       setIsLoadingWalletData(true);
-      console.log(`🔄 Fetching enhanced wallet data for ${user.accountDetails.address} (enrichTokens: ${enrichTokens})`);
+      void 0 && (`🔄 Fetching enhanced wallet data for ${user.accountDetails.address} (enrichTokens: ${enrichTokens})`);
       
       const walletData = await SolanaService.getWalletBalanceWithEnrichedTokens(
         user.accountDetails.address,
@@ -108,13 +108,13 @@ const PortfolioPage: React.FC = () => {
       );
       
       setEnhancedWalletData(walletData);
-      console.log(`✅ Enhanced wallet data loaded:`, walletData);
+      void 0 && (`✅ Enhanced wallet data loaded:`, walletData);
       
       // Load token details for enrichment if we have tokens
       if (walletData.tokens.length > 0) {
         const tokenMints = walletData.tokens.map(token => token.mintAddress).filter(mint => mint && mint.length > 0);
         if (tokenMints.length > 0) {
-          console.log(`🔄 Loading detailed token information for ${tokenMints.length} tokens`);
+          void 0 && (`🔄 Loading detailed token information for ${tokenMints.length} tokens`);
           loadTokens(tokenMints);
         }
       }
@@ -209,7 +209,7 @@ const PortfolioPage: React.FC = () => {
 
         // Optional: Show transaction details
         if (result.result?.transactionId) {
-          console.log('Transaction ID:', result.result.transactionId);
+          void 0 && ('Transaction ID:', result.result.transactionId);
         }
       } else {
         showError(
@@ -636,13 +636,19 @@ const PortfolioPage: React.FC = () => {
                             <button
                               onClick={(e) => handleInstantSell(token, e)}
                               disabled={sellingTokens.has(token.mintAddress)}
-                              className="p-2 rounded-lg bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 group-hover:opacity-100 opacity-0 mt-1 sm:mt-0"
+                              className="px-2 py-1 rounded-lg bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 group-hover:opacity-100 opacity-0 mt-1 sm:mt-0"
                               title={`Auto sell ${token.detailedSymbol}`}
                             >
                               {sellingTokens.has(token.mintAddress) ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                <span className="inline-flex items-center gap-1">
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span className="text-xs font-medium">Selling...</span>
+                                </span>
                               ) : (
-                                <TrendingDown className="w-4 h-4" />
+                                <span className="inline-flex items-center gap-1">
+                                  <TrendingDown className="w-4 h-4" />
+                                  <span className="text-xs font-medium">Sell</span>
+                                </span>
                               )}
                             </button>
                           </div>

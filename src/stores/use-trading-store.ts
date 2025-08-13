@@ -153,9 +153,9 @@ export const useTradingStore = create<TradingState>()(
         
         set({ isLoadingSubscriptions: true });
         try {
-          console.log('Initializing subscriptions from store...');
+          void 0 && ('Initializing subscriptions from store...');
           const response = await TradingService.getUserSubscriptions();
-          console.log('Store API Response:', response);
+          void 0 && ('Store API Response:', response);
 
           if (response.data) {
             // Filter out subscriptions without kolWallet and transform dates
@@ -172,7 +172,7 @@ export const useTradingStore = create<TradingState>()(
               hasLoadedSubscriptions: true,
               error: null
             });
-            console.log('Store: Successfully loaded subscriptions:', validSubscriptions);
+            void 0 && ('Store: Successfully loaded subscriptions:', validSubscriptions);
           } else {
             throw new Error(response.message || 'Failed to fetch subscriptions');
           }
@@ -253,9 +253,9 @@ export const useTradingStore = create<TradingState>()(
         });
         
         try {
-          console.log('Refreshing subscriptions from store...');
+          void 0 && ('Refreshing subscriptions from store...');
           const response = await TradingService.getUserSubscriptions();
-          console.log('Store Refresh API Response:', response);
+          void 0 && ('Store Refresh API Response:', response);
 
           if (response.data) {
             // Filter out subscriptions without kolWallet and transform dates
@@ -272,7 +272,7 @@ export const useTradingStore = create<TradingState>()(
               hasLoadedSubscriptions: true,
               error: null
             });
-            console.log('Store: Successfully refreshed subscriptions:', validSubscriptions);
+            void 0 && ('Store: Successfully refreshed subscriptions:', validSubscriptions);
           } else {
             throw new Error(response.message || 'Failed to refresh subscriptions');
           }
@@ -296,7 +296,7 @@ export const useTradingStore = create<TradingState>()(
         }
 
         try {
-          console.log('Updating subscription settings for:', kolWallet);
+          void 0 && ('Updating subscription settings for:', kolWallet);
           
           // Prepare the update request
           const updateRequest: UpdateUserSubscriptionRequest = {
@@ -311,7 +311,7 @@ export const useTradingStore = create<TradingState>()(
           };
 
           const response = await TradingService.updateUserSubscription(updateRequest);
-          console.log('Store Update Subscription API Response:', response);
+          void 0 && ('Store Update Subscription API Response:', response);
 
           if (response.data) {
             // Update the subscription in the store with the response data
@@ -321,7 +321,7 @@ export const useTradingStore = create<TradingState>()(
                 : sub
             );
             set({ subscriptions: updatedSubscriptions, error: null });
-            console.log('Store: Successfully updated subscription settings for:', kolWallet);
+            void 0 && ('Store: Successfully updated subscription settings for:', kolWallet);
           } else {
             throw new Error(response.message || 'Failed to update subscription settings');
           }

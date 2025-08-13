@@ -443,7 +443,7 @@ export default function KOLDetail({
 
   // Debug WebSocket connection and data
   useEffect(() => {
-    console.log(`🔌 WebSocket Status:`, {
+    void 0 && (`🔌 WebSocket Status:`, {
       isConnected,
       isLoadingInitialData,
       totalTrades: allRecentTrades.length,
@@ -476,18 +476,18 @@ export default function KOLDetail({
 
   // Filter real-time trades for this specific KOL
   const kolRealtimeTrades = useMemo(() => {
-    console.log(`🔍 Filtering trades for KOL ${walletAddress}:`);
-    console.log(`📥 Total trades from socket: ${allRecentTrades.length}`);
+    void 0 && (`🔍 Filtering trades for KOL ${walletAddress}:`);
+    void 0 && (`📥 Total trades from socket: ${allRecentTrades.length}`);
     
     const filtered = allRecentTrades.filter(trade => {
       const matches = trade.kolWallet.toLowerCase() === walletAddress.toLowerCase();
       if (matches) {
-        console.log(`✅ Found matching trade for KOL:`, trade);
+        void 0 && (`✅ Found matching trade for KOL:`, trade);
       }
       return matches;
     });
     
-    console.log(`🎯 Filtered trades for this KOL: ${filtered.length}`);
+    void 0 && (`🎯 Filtered trades for this KOL: ${filtered.length}`);
     
     const mapped = filtered.map(trade => ({
       id: trade.id,
@@ -504,7 +504,7 @@ export default function KOLDetail({
       fee: trade.tradeData.fee
     } as KOLTrade));
     
-    console.log(`📊 Final mapped trades: ${mapped.length}`);
+    void 0 && (`📊 Final mapped trades: ${mapped.length}`);
     return mapped;
   }, [allRecentTrades, walletAddress]);
 
@@ -544,13 +544,13 @@ export default function KOLDetail({
     async (newFilters?: Partial<TradeHistoryFilters>) => {
       // Always prioritize real-time data when available
       if (kolRealtimeTrades.length > 0) {
-        console.log('✅ Using real-time trade data instead of API call');
+        void 0 && ('✅ Using real-time trade data instead of API call');
         return;
       }
 
       // Only make API calls for historical data when no real-time data is available
       if (tradeFilters.dateRange === 'live') {
-        console.log('⏳ Live mode selected but no real-time data yet, waiting...');
+        void 0 && ('⏳ Live mode selected but no real-time data yet, waiting...');
         return;
       }
 
@@ -558,7 +558,7 @@ export default function KOLDetail({
 
       try {
         setLoading('tradeHistory', true);
-        console.log('📡 Fetching historical trade data from API...');
+        void 0 && ('📡 Fetching historical trade data from API...');
 
         const request: RecentKOLTradesRequest = {
           walletAddress,
@@ -595,11 +595,11 @@ export default function KOLDetail({
   // Update trade history with real-time data when available
   useEffect(() => {
     if (kolRealtimeTrades.length > 0 && (activeTab === 'trades' || activeTab === 'analytics')) {
-      console.log(`📊 Setting ${kolRealtimeTrades.length} real-time trades for KOL: ${walletAddress}`);
+      void 0 && (`📊 Setting ${kolRealtimeTrades.length} real-time trades for KOL: ${walletAddress}`);
       setTradeHistory(kolRealtimeTrades);
     } else if (kolRealtimeTrades.length === 0 && !isLoadingInitialData && (activeTab === 'trades' || activeTab === 'analytics') && tradeFilters.dateRange !== 'live') {
       // Only fallback to API for non-live historical data
-      console.log('📡 No real-time trades available, falling back to API call for historical data');
+      void 0 && ('📡 No real-time trades available, falling back to API call for historical data');
       fetchTradeHistory();
     }
   }, [kolRealtimeTrades, activeTab, isLoadingInitialData, fetchTradeHistory, walletAddress, tradeFilters.dateRange]);
@@ -1144,7 +1144,7 @@ export default function KOLDetail({
                       <div>Connected: {isConnected ? 'Yes' : 'No'}</div>
                       <button
                         onClick={() => {
-                          console.log('🧪 Test: Adding fake trade data');
+                          void 0 && ('🧪 Test: Adding fake trade data');
                           const testTrade = {
                             id: `test-${Date.now()}`,
                             kolWallet: walletAddress,

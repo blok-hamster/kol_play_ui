@@ -34,7 +34,7 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
   showFilters = true,
   className
 }) => {
-  console.log('🚀 KOLRealtimeTrades component initialized');
+  void 0 && ('🚀 KOLRealtimeTrades component initialized');
   
   const {
     isConnected,
@@ -43,7 +43,7 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
     stats
   } = useKOLTradeSocket();
 
-  console.log('🔍 KOLRealtimeTrades state:', {
+  void 0 && ('🔍 KOLRealtimeTrades state:', {
     isConnected,
     recentTradesCount: recentTrades.length,
     isLoadingInitialData,

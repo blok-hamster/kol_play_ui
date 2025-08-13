@@ -46,7 +46,7 @@ const HomePage: React.FC = () => {
   const handleGetStarted = () => {
     if (isAuthenticated) {
       // Navigate to portfolio or main app
-      console.log('Navigate to portfolio');
+      void 0 && ('Navigate to portfolio');
     } else {
       openModal('auth');
     }

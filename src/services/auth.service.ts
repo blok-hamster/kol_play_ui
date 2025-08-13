@@ -54,7 +54,7 @@ export class AuthService {
    */
   static async signIn(data: SignInRequest): Promise<AuthResponse> {
     try {
-      console.log('🔐 AuthService.signIn - Request data:', data);
+      void 0 && ('🔐 AuthService.signIn - Request data:', data);
 
       // Make the API call using raw method for direct response format: { token, user }
       const responseData = await apiClient.postRaw<{
@@ -63,7 +63,7 @@ export class AuthService {
         isNewUser?: boolean;
       }>(API_ENDPOINTS.AUTH.SIGNIN, data);
 
-      console.log('🔐 AuthService.signIn - Response data:', responseData);
+      void 0 && ('🔐 AuthService.signIn - Response data:', responseData);
 
       // Check if response has the expected format
       if (!responseData || typeof responseData !== 'object') {
@@ -92,8 +92,8 @@ export class AuthService {
 
       const { token, user, isNewUser } = responseData;
 
-      console.log('🔐 AuthService.signIn - extracted token:', token);
-      console.log('🔐 AuthService.signIn - extracted user:', user);
+      void 0 && ('🔐 AuthService.signIn - extracted token:', token);
+      void 0 && ('🔐 AuthService.signIn - extracted user:', user);
 
       // Handle account details - allow sign-in even if account details have errors
       let finalUser = { ...user };
@@ -101,7 +101,7 @@ export class AuthService {
       if (user.accountDetails) {
         // Check if account details has an error (string) or _hasError flag or error property
         if (typeof user.accountDetails === 'string' && user.accountDetails.includes('Error')) {
-          console.log('⚠️ Account details has error, user can still sign in. Will need to refresh manually.');
+          void 0 && ('⚠️ Account details has error, user can still sign in. Will need to refresh manually.');
           // Provide a minimal account details structure with error flag
           finalUser.accountDetails = {
             address: '', // Will be populated when user refreshes
@@ -111,7 +111,7 @@ export class AuthService {
             _errorMessage: user.accountDetails || 'Account details unavailable'
           };
         } else if (user.accountDetails._hasError) {
-          console.log('⚠️ Account details has error flag, user can still sign in. Will need to refresh manually.');
+          void 0 && ('⚠️ Account details has error flag, user can still sign in. Will need to refresh manually.');
           // Ensure proper error structure
           finalUser.accountDetails = {
             address: '', 
@@ -121,7 +121,7 @@ export class AuthService {
             _errorMessage: user.accountDetails.error || user.accountDetails._errorMessage || 'Account details unavailable'
           };
         } else if (user.accountDetails.error) {
-          console.log('⚠️ Account details has error property, user can still sign in. Will need to refresh manually.');
+          void 0 && ('⚠️ Account details has error property, user can still sign in. Will need to refresh manually.');
           // Handle the case where accountDetails has an error property (like the user's example)
           finalUser.accountDetails = {
             address: '', 
@@ -132,21 +132,21 @@ export class AuthService {
           };
         } else {
           // Account details are valid, log them
-          console.log(
+          void 0 && (
             '🔐 AuthService.signIn - user wallet address:',
             user.accountDetails.address
           );
-          console.log(
+          void 0 && (
             '🔐 AuthService.signIn - user SOL balance:',
             user.accountDetails.balance
           );
-          console.log(
+          void 0 && (
             '🔐 AuthService.signIn - user tokens count:',
             user.accountDetails.tokens?.length || 0
           );
         }
       } else {
-        console.log('⚠️ No account details provided, user can still sign in. Will need to refresh manually.');
+        void 0 && ('⚠️ No account details provided, user can still sign in. Will need to refresh manually.');
         // Provide a minimal account details structure
         finalUser.accountDetails = {
           address: '',
@@ -159,7 +159,7 @@ export class AuthService {
 
       // Store token in API client
       apiClient.setToken(token);
-      console.log('🔐 Token stored in apiClient');
+      void 0 && ('🔐 Token stored in apiClient');
 
       // Return in the expected AuthResponse format
       return {
@@ -181,7 +181,7 @@ export class AuthService {
    */
   static async verifyOTP(data: VerifyOTPRequest): Promise<AuthResponse> {
     try {
-      console.log('🔐 AuthService.verifyOTP - Request data:', data);
+      void 0 && ('🔐 AuthService.verifyOTP - Request data:', data);
 
       // Make the API call using raw method for direct response format: { token, user }
       const responseData = await apiClient.postRaw<{
@@ -190,7 +190,7 @@ export class AuthService {
         isNewUser?: boolean;
       }>(API_ENDPOINTS.AUTH.VERIFY_OTP, data);
 
-      console.log('🔐 AuthService.verifyOTP - Response data:', responseData);
+      void 0 && ('🔐 AuthService.verifyOTP - Response data:', responseData);
 
       // Check if response has the expected format
       if (!responseData || typeof responseData !== 'object') {
@@ -219,20 +219,20 @@ export class AuthService {
 
       const { token, user, isNewUser } = responseData;
 
-      console.log('🔐 AuthService.verifyOTP - extracted token:', token);
-      console.log('🔐 AuthService.verifyOTP - extracted user:', user);
+      void 0 && ('🔐 AuthService.verifyOTP - extracted token:', token);
+      void 0 && ('🔐 AuthService.verifyOTP - extracted user:', user);
 
       // Log account details if present
       if (user.accountDetails) {
-        console.log(
+        void 0 && (
           '🔐 AuthService.verifyOTP - user wallet address:',
           user.accountDetails.address
         );
-        console.log(
+        void 0 && (
           '🔐 AuthService.verifyOTP - user SOL balance:',
           user.accountDetails.balance
         );
-        console.log(
+        void 0 && (
           '🔐 AuthService.verifyOTP - user tokens count:',
           user.accountDetails.tokens.length
         );
@@ -240,7 +240,7 @@ export class AuthService {
 
       // Store token in API client
       apiClient.setToken(token);
-      console.log('🔐 Token stored in apiClient');
+      void 0 && ('🔐 Token stored in apiClient');
 
       // Return in the expected AuthResponse format
       return {

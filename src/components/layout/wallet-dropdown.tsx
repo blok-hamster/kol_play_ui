@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { useUserStore } from '@/stores/use-user-store';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
 import {
@@ -25,6 +26,7 @@ import {
   Info,
   TrendingDown,
   DollarSign,
+  Send,
 } from 'lucide-react';
 import { WalletInfo } from '@/types';
 import { useNotifications } from '@/stores/use-ui-store';
@@ -69,6 +71,10 @@ export function WalletDropdown() {
   const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
   const [pendingSellToken, setPendingSellToken] = useState<TokenBalance | null>(null);
   const [showFund, setShowFund] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferAsset, setTransferAsset] = useState<{ type: 'SOL' | 'SPL'; mint?: string }>({ type: 'SOL' });
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferRecipient, setTransferRecipient] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Initialize token lazy loading
@@ -84,7 +90,7 @@ export function WalletDropdown() {
     maxConcurrentBatches: 2,
     cacheEnabled: true,
     onProgress: (loaded, total, currentBatch, totalBatches) => {
-      console.log(`Loading token details: ${loaded}/${total} (batch ${currentBatch}/${totalBatches})`);
+      void 0 && (`Loading token details: ${loaded}/${total} (batch ${currentBatch}/${totalBatches})`);
     },
     onError: (error) => {
       console.error('Token details loading error:', error);
@@ -108,7 +114,7 @@ export function WalletDropdown() {
             ) + (user.accountDetails.solValueUsd || (user.accountDetails.balance || 0)),
           tokens: (user.accountDetails.tokens || []).map(token => {
             // Debug: Log original token data
-            console.log(`Original token data for ${token.mint}:`, {
+            void 0 && (`Original token data for ${token.mint}:`, {
               name: token.name,
               symbol: token.symbol,
               image: token.image,
@@ -121,7 +127,7 @@ export function WalletDropdown() {
             
             // Debug logging
             if (tokenDetail) {
-              console.log(`Token ${token.mint} details:`, {
+              void 0 && (`Token ${token.mint} details:`, {
                 originalName: token.name,
                 originalSymbol: token.symbol,
                 detailName: tokenDetail.token?.name,
@@ -162,7 +168,7 @@ export function WalletDropdown() {
     if (isOpen && tradingWallet && tradingWallet.tokens.length > 0) {
       const tokenMints = tradingWallet.tokens.map(token => token.mint).filter(mint => mint && mint.length > 0);
       if (tokenMints.length > 0) {
-        console.log(`Loading details for ${tokenMints.length} tokens:`, tokenMints);
+        void 0 && (`Loading details for ${tokenMints.length} tokens:`, tokenMints);
         loadTokens(tokenMints);
       }
     }
@@ -171,7 +177,7 @@ export function WalletDropdown() {
   // Debug: Log when token details change
   useEffect(() => {
     if (tokenDetails.size > 0) {
-      console.log(`Token details loaded for ${tokenDetails.size} tokens:`, Array.from(tokenDetails.entries()));
+      void 0 && (`Token details loaded for ${tokenDetails.size} tokens:`, Array.from(tokenDetails.entries()));
     }
   }, [tokenDetails]);
 
@@ -268,7 +274,7 @@ export function WalletDropdown() {
 
         // Optional: Show transaction details
         if (result.result?.transactionId) {
-          console.log('Transaction ID:', result.result.transactionId);
+          void 0 && ('Transaction ID:', result.result.transactionId);
         }
       } else {
         showError(
@@ -315,7 +321,7 @@ export function WalletDropdown() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-[60]">
+        <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-[60] translate-x-4 sm:translate-x-0">
           {/* Header */}
           <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center justify-between">
@@ -349,6 +355,148 @@ export function WalletDropdown() {
             </div>
           </div>
 
+          {/* Focused panels: show ONLY Fund or Transfer when toggled */}
+          {(showFund || showTransfer) ? (
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-foreground">
+                  {showTransfer ? 'Transfer' : 'Fund'}
+                </h4>
+                <button
+                  onClick={() => { setShowFund(false); setShowTransfer(false); }}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Back
+                </button>
+              </div>
+              {!tradingWallet ? (
+                <div className="p-3 bg-muted/30 border border-border rounded-md text-sm text-muted-foreground">
+                  Wallet data unavailable.
+                </div>
+              ) : (
+                <>
+                  {showFund && (
+                    <div className="p-3 bg-muted/50 rounded-md border border-border">
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="bg-white p-2 rounded">
+                          <QRCode value={tradingWallet.address} size={132} />
+                        </div>
+                        <div className="w-full flex items-center justify-between text-xs">
+                          <span className="font-mono break-all">
+                            {tradingWallet.address}
+                          </span>
+                          <div className="flex items-center space-x-1 flex-shrink-0">
+                            <button
+                              onClick={() => handleCopyAddress(tradingWallet.address, 'trading')}
+                              className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label="Copy deposit address"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                            <a
+                              href={`https://solscan.io/account/${tradingWallet.address}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label="View address on Solscan"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground text-center">
+                          Use this address to deposit SOL or SPL tokens to your trading wallet.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {showTransfer && (
+                    <div className="p-3 bg-muted/50 rounded-md border border-border space-y-3">
+                      {/* Asset Selection */}
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Asset</label>
+                        <select
+                          className="w-full text-sm bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+                          value={transferAsset.type === 'SOL' ? 'SOL' : transferAsset.mint || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === 'SOL') {
+                              setTransferAsset({ type: 'SOL' });
+                            } else {
+                              setTransferAsset({ type: 'SPL', mint: value });
+                            }
+                          }}
+                        >
+                          <option value="SOL">SOL (Balance: {(tradingWallet.solBalance || 0).toFixed(4)})</option>
+                          {tradingWallet.tokens.map((t) => (
+                            <option key={t.mint} value={t.mint}>
+                              {t.symbol} (Balance: {safeFormatAmount(t.balance || 0, 4, '0.0000')})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Amount Input */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs text-muted-foreground">Amount</label>
+                          <button
+                            type="button"
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+                            onClick={() => {
+                              if (transferAsset.type === 'SOL') {
+                                setTransferAmount((tradingWallet.solBalance || 0).toString());
+                              } else {
+                                const tok = tradingWallet.tokens.find(tt => tt.mint === transferAsset.mint);
+                                setTransferAmount(((tok?.balance || 0)).toString());
+                              }
+                            }}
+                          >
+                            Max
+                          </button>
+                        </div>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="any"
+                          placeholder="0.0"
+                          className="w-full text-sm bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+                          value={transferAmount}
+                          onChange={(e) => setTransferAmount(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Recipient Input */}
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Recipient Address</label>
+                        <input
+                          type="text"
+                          placeholder="Enter Solana address"
+                          className="w-full text-sm bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+                          value={transferRecipient}
+                          onChange={(e) => setTransferRecipient(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="text-[10px] text-muted-foreground">
+                        Transfers are not yet enabled. This UI is a preview; backend integration is coming soon.
+                      </div>
+
+                      <Button
+                        className="w-full"
+                        disabled
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Send (Coming Soon)
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+          <>
           {/* Trading Wallet */}
           <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center justify-between mb-2">
@@ -501,6 +649,95 @@ export function WalletDropdown() {
                     </div>
                   </div>
                 )}
+
+                {/* Transfer Section Toggle */}
+                <Button size="sm" variant="outline" className="w-full mt-2" onClick={() => setShowTransfer(!showTransfer)}>
+                  <Send className="h-3 w-3 mr-1" />
+                  {showTransfer ? 'Hide Transfer' : 'Transfer'}
+                </Button>
+
+                {showTransfer && (
+                  <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border space-y-3">
+                    {/* Asset Selection */}
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Asset</label>
+                      <select
+                        className="w-full text-sm bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+                        value={transferAsset.type === 'SOL' ? 'SOL' : transferAsset.mint || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === 'SOL') {
+                            setTransferAsset({ type: 'SOL' });
+                          } else {
+                            setTransferAsset({ type: 'SPL', mint: value });
+                          }
+                        }}
+                      >
+                        <option value="SOL">SOL (Balance: {(tradingWallet.solBalance || 0).toFixed(4)})</option>
+                        {tradingWallet.tokens.map((t) => (
+                          <option key={t.mint} value={t.mint}>
+                            {t.symbol} (Balance: {safeFormatAmount(t.balance || 0, 4, '0.0000')})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Amount Input */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs text-muted-foreground">Amount</label>
+                        <button
+                          type="button"
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80"
+                          onClick={() => {
+                            if (transferAsset.type === 'SOL') {
+                              setTransferAmount((tradingWallet.solBalance || 0).toString());
+                            } else {
+                              const tok = tradingWallet.tokens.find(tt => tt.mint === transferAsset.mint);
+                              setTransferAmount(((tok?.balance || 0)).toString());
+                            }
+                          }}
+                        >
+                          Max
+                        </button>
+                      </div>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="any"
+                        placeholder="0.0"
+                        className="w-full text-sm bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+                        value={transferAmount}
+                        onChange={(e) => setTransferAmount(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Recipient Input */}
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Recipient Address</label>
+                      <input
+                        type="text"
+                        placeholder="Enter Solana address"
+                        className="w-full text-sm bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring"
+                        value={transferRecipient}
+                        onChange={(e) => setTransferRecipient(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="text-[10px] text-muted-foreground">
+                      Transfers are not yet enabled. This UI is a preview; backend integration is coming soon.
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      disabled
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Send (Coming Soon)
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -607,13 +844,19 @@ export function WalletDropdown() {
                         <button
                           onClick={(e) => handleInstantSell(token, e)}
                           disabled={sellingTokens.has(token.mint)}
-                          className="p-1 rounded bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 group-hover:opacity-100 opacity-0"
+                          className="px-2 py-1 rounded bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/40 transition-colors disabled:opacity-50 group-hover:opacity-100 opacity-0"
                           title={`Auto sell ${token.symbol}`}
                         >
                           {sellingTokens.has(token.mint) ? (
-                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span className="inline-flex items-center gap-1">
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span className="text-[10px] font-medium">Selling...</span>
+                            </span>
                           ) : (
-                            <TrendingDown className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1">
+                              <TrendingDown className="w-3 h-3" />
+                              <span className="text-[10px] font-medium">Sell</span>
+                            </span>
                           )}
                         </button>
                       </div>
@@ -733,16 +976,22 @@ export function WalletDropdown() {
           {/* Footer Actions */}
           <div className="px-4 py-3">
             <div className="flex space-x-2">
-              <Button size="sm" variant="outline" className="flex-1">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                Portfolio
-              </Button>
-              <Button size="sm" variant="outline" className="flex-1">
-                <ExternalLink className="h-3 w-3 mr-1" />
-                History
-              </Button>
+              <Link href="/portfolio" className="flex-1">
+                <Button size="sm" variant="outline" className="w-full">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  Portfolio
+                </Button>
+              </Link>
+              <Link href="/portfolio/transactions" className="flex-1">
+                <Button size="sm" variant="outline" className="w-full">
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  History
+                </Button>
+              </Link>
             </div>
           </div>
+          </>
+          )}
         </div>
       )}
 

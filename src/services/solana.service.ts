@@ -44,7 +44,7 @@ async function fetchJupiterTokenList(): Promise<Map<string, any>> {
 
   for (const endpoint of endpoints) {
     try {
-      console.log(`🔄 Fetching Jupiter token list (${endpoint.description})...`);
+      void 0 && (`🔄 Fetching Jupiter token list (${endpoint.description})...`);
       const response = await fetch(endpoint.url);
       
       if (!response.ok) {
@@ -85,7 +85,7 @@ async function fetchJupiterTokenList(): Promise<Map<string, any>> {
         jupiterTokenListCache = jupiterTokenMap;
         jupiterTokenListCacheTime = now;
         
-        console.log(`✅ Cached ${tokensWithMetadata} tokens with metadata from ${totalTokens} total (${endpoint.description})`);
+        void 0 && (`✅ Cached ${tokensWithMetadata} tokens with metadata from ${totalTokens} total (${endpoint.description})`);
         return jupiterTokenMap;
       } else {
         console.warn(`Only found ${tokensWithMetadata} tokens with metadata from ${endpoint.description}, trying next endpoint...`);
@@ -135,7 +135,7 @@ async function fetchJupiterPrices(mintAddresses: string[]): Promise<Map<string, 
       }
     }
     
-    console.log(`✅ Fetched ${priceMap.size} prices from Jupiter API`);
+    void 0 && (`✅ Fetched ${priceMap.size} prices from Jupiter API`);
     return priceMap;
   } catch (error) {
     console.warn('Failed to fetch prices from Jupiter API:', error);
@@ -159,7 +159,7 @@ async function fetchSolPriceFromCoinGecko(): Promise<number> {
     const data = await response.json();
     
     if (data?.solana?.usd && typeof data.solana.usd === 'number') {
-      console.log(`✅ Fetched SOL price from CoinGecko: $${data.solana.usd}`);
+      void 0 && (`✅ Fetched SOL price from CoinGecko: $${data.solana.usd}`);
       return data.solana.usd;
     }
     
@@ -203,7 +203,7 @@ async function fetchCoinGeckoPrices(mintAddresses: string[]): Promise<Map<string
       }
     }
     
-    console.log(`✅ Fetched ${priceMap.size} token prices from CoinGecko`);
+    void 0 && (`✅ Fetched ${priceMap.size} token prices from CoinGecko`);
     return priceMap;
   } catch (error) {
     console.warn('Failed to fetch token prices from CoinGecko:', error);
@@ -482,7 +482,7 @@ export class SolanaService {
       // - Jupiter Token API
       // - Metaplex Metadata Program
       
-      console.log('Metadata fetching not yet implemented. Returning basic token info.');
+      void 0 && ('Metadata fetching not yet implemented. Returning basic token info.');
       return tokens;
     } catch (error) {
       console.error('Error fetching tokens with metadata:', error);
@@ -657,7 +657,7 @@ export class SolanaService {
       
       // Fallback to Jupiter if CoinGecko fails
       if (price === 0) {
-        console.log('🔄 Falling back to Jupiter for SOL price...');
+        void 0 && ('🔄 Falling back to Jupiter for SOL price...');
         const solMint = 'So11111111111111111111111111111111111111112'; // Wrapped SOL mint
         const jupiterPrices = await fetchJupiterPrices([solMint]);
         price = jupiterPrices.get(solMint) || 0;
@@ -666,7 +666,7 @@ export class SolanaService {
       // Cache the result
       if (price > 0) {
         priceCache.set(cacheKey, { price, timestamp: now });
-        console.log(`✅ SOL price cached: $${price}`);
+        void 0 && (`✅ SOL price cached: $${price}`);
       }
       
       return price;
@@ -718,7 +718,7 @@ export class SolanaService {
       // Try CoinGecko for remaining tokens
       let coinGeckoPrices = new Map<string, number>();
       if (remainingMints.length > 0) {
-        console.log(`🔄 Falling back to CoinGecko for ${remainingMints.length} tokens...`);
+        void 0 && (`🔄 Falling back to CoinGecko for ${remainingMints.length} tokens...`);
         coinGeckoPrices = await fetchCoinGeckoPrices(remainingMints);
       }
 
@@ -730,7 +730,7 @@ export class SolanaService {
         priceCache.set(mint, { price, timestamp: now });
       }
 
-      console.log(`✅ Fetched prices for ${allPrices.size}/${uncachedMints.length} tokens`);
+      void 0 && (`✅ Fetched prices for ${allPrices.size}/${uncachedMints.length} tokens`);
       
       return priceMap;
     } catch (error) {
@@ -790,6 +790,33 @@ export class SolanaService {
     }
 
     return valueMap;
+  }
+
+  /**
+   * Get current network prioritization fee estimate (median) in micro-lamports per compute unit
+   * Uses getRecentPrioritizationFees RPC and returns a simple median for stability
+   */
+  static async getPriorityFeeMicroLamportsPerCU(): Promise<number> {
+    try {
+      const connection = this.getConnection();
+      // Returns array of { slot, priorityFeeEstimate } in micro-lamports per CU
+      // Typing as any to support multiple RPC versions
+      // @ts-ignore
+      const fees: Array<{ slot: number; priorityFeeEstimate: number }> = await (connection as any).getRecentPrioritizationFees();
+      if (!Array.isArray(fees) || fees.length === 0) {
+        return 0;
+      }
+      const values = fees
+        .map((f: any) => Number(f?.priorityFeeEstimate))
+        .filter(v => Number.isFinite(v) && v >= 0)
+        .sort((a, b) => a - b);
+      if (values.length === 0) return 0;
+      const mid = Math.floor(values.length / 2);
+      return values.length % 2 === 0 ? (values[mid - 1] + values[mid]) / 2 : values[mid];
+    } catch (error) {
+      console.warn('Failed to fetch prioritization fees:', error);
+      return 0;
+    }
   }
 
   /**
@@ -871,7 +898,7 @@ export class SolanaService {
       
       try {
         // Fetch detailed token information
-        console.log(`🔄 Enriching ${mintAddresses.length} tokens with detailed information...`);
+        void 0 && (`🔄 Enriching ${mintAddresses.length} tokens with detailed information...`);
         const tokenDetailsResponse = await TokenService.getMultipleTokens(mintAddresses, {
           batchSize: 20,
           maxConcurrentBatches: 2
@@ -915,7 +942,7 @@ export class SolanaService {
           return token;
         });
 
-        console.log(`✅ Successfully enriched ${enrichedTokens.length} tokens with detailed information`);
+        void 0 && (`✅ Successfully enriched ${enrichedTokens.length} tokens with detailed information`);
 
         return {
           ...walletData,

@@ -85,7 +85,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   // WebSocket event handlers with real-time update integration
   const handleTradeUpdate = useCallback(
     (trade: KOLTrade) => {
-      console.log('Received trade update:', trade);
+      void 0 && ('Received trade update:', trade);
 
       // Route through real-time update service for batching
       const updateService = updateServiceRef.current;
@@ -103,7 +103,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   const handlePriceUpdate = useCallback(
     (data: { mint: string; price: number; change24h: number }) => {
-      console.log('Received price update:', data);
+      void 0 && ('Received price update:', data);
 
       // Route through real-time update service for batching and change detection
       const updateService = updateServiceRef.current;
@@ -114,7 +114,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   const handleBalanceUpdate = useCallback(
     (data: { balance: number; timestamp: number }) => {
-      console.log('Received balance update:', data);
+      void 0 && ('Received balance update:', data);
 
       // Route through real-time update service for batching
       const updateService = updateServiceRef.current;
@@ -125,7 +125,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   const handleNotification = useCallback(
     (notification: TradeAlert | any) => {
-      console.log('Received notification:', notification);
+      void 0 && ('Received notification:', notification);
 
       // Handle different notification formats
       if (notification.id && notification.type && notification.title) {
@@ -156,7 +156,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   );
 
   const handleConnect = useCallback(() => {
-    console.log('WebSocket connected');
+    void 0 && ('WebSocket connected');
     setStatus(prev => ({
       ...prev,
       isConnected: true,
@@ -174,7 +174,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   }, [subscriptions]);
 
   const handleDisconnect = useCallback(() => {
-    console.log('WebSocket disconnected');
+    void 0 && ('WebSocket disconnected');
     setStatus(prev => ({
       ...prev,
       isConnected: false,
@@ -199,7 +199,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   );
 
   const handleReconnecting = useCallback((attempt: number) => {
-    console.log('WebSocket reconnecting, attempt:', attempt);
+    void 0 && ('WebSocket reconnecting, attempt:', attempt);
     setStatus(prev => ({
       ...prev,
       isReconnecting: true,

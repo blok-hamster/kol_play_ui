@@ -80,7 +80,7 @@ class WebSocketService {
         this.ws = new WebSocket(this.config.url);
 
         this.ws.onopen = () => {
-          console.log('WebSocket connected');
+          void 0 && ('WebSocket connected');
           this.isConnected = true;
           this.isConnecting = false;
           this.reconnectAttempts = 0;
@@ -100,7 +100,7 @@ class WebSocketService {
         };
 
         this.ws.onclose = event => {
-          console.log('WebSocket disconnected:', event.code, event.reason);
+          void 0 && ('WebSocket disconnected:', event.code, event.reason);
           this.isConnected = false;
           this.isConnecting = false;
           this.stopHeartbeat();
@@ -301,7 +301,7 @@ class WebSocketService {
       30000 // Max 30 seconds
     );
 
-    console.log(
+    void 0 && (
       `Scheduling reconnect attempt ${this.reconnectAttempts} in ${backoffDelay}ms`
     );
     this.handlers.onReconnecting?.(this.reconnectAttempts);
@@ -370,7 +370,7 @@ class WebSocketService {
 
     const removed = initialLength - this.messageQueue.length;
     if (removed > 0) {
-      console.log(`Cleaned up ${removed} expired messages from queue`);
+      void 0 && (`Cleaned up ${removed} expired messages from queue`);
     }
   }
 }

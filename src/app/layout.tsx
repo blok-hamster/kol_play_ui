@@ -18,18 +18,11 @@ export const metadata: Metadata = {
   description: 'Follow top crypto traders and copy their winning strategies',
   icons: {
     icon: [
-      { url: '/favicon-32-white.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32-white.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-48-white.png', sizes: '48x48', type: 'image/png' },
-      { url: '/favicon-48-white.png', sizes: '96x96', type: 'image/png' },
-      { url: '/favicon-white.ico', sizes: '32x32', type: 'image/x-icon' },
+      { url: '/6.png', type: 'image/png' },
     ],
-    shortcut: '/favicon-white.ico',
+    shortcut: '/6.png',
     apple: [
-      { url: '/favicon-192x192.png', sizes: '180x180', type: 'image/png' },
-      { url: '/favicon-192x192.png', sizes: '152x152', type: 'image/png' },
-      { url: '/favicon-192x192.png', sizes: '144x144', type: 'image/png' },
-      { url: '/favicon-192x192.png', sizes: '120x120', type: 'image/png' },
+      { url: '/6.png', type: 'image/png' },
     ],
   },
   manifest: '/site.webmanifest',
@@ -55,12 +48,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <ThemeScript />
-        <link rel="icon" type="image/x-icon" href="/favicon-white.ico" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-32-white.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32-white.png" />
-        <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48-white.png" />
-        <link rel="icon" type="image/png" sizes="96x96" href="/favicon-48-white.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/favicon-192x192.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/6.png" />
+        <link rel="icon" type="image/png" sizes="48x48" href="/6.png" />
+        <link rel="icon" type="image/png" sizes="96x96" href="/6.png" />
+        <link rel="icon" type="image/png" sizes="128x128" href="/6.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/6.png" />
+        <link rel="icon" type="image/png" sizes="256x256" href="/6.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/6.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/6.png" />
+        <link rel="shortcut icon" href="/6.png" />
         <style>{`html{font-size:17px}button,[role=button]{font-weight:600 !important}`}</style>
       </head>
       <body className={darkerGrotesque.className}>

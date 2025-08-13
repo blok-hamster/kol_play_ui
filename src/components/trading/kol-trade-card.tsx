@@ -85,7 +85,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   hideKOLInfo = false,
   compact = false
 }) => {
-  console.log('🚀 KOLTradeCard component rendered');
+  void 0 && ('🚀 KOLTradeCard component rendered');
   
   const { showSuccess, showError } = useNotifications();
   const { getKOL } = useKOLStore();
@@ -203,7 +203,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
 
   // Debug logging for trade data
   React.useEffect(() => {
-    console.log('🔍 KOLTradeCard rendered with trade:', {
+    void 0 && ('🔍 KOLTradeCard rendered with trade:', {
       id: trade.id,
       kolWallet: hasNestedTradeData(trade) ? trade.kolWallet : 'N/A',
       timestamp: trade.timestamp,
@@ -229,7 +229,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
 
     // Additional debug for prediction specifically
     if (prediction) {
-      console.log('🧠 ML Prediction found:', {
+      void 0 && ('🧠 ML Prediction found:', {
         classLabel: prediction.classLabel,
         probability: prediction.probability,
         probabilityPercentage: (prediction.probability * 100).toFixed(1) + '%',
@@ -241,8 +241,8 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
         allProbabilities: prediction.probabilities
       });
     } else {
-      console.log('❌ No ML prediction found in trade data');
-      console.log('🔍 Checking both locations:', {
+      void 0 && ('❌ No ML prediction found in trade data');
+      void 0 && ('🔍 Checking both locations:', {
         topLevel: trade.prediction,
         nested: hasNestedTradeData(trade) ? (trade.tradeData as any)?.prediction : 'No nested data'
       });
@@ -262,7 +262,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
 
   // Debug the extracted data
   React.useEffect(() => {
-    console.log('🔍 Extracted trade data:', {
+    void 0 && ('🔍 Extracted trade data:', {
       tradeData,
       tradeAmounts,
       feeInSol,
@@ -545,16 +545,16 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
               </div>
             </div>
           ) : (
-            // Skeleton placeholder for consistent layout
-            <div className="mb-2 p-2 bg-muted/10 rounded-md">
+            // Skeleton placeholder matching buy design (no data)
+            <div className="mb-2 p-2 bg-muted/20 rounded-md">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
                   <div className="w-3 h-3 bg-muted/40 rounded animate-pulse" />
-                  <div className="w-20 h-3 bg-muted/40 rounded animate-pulse" />
+                  <div className="w-28 h-3 bg-muted/40 rounded animate-pulse" />
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="w-16 h-5 bg-muted/40 rounded-full animate-pulse" />
-                  <div className="w-8 h-3 bg-muted/40 rounded animate-pulse" />
+                  <div className="w-20 h-5 bg-muted/40 rounded-full animate-pulse" />
+                  <div className="w-10 h-3 bg-muted/40 rounded animate-pulse" />
                 </div>
               </div>
             </div>
@@ -912,18 +912,18 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
           </div>
         </div>
       ) : (
-        // Skeleton placeholder for consistent card layout
-        <div className="mb-4 p-3 bg-muted/10 rounded-lg border border-muted/20">
+        // Skeleton placeholder matching buy design (no data)
+        <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-muted/40 rounded animate-pulse" />
-              <div className="w-32 h-4 bg-muted/40 rounded animate-pulse" />
+              <div className="w-4 h-4 rounded bg-purple-200/60 dark:bg-purple-800/60 animate-pulse" />
+              <div className="w-32 h-4 rounded bg-purple-200/60 dark:bg-purple-800/60 animate-pulse" />
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-20 h-6 bg-muted/40 rounded-full animate-pulse" />
+              <div className="w-24 h-7 rounded-full bg-purple-200/60 dark:bg-purple-800/60 animate-pulse" />
               <div className="text-right">
-                <div className="w-10 h-4 bg-muted/40 rounded animate-pulse mb-1" />
-                <div className="w-16 h-3 bg-muted/40 rounded animate-pulse" />
+                <div className="w-10 h-4 rounded bg-purple-200/60 dark:bg-purple-800/60 animate-pulse mb-1" />
+                <div className="w-16 h-3 rounded bg-purple-200/60 dark:bg-purple-800/60 animate-pulse" />
               </div>
             </div>
           </div>

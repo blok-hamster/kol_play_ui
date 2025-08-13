@@ -105,22 +105,22 @@ body {
     color 0.3s ease;
 }
 
-/* Custom scrollbar */
+/* Hide scrollbars across the app while preserving scroll */
+/* WebKit browsers */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--muted);
+/* Firefox */
+* {
+  scrollbar-width: none;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+/* IE/Edge (legacy) */
+*::-ms-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 /* Custom utilities */

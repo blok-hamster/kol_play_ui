@@ -370,7 +370,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
 
           // Optional: Show transaction details
           if (result.result?.transactionId) {
-            console.log('Transaction ID:', result.result.transactionId);
+            void 0 && ('Transaction ID:', result.result.transactionId);
           }
         } else {
           showError(

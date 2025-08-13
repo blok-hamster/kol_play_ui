@@ -9,7 +9,7 @@ import { Award, Users, Plus, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RequireAuth from '@/components/auth/require-auth';
 
-console.log('🧪 KOLs page loaded - testing console logging');
+void 0 && ('🧪 KOLs page loaded - testing console logging');
 
 interface CategoryTab {
   id: 'featured' | 'top-traders';

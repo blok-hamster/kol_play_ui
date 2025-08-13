@@ -159,7 +159,7 @@ export const WalletAuth: React.FC<WalletAuthProps> = ({
 
         // If account details have errors, try to fetch them now that token is stored
         if (result.user.accountDetails?._hasError) {
-          console.log('🔄 Account details have error, attempting to fetch after token storage...');
+          void 0 && ('🔄 Account details have error, attempting to fetch after token storage...');
           try {
             const freshAccountDetails = await SiwsAuthService.refreshAccountDetails();
             // Update user with fresh account details
@@ -170,7 +170,7 @@ export const WalletAuth: React.FC<WalletAuthProps> = ({
                 accountDetails: freshAccountDetails
               });
             }
-            console.log('✅ Successfully fetched account details after login');
+            void 0 && ('✅ Successfully fetched account details after login');
           } catch (fetchError: any) {
             console.warn('⚠️ Could not fetch account details after login:', fetchError.message);
             // User is still logged in, they can use refresh button later

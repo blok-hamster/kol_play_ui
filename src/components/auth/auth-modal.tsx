@@ -41,17 +41,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
     setIsGoogleLoading(true);
 
     try {
-      console.log('🔐 Starting Google OAuth from auth modal...');
+      void 0 && ('🔐 Starting Google OAuth from auth modal...');
       const response = await OAuthService.googleOAuthPopup();
 
-      console.log('🔐 OAuth response received:', response);
+      void 0 && ('🔐 OAuth response received:', response);
 
       if (response.success && response.token) {
         let user = response.user;
 
         // If user data is not provided, fetch it
         if (!user && response.token) {
-          console.log('🔐 Fetching user data from token...');
+          void 0 && ('🔐 Fetching user data from token...');
           try {
             const fetchedUser = await AuthService.getCurrentUser();
             user = fetchedUser || undefined; // Convert null to undefined
@@ -98,7 +98,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
 
   const handleGoogleRedirect = async () => {
     try {
-      console.log('🔐 Starting Google OAuth redirect from auth modal...');
+      void 0 && ('🔐 Starting Google OAuth redirect from auth modal...');
       await OAuthService.googleOAuthRedirect();
       // This will redirect the page, so no further code executes
     } catch (error: any) {

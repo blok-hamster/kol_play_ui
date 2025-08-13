@@ -133,12 +133,12 @@ export class OAuthService {
   static async googleOAuthPopup(): Promise<OAuthResponse> {
     return new Promise((resolve, reject) => {
       try {
-        console.log('🔐 Starting Google OAuth popup flow...');
+        void 0 && ('🔐 Starting Google OAuth popup flow...');
 
         // Get Google OAuth URL first
         this.getGoogleAuthUrl()
           .then(urlResponse => {
-            console.log('🔐 Received OAuth URL response:', urlResponse);
+            void 0 && ('🔐 Received OAuth URL response:', urlResponse);
 
             // Extract URL from response - handle both formats
             let oauthUrl = urlResponse.url || urlResponse;
@@ -165,7 +165,7 @@ export class OAuthService {
               oauthUrl = `${API_ENDPOINTS.BASE_URL}/oauth/google?redirect=${encodeURIComponent(popupCallbackUrl)}`;
             }
 
-            console.log('🔐 Opening popup with URL:', oauthUrl);
+            void 0 && ('🔐 Opening popup with URL:', oauthUrl);
 
             const popup = window.open(
               oauthUrl,
@@ -182,7 +182,7 @@ export class OAuthService {
 
             // Listen for messages from popup
             const messageListener = (event: MessageEvent) => {
-              console.log('🔐 Received message from popup:', event);
+              void 0 && ('🔐 Received message from popup:', event);
 
               if (event.origin !== window.location.origin) {
                 console.warn(
@@ -193,7 +193,7 @@ export class OAuthService {
               }
 
               if (event.data.type === 'OAUTH_SUCCESS') {
-                console.log('🔐 OAuth success message received:', event.data);
+                void 0 && ('🔐 OAuth success message received:', event.data);
                 window.removeEventListener('message', messageListener);
                 popup.close();
 
@@ -252,12 +252,12 @@ export class OAuthService {
    */
   static async googleOAuthRedirect(): Promise<void> {
     try {
-      console.log('🔐 Starting Google OAuth redirect flow...');
+      void 0 && ('🔐 Starting Google OAuth redirect flow...');
 
       // Use backend redirect endpoint directly
       const redirectUrl = `${API_ENDPOINTS.BASE_URL}/oauth/google`;
 
-      console.log('🔐 Redirecting to:', redirectUrl);
+      void 0 && ('🔐 Redirecting to:', redirectUrl);
       window.location.href = redirectUrl;
     } catch (error: any) {
       console.error('🔐 Failed to initiate OAuth redirect:', error);

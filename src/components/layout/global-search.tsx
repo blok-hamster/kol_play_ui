@@ -141,7 +141,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
   };
 
   const handleResultClick = (result: SearchResult) => {
-    console.log('Selected result:', result);
+    void 0 && ('Selected result:', result);
     setQuery('');
     setIsOpen(false);
     setSelectedIndex(-1);

@@ -35,7 +35,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
 
   // Debug logging
   useEffect(() => {
-    console.log('🎨 Theme Toggle Debug:', {
+    void 0 && ('🎨 Theme Toggle Debug:', {
       theme,
       resolvedTheme,
       documentClass: document.documentElement.className,
@@ -89,13 +89,13 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
   };
 
   const handleThemeSelect = (newTheme: 'light' | 'dark' | 'system') => {
-    console.log('🎨 Theme changing from', theme, 'to', newTheme);
+    void 0 && ('🎨 Theme changing from', theme, 'to', newTheme);
     setTheme(newTheme);
     setIsOpen(false);
 
     // Force immediate UI update check
     setTimeout(() => {
-      console.log('🎨 After theme change:', {
+      void 0 && ('🎨 After theme change:', {
         theme: newTheme,
         documentClass: document.documentElement.className,
         computedBackground: getComputedStyle(

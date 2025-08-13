@@ -50,7 +50,6 @@ const navigationItems: NavigationItem[] = [
     href: '/kol-trades',
     icon: Activity,
     description: 'Real-time KOL trades & network maps',
-    badge: 'Live',
     // requiresAuth: true, // Temporarily removed for development
   },
   {
@@ -88,14 +87,7 @@ const secondaryItems: NavigationItem[] = [
     href: '/agent',
     icon: Zap,
     description: 'Trading insights and help',
-    badge: 'Beta',
     // requiresAuth: true, // Temporarily removed for development
-  },
-  {
-    name: 'Community',
-    href: '/community',
-    icon: Users,
-    description: 'Connect with traders',
   },
   {
     name: 'Help & Support',
@@ -190,12 +182,13 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
         key={item.name}
         href={isDisabled ? '#' : item.href}
         className={cn(
-          'group flex items-center rounded-lg px-2 py-1.5 text-base font-medium transition-all duration-200',
+          'group relative flex items-center rounded-lg px-2 py-1 text-sm md:text-[15px] font-medium transition-all duration-200',
           'hover:bg-muted focus:bg-muted focus:outline-none',
           isActive && 'bg-accent-gradient text-white shadow-sm',
           isDisabled && 'opacity-50 cursor-not-allowed',
           isMobile ? 'justify-start' : 'justify-center',
-          !isMobile && 'flex-col space-y-0.5 min-w-[70px]'
+          !isMobile && 'flex-col space-y-0.5 min-w-[64px] md:min-w-[72px] h-12',
+          isMobile && 'h-10'
         )}
         onClick={e => {
           if (isDisabled) {
@@ -206,7 +199,8 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       >
         <IconComponent
           className={cn(
-            'h-5 w-5 flex-shrink-0 transition-colors',
+            'flex-shrink-0 transition-colors',
+            isMobile ? 'h-5 w-5' : 'h-4 w-4 md:h-5 md:w-5',
             isActive
               ? 'text-white'
               : 'text-muted-foreground group-hover:text-foreground',
@@ -220,16 +214,22 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             isActive
               ? 'text-white'
               : 'text-foreground group-hover:text-foreground',
-            !isMobile && 'text-sm md:text-base text-center'
+            !isMobile && 'text-xs md:text-sm text-center whitespace-nowrap'
           )}
         >
           {item.name}
         </span>
 
         {item.badge && (
-          <span className="ml-2 rounded-full bg-primary px-1.5 py-0.5 text-sm font-medium text-primary-foreground">
-            {item.badge}
-          </span>
+          isMobile ? (
+            <span className="ml-2 rounded-full bg-primary/90 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+              {item.badge}
+            </span>
+          ) : (
+            <span className="absolute -top-1 -right-1 rounded-full bg-primary/90 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+              {item.badge}
+            </span>
+          )
         )}
       </Link>
     );
@@ -247,18 +247,29 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
         {/* Left Section - Logo */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
+            {/* Mobile logo */}
             <Image
-              src="/4.png"
+              src="/6.png"
               alt="KOL Play Logo"
               width={200}
               height={200}
-              className="hover:opacity-90 transition-opacity"
+              className="h-6 w-auto hover:opacity-90 transition-opacity block lg:hidden"
+              priority
+            />
+            {/* Desktop logo (larger) */}
+            <Image
+              src="/4.png"
+              alt="KOL Play Logo"
+              width={240}
+              height={240}
+              className="hidden lg:block w-36 h-auto hover:opacity-90 transition-opacity"
+              priority
             />
           </Link>
         </div>
 
         {/* Center Section - Global Search (Desktop) */}
-        <div className="flex-1 max-w-lg mx-6 hidden lg:block">
+        <div className="flex-1 max-w-xl mx-6 hidden lg:block">
           <TokenSearch />
         </div>
 
@@ -326,18 +337,18 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
 
       {/* Navigation Bar - Desktop Only */}
       <div className="border-t border-border bg-muted/30 hidden lg:block relative z-50 pointer-events-auto">
-        <div className="px-6 py-1.5">
-          <nav className="flex items-center justify-between">
+        <div className="container mx-auto px-6 py-1">
+          <nav className="flex items-center justify-between gap-6">
             {/* Main Navigation Items */}
-            <div className="flex items-center justify-evenly flex-1 max-w-2xl">
+            <div className="flex items-center gap-2">
               {navigationItems.map(item => renderNavigationItem(item))}
             </div>
 
             {/* Separator */}
-            <div className="h-6 w-px bg-border mx-6" />
+            <div className="h-5 w-px bg-border" />
 
             {/* Secondary Navigation Items */}
-            <div className="flex items-center justify-evenly flex-1 max-w-xl">
+            <div className="flex items-center gap-2">
               {secondaryItems.map(item => renderNavigationItem(item))}
             </div>
           </nav>

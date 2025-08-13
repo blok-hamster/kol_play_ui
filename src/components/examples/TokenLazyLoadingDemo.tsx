@@ -28,7 +28,7 @@ export function TokenLazyLoadingDemo() {
     maxConcurrentBatches: 3,
     cacheEnabled: true,
     onProgress: (loaded, total, currentBatch, totalBatches) => {
-      console.log(`Progress: ${loaded}/${total} tokens loaded (Batch ${currentBatch}/${totalBatches})`);
+      void 0 && (`Progress: ${loaded}/${total} tokens loaded (Batch ${currentBatch}/${totalBatches})`);
     },
     onError: (error) => {
       console.error('Token loading error:', error);

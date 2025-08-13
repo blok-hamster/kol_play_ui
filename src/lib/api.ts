@@ -24,17 +24,17 @@ class ApiClient {
       config => {
         if (this.token) {
           config.headers.Authorization = `Bearer ${this.token}`;
-          console.log(
+          void 0 && (
             '🚀 API Request - Adding Authorization header:',
             `Bearer ${this.token.substring(0, 50)}...`
           );
         } else {
-          console.log(
+          void 0 && (
             '🚀 API Request - No token available, no Authorization header added'
           );
         }
-        console.log('🚀 API Request - URL:', config.url);
-        console.log('🚀 API Request - Method:', config.method?.toUpperCase());
+        void 0 && ('🚀 API Request - URL:', config.url);
+        void 0 && ('🚀 API Request - Method:', config.method?.toUpperCase());
         return config;
       },
       error => Promise.reject(error)
@@ -60,7 +60,7 @@ class ApiClient {
   private loadTokenFromStorage(): void {
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem('authToken');
-      console.log(
+      void 0 && (
         '🔑 API Client - Loading token from storage:',
         this.token ? this.token.substring(0, 50) + '...' : 'No token found'
       );
@@ -68,14 +68,14 @@ class ApiClient {
   }
 
   public setToken(token: string): void {
-    console.log(
+    void 0 && (
       '🔑 API Client - Setting new token:',
       token.substring(0, 50) + '...'
     );
     this.token = token;
     if (typeof window !== 'undefined') {
       localStorage.setItem('authToken', token);
-      console.log('🔑 API Client - Token stored in localStorage');
+      void 0 && ('🔑 API Client - Token stored in localStorage');
 
       // Set a lightweight auth presence cookie for middleware checks
       const isSecure = window.location.protocol === 'https:';
@@ -85,7 +85,7 @@ class ApiClient {
   }
 
   public clearToken(): void {
-    console.log('🔑 API Client - Clearing token');
+    void 0 && ('🔑 API Client - Clearing token');
     this.token = null;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('authToken');
@@ -95,7 +95,7 @@ class ApiClient {
   }
 
   public getToken(): string | null {
-    console.log(
+    void 0 && (
       '🔑 API Client - Getting token:',
       this.token ? this.token.substring(0, 50) + '...' : 'No token'
     );

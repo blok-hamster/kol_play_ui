@@ -103,13 +103,13 @@ export function useTokenLazyLoading(options: UseTokenLazyLoadingOptions = {}): U
       });
 
       if (tokensToLoad.length === 0) {
-        console.log('All requested tokens are already loaded');
+        void 0 && ('All requested tokens are already loaded');
         setLoading(false);
         loadingRef.current = false;
         return;
       }
 
-      console.log(`Loading ${tokensToLoad.length} new tokens out of ${mintAddresses.length} requested`);
+      void 0 && (`Loading ${tokensToLoad.length} new tokens out of ${mintAddresses.length} requested`);
 
       const totalBatches = Math.ceil(tokensToLoad.length / batchSize);
       let loadedCount = 0;
@@ -165,7 +165,7 @@ export function useTokenLazyLoading(options: UseTokenLazyLoadingOptions = {}): U
       });
 
       if (!cancelRef.current) {
-        console.log(`✅ Successfully loaded ${response.data.length} tokens`);
+        void 0 && (`✅ Successfully loaded ${response.data.length} tokens`);
         
         // Final state update with all tokens
         setTokens(prev => {

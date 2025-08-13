@@ -95,7 +95,7 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
 
           if (isWatched) {
             // Could trigger a notification or update
-            console.log('Price update for watched token:', update);
+            void 0 && ('Price update for watched token:', update);
           }
         }
       );
@@ -108,7 +108,7 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
     (data: { balance: number; timestamp: number }) => {
       // This would typically update the user's balance in the user store
       // For now, we'll log it as the user store doesn't have a direct balance update method
-      console.log('Balance update received:', data);
+      void 0 && ('Balance update received:', data);
     },
     []
   );
@@ -139,7 +139,7 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
               tokenStore.setLatestTokens(update.tokens);
               break;
             default:
-              console.log('Unknown token category update:', update.category);
+              void 0 && ('Unknown token category update:', update.category);
           }
         }
       );

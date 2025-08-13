@@ -121,7 +121,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
 
   useEffect(() => {
     if (!svgRef.current || Object.keys(tokensData).length === 0 || dimensions.width === 0 || dimensions.height === 0) {
-      console.log('🔍 UnifiedKOLMindmap skipping render:', {
+      void 0 && ('🔍 UnifiedKOLMindmap skipping render:', {
         hasSvgRef: !!svgRef.current,
         tokensDataCount: Object.keys(tokensData).length,
         dimensions,
@@ -130,7 +130,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       return;
     }
 
-    console.log('🔍 UnifiedKOLMindmap rendering:', {
+    void 0 && ('🔍 UnifiedKOLMindmap rendering:', {
       tokensDataCount: Object.keys(tokensData).length,
       dimensions,
       trendingTokensCount: trendingTokens.length

@@ -71,10 +71,10 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
       showInfo('Creating Challenge', 'Preparing authentication challenge...');
       const { challenge } = await SiwsAuthService.createChallenge();
 
-      console.log('🔐 Challenge object:', challenge);
-      console.log('🔐 Challenge JSON:', JSON.stringify(challenge, null, 2));
-      console.log('🔐 Wallet adapter name:', wallet.adapter.name);
-      console.log(
+      void 0 && ('🔐 Challenge object:', challenge);
+      void 0 && ('🔐 Challenge JSON:', JSON.stringify(challenge, null, 2));
+      void 0 && ('🔐 Wallet adapter name:', wallet.adapter.name);
+      void 0 && (
         '🔐 Wallet features:',
         wallet.adapter.supportedTransactionVersions
       );
@@ -107,12 +107,12 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
         );
       }
 
-      console.log('🔐 About to call signIn with challenge:', challenge);
+      void 0 && ('🔐 About to call signIn with challenge:', challenge);
 
       let output;
       try {
         output = await signIn(challenge);
-        console.log('🔐 SignIn output received:', output);
+        void 0 && ('🔐 SignIn output received:', output);
       } catch (signError: any) {
         console.error('🔐 SignIn failed:', signError);
 
@@ -121,7 +121,7 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
           signError.message?.includes('formatting') ||
           signError.message?.includes('invalid')
         ) {
-          console.log('🔐 Retrying with ultra-simple challenge format...');
+          void 0 && ('🔐 Retrying with ultra-simple challenge format...');
           showInfo('Retrying', 'Trying alternative signature format...');
 
           const simpleChallenge = {
@@ -134,7 +134,7 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
             issuedAt: new Date().toISOString(),
           };
 
-          console.log(
+          void 0 && (
             '🔐 Simple challenge:',
             JSON.stringify(simpleChallenge, null, 2)
           );
@@ -177,14 +177,14 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
 
       // Store token and update user state
       if (result.token) {
-        console.log(
+        void 0 && (
           '🎉 Authentication successful! Storing token and updating user state'
         );
-        console.log('🎉 Result:', result);
+        void 0 && ('🎉 Result:', result);
 
         // CRITICAL: Store token FIRST so API calls can be authenticated
         SiwsAuthService.storeToken(result.token);
-        console.log('🎉 Token stored via SiwsAuthService');
+        void 0 && ('🎉 Token stored via SiwsAuthService');
 
         // Set initial user state (even if account details have errors)
         setUser({
@@ -193,11 +193,11 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
           walletAddress: result.user.walletAddress,
           accountDetails: result.user.accountDetails,
         });
-        console.log('🎉 User state updated');
+        void 0 && ('🎉 User state updated');
 
         // If account details have errors, try to fetch them now that token is stored
         if (result.user.accountDetails?._hasError) {
-          console.log('🔄 Account details have error, attempting to fetch after token storage...');
+          void 0 && ('🔄 Account details have error, attempting to fetch after token storage...');
           try {
             const freshAccountDetails = await SiwsAuthService.refreshAccountDetails();
             // Update user with fresh account details
@@ -205,7 +205,7 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
               ...prevUser!,
               accountDetails: freshAccountDetails
             }));
-            console.log('✅ Successfully fetched account details after login');
+            void 0 && ('✅ Successfully fetched account details after login');
           } catch (fetchError: any) {
             console.warn('⚠️ Could not fetch account details after login:', fetchError.message);
             // User is still logged in, they can use refresh button later
@@ -218,12 +218,12 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
 
         // Test the token by making a protected API call
         setTimeout(async () => {
-          console.log(
+          void 0 && (
             '🧪 Testing authentication token with protected endpoint...'
           );
           try {
             const walletInfo = await SiwsAuthService.getWalletInfo();
-            console.log('🧪 Protected endpoint success:', walletInfo);
+            void 0 && ('🧪 Protected endpoint success:', walletInfo);
           } catch (error) {
             console.error('🧪 Protected endpoint failed:', error);
             showError(
@@ -238,7 +238,7 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
           `Welcome! You've been authenticated with your ${wallet.adapter.name} wallet.`
         );
 
-        console.log('🎉 Calling onSuccess callback');
+        void 0 && ('🎉 Calling onSuccess callback');
         onSuccess?.();
       } else {
         console.error('🎉 No token in authentication result:', result);

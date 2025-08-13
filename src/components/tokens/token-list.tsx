@@ -12,7 +12,48 @@ import { formatNumber, formatRelativeTime, cn } from '@/lib/utils';
 import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
 import TokenDetailModal from './token-detail-modal';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
-import type { SearchTokenResult, TokenFilters } from '@/types';
+import type { TokenFilters } from '@/types';
+type DiscoveryItem = {
+  token: {
+    name: string;
+    symbol: string;
+    mint: string;
+    uri?: string;
+    decimals: number;
+    hasFileMetaData?: boolean;
+    image?: string;
+    createdOn?: string;
+    twitter?: string;
+    website?: string;
+    strictSocials?: Record<string, string>;
+    creation?: { creator: string; created_tx: string; created_time: number };
+  };
+  pools: Array<{
+    poolId?: string;
+    liquidity?: { quote?: number; usd?: number };
+    price?: { quote?: number; usd?: number };
+    tokenSupply?: number;
+    lpBurn?: number;
+    tokenAddress?: string;
+    marketCap?: { quote?: number; usd?: number };
+    market?: string;
+    quoteToken?: string;
+    decimals?: number;
+    security?: { freezeAuthority?: string | null; mintAuthority?: string | null };
+    lastUpdated?: number;
+    createdAt?: number;
+    deployer?: string | null;
+    txns?: { buys?: number; sells?: number; total?: number; volume?: number; volume24h?: number };
+  }>;
+  events?: Record<string, { priceChangePercentage: number | null }>;
+  risk?: any;
+  buysCount?: number;
+  sellsCount?: number;
+  buys?: number;
+  sells?: number;
+  txns?: number;
+  holders?: number;
+};
 
 interface TokenListProps {
   category: 'trending' | 'volume' | 'latest';
@@ -51,7 +92,7 @@ const TokenList: React.FC<TokenListProps> = ({
   const { cacheTokens } = useTokenStore();
 
   // Component state
-  const [tokens, setTokens] = useState<SearchTokenResult[]>([]);
+  const [tokens, setTokens] = useState<DiscoveryItem[]>([]);
   const [hasMore, setHasMore] = useState(true);
 
   // Modal state
@@ -60,7 +101,7 @@ const TokenList: React.FC<TokenListProps> = ({
 
   // Trade config prompt state
   const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
-  const [pendingBuyToken, setPendingBuyToken] = useState<SearchTokenResult | null>(null);
+  const [pendingBuyToken, setPendingBuyToken] = useState<DiscoveryItem | null>(null);
 
   // Instant buy loading state
   const [buyingTokens, setBuyingTokens] = useState<Set<string>>(new Set());
@@ -100,39 +141,97 @@ const TokenList: React.FC<TokenListProps> = ({
         if (currentFilters.sortOrder)
           requestFilters.sortOrder = currentFilters.sortOrder;
 
-        console.log(
+        void 0 && (
           `🔍 TokenList: Fetching ${category} tokens with filters:`,
           requestFilters
         );
 
         switch (category) {
           case 'trending':
-            console.log('📈 Calling getTrendingTokens');
+            void 0 && ('📈 Calling getTrendingTokens');
             response = await TokenService.getTrendingTokens(requestFilters);
             break;
           case 'volume':
-            console.log('📊 Calling getTokensByVolume');
+            void 0 && ('📊 Calling getTokensByVolume');
             response = await TokenService.getTokensByVolume(requestFilters);
             break;
           case 'latest':
-            console.log('🆕 Calling getLatestTokens');
+            void 0 && ('🆕 Calling getLatestTokens');
             response = await TokenService.getLatestTokens(requestFilters);
             break;
           default:
             throw new Error('Invalid token category');
         }
 
-        console.log(`✅ ${category} tokens response:`, response);
+        void 0 && (`✅ ${category} tokens response:`, response);
+
+        // Normalize to DiscoveryItem[] regardless of backend shape
+        const normalize = (arr: any[]): DiscoveryItem[] => {
+          return arr.map((it: any) => {
+            if (it && typeof it === 'object' && 'token' in it && it.token && it.pools) {
+              // Already in nested discovery shape
+              return it as DiscoveryItem;
+            }
+            // Fallback: transform flattened SearchTokenResult into DiscoveryItem
+            const token = {
+              name: it.name || it.symbol || 'Unknown',
+              symbol: it.symbol || 'N/A',
+              mint: it.mint,
+              uri: it.uri,
+              decimals: typeof it.decimals === 'number' ? it.decimals : 6,
+              hasFileMetaData: Boolean(it.hasFileMetaData),
+              image: it.logoURI || it.image,
+              createdOn: it.createdOn,
+              twitter: it.twitter,
+              website: it.website,
+              strictSocials: it.strictSocials,
+              creation: it.creation,
+            };
+            const pool = {
+              poolId: it.poolId,
+              liquidity: { usd: it.liquidityUsd },
+              price: { usd: it.priceUsd },
+              tokenSupply: it.totalSupply,
+              lpBurn: it.lpBurn,
+              tokenAddress: it.mint,
+              marketCap: { usd: it.marketCapUsd },
+              market: it.market,
+              quoteToken: it.quoteToken,
+              decimals: typeof it.decimals === 'number' ? it.decimals : 6,
+              security: { freezeAuthority: null, mintAuthority: null },
+              lastUpdated: it.lastUpdated,
+              createdAt: it.createdAt,
+              deployer: it.deployer,
+              txns: { buys: it.buys, sells: it.sells, total: it.txns, volume: it.volume, volume24h: it.volume_24h },
+            };
+            const events: Record<string, { priceChangePercentage: number | null }> = it.events || {};
+            const risk = it.risk || { jupiterVerified: it.verified || false };
+            return {
+              token,
+              pools: [pool],
+              events,
+              risk,
+              buysCount: it.buysCount,
+              sellsCount: it.sellsCount,
+              buys: it.buys,
+              sells: it.sells,
+              txns: it.txns,
+              holders: it.holders,
+            } as DiscoveryItem;
+          });
+        };
+
+        const normalized: DiscoveryItem[] = normalize(response.data || []);
 
         if (currentFilters.page === 1) {
-          setTokens(response.data);
-          cacheTokens(response.data);
+          setTokens(normalized);
+          cacheTokens(normalized as any);
         } else {
-          setTokens(prev => [...prev, ...response.data]);
-          cacheTokens(response.data);
+          setTokens(prev => [...prev, ...normalized]);
+          cacheTokens(normalized as any);
         }
 
-        setHasMore(response.data.length === (currentFilters.limit || limit));
+        setHasMore(normalized.length === (currentFilters.limit || limit));
         setFilters(currentFilters);
       } catch (error: any) {
         showError(
@@ -171,131 +270,22 @@ const TokenList: React.FC<TokenListProps> = ({
   }, [category, filters.page, hasMore, isLoading, fetchTokens]);
 
   // Handle token click
-  const handleTokenClick = useCallback((token: SearchTokenResult) => {
-    // Convert SearchTokenResult to TokenDetailData format
+  const handleTokenClick = useCallback((item: DiscoveryItem) => {
     const tokenDetailData = {
-      token: {
-        name: token.name || token.symbol || 'Unknown Token',
-        symbol: token.symbol || 'N/A',
-        mint: token.mint,
-        uri: (token as any).uri,
-        decimals: 6, // Default decimals, should come from API
-        hasFileMetaData: true,
-        createdOn: token.createdOn || 'pump.fun',
-        description: (token as any).description || 'No description available',
-        image: token.logoURI || token.image,
-        showName: true,
-        twitter: (token as any).twitter,
-        creation:
-          token.createdOn &&
-          typeof token.createdOn === 'string' &&
-          !String(token.createdOn).includes('http')
-            ? {
-                creator: 'Unknown',
-                created_tx: 'Unknown',
-                created_time: new Date(token.createdOn).getTime() / 1000,
-              }
-            : {
-                creator: 'Unknown',
-                created_tx: 'Unknown',
-                created_time:
-                  Math.floor(Date.now() / 1000) -
-                  Math.floor(Math.random() * 86400 * 30), // Random time within last 30 days
-              },
-      },
-      pools: [
-        {
-          liquidity: {
-            quote: token.liquidityUsd
-              ? token.liquidityUsd / 100
-              : Math.random() * 10000,
-            usd: token.liquidityUsd || Math.random() * 1000000,
-          },
-          price: {
-            quote: token.priceUsd
-              ? token.priceUsd / 100
-              : Math.random() * 0.001,
-            usd: token.priceUsd || Math.random() * 10,
-          },
-          tokenSupply:
-            (token as any).totalSupply ||
-            Math.floor(Math.random() * 1000000000),
-          lpBurn: Math.floor(Math.random() * 100),
-          tokenAddress: token.mint,
-          marketCap: {
-            quote: token.marketCapUsd
-              ? token.marketCapUsd / 100
-              : Math.random() * 100000,
-            usd: token.marketCapUsd || Math.random() * 100000000,
-          },
-          decimals: 6,
-          security: {
-            freezeAuthority: null,
-            mintAuthority: null,
-          },
-          quoteToken: 'So11111111111111111111111111111111111111112',
-          market: 'pumpfun-amm',
-          lastUpdated: Date.now(),
-          createdAt:
-            token.createdOn &&
-            typeof token.createdOn === 'string' &&
-            !String(token.createdOn).includes('http')
-              ? new Date(token.createdOn).getTime()
-              : Date.now() - Math.floor(Math.random() * 86400000 * 30), // Random time within last 30 days
-          txns: {
-            buys: Math.floor(Math.random() * 100000),
-            sells: Math.floor(Math.random() * 90000),
-            total: Math.floor(Math.random() * 200000),
-            volume: token.volume_24h || Math.floor(Math.random() * 1000000),
-            volume24h: token.volume_24h || Math.floor(Math.random() * 500000),
-          },
-          deployer: 'Unknown',
-          poolId: 'Unknown',
-        },
-      ],
-      events: {
-        '1m': { priceChangePercentage: (Math.random() - 0.5) * 10 },
-        '5m': { priceChangePercentage: (Math.random() - 0.5) * 15 },
-        '15m': { priceChangePercentage: (Math.random() - 0.5) * 20 },
-        '30m': { priceChangePercentage: (Math.random() - 0.5) * 25 },
-        '1h': { priceChangePercentage: (Math.random() - 0.5) * 30 },
-        '2h': { priceChangePercentage: (Math.random() - 0.5) * 35 },
-        '3h': { priceChangePercentage: (Math.random() - 0.5) * 40 },
-        '4h': { priceChangePercentage: (Math.random() - 0.5) * 45 },
-        '5h': { priceChangePercentage: (Math.random() - 0.5) * 50 },
-        '6h': { priceChangePercentage: (Math.random() - 0.5) * 55 },
-        '12h': { priceChangePercentage: (Math.random() - 0.5) * 60 },
-        '24h': { priceChangePercentage: (Math.random() - 0.5) * 80 },
-      },
-      risk: {
-        snipers: {
-          count: Math.floor(Math.random() * 5),
-          totalBalance: 0,
-          totalPercentage: Math.random() * 10,
-          wallets: [],
-        },
-        insiders: {
-          count: Math.floor(Math.random() * 3),
-          totalBalance: 0,
-          totalPercentage: Math.random() * 5,
-          wallets: [],
-        },
-        rugged: false,
-        risks: [],
-        score: Math.floor(Math.random() * 10),
-        jupiterVerified: token.verified || Math.random() > 0.5,
-      },
-      buysCount: Math.floor(Math.random() * 10000),
-      sellsCount: Math.floor(Math.random() * 8000),
-    };
-
+      token: item.token,
+      pools: item.pools || [],
+      events: item.events || {},
+      risk: item.risk || { snipers: { count: 0 }, insiders: { count: 0 }, rugged: false, risks: [], score: 0, jupiterVerified: false },
+      buysCount: item.buysCount ?? item.buys ?? 0,
+      sellsCount: item.sellsCount ?? item.sells ?? 0,
+    } as any;
     setSelectedToken(tokenDetailData);
     setIsModalOpen(true);
   }, []);
 
   // Handle quick buy with instant trading
   const handleQuickBuy = useCallback(
-    async (token: SearchTokenResult, e: React.MouseEvent) => {
+    async (token: { mint: string; symbol?: string }, e: React.MouseEvent) => {
       e.stopPropagation();
 
       // Check if already buying this token
@@ -309,7 +299,7 @@ const TokenList: React.FC<TokenListProps> = ({
         
         if (!configCheck.hasConfig) {
           // Show trade config prompt
-          setPendingBuyToken(token);
+          setPendingBuyToken({ token: { mint: token.mint, symbol: token.symbol, name: token.symbol || 'Token', decimals: 6 }, pools: [] } as any);
           setShowTradeConfigPrompt(true);
           return;
         }
@@ -328,7 +318,7 @@ const TokenList: React.FC<TokenListProps> = ({
 
           // Optional: Show transaction details
           if (result.result?.transactionId) {
-            console.log('Transaction ID:', result.result.transactionId);
+            void 0 && ('Transaction ID:', result.result.transactionId);
           }
         } else {
           showError(
@@ -430,25 +420,27 @@ const TokenList: React.FC<TokenListProps> = ({
 
   // Render token card
   const renderTokenCard = useCallback(
-    (token: SearchTokenResult, index: number) => {
-      const isBuying = buyingTokens.has(token.mint);
+    (item: DiscoveryItem, index: number) => {
+      const t = item.token;
+      const primaryPool = item.pools && item.pools.length > 0 ? item.pools[0] : undefined;
+      const isBuying = buyingTokens.has(t.mint);
       
       // New horizontal card design matching the uploaded image
       return (
         <div
-          key={token.mint}
+          key={t.mint}
           className="bg-background border border-border rounded-xl p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group"
-          onClick={() => handleTokenClick(token)}
+          onClick={() => handleTokenClick(item)}
         >
           {/* Main content row */}
           <div className="flex items-center justify-between mb-3">
             {/* Left section - Token info */}
             <div className="flex items-center space-x-3 flex-1 min-w-0">
               {/* Token Logo */}
-              {token.logoURI || token.image ? (
+              {t.image ? (
                 <img
-                  src={token.logoURI || token.image}
-                  alt={token.symbol || token.name}
+                  src={t.image}
+                  alt={t.symbol || t.name}
                   className="w-12 h-12 rounded-full flex-shrink-0 border-2 border-muted"
                   onError={e => {
                     const target = e.target as HTMLImageElement;
@@ -458,7 +450,7 @@ const TokenList: React.FC<TokenListProps> = ({
               ) : (
                 <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 border-muted">
                   <span className="text-primary-foreground font-bold text-sm">
-                    {(token.symbol || token.name || '?')
+                    {(t.symbol || t.name || '?')
                       .charAt(0)
                       .toUpperCase()}
                   </span>
@@ -469,9 +461,9 @@ const TokenList: React.FC<TokenListProps> = ({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2 mb-1">
                   <h3 className="font-bold text-foreground text-lg truncate">
-                    {token.symbol || token.name || 'Unknown'}
+                    {t.symbol || t.name || 'Unknown'}
                   </h3>
-                  {token.verified && (
+                  {item.risk?.jupiterVerified && (
                     <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
                       <svg
                         className="w-2.5 h-2.5 text-white"
@@ -489,18 +481,18 @@ const TokenList: React.FC<TokenListProps> = ({
                 </div>
                 <div className="flex items-center space-x-3 text-sm text-muted-foreground">
                   <span>
-                    {token.createdOn
-                      ? formatRelativeTime(token.createdOn)
+                    {t.creation?.created_time
+                      ? formatRelativeTime(new Date(t.creation.created_time * 1000))
                       : 'N/A'}
                   </span>
                   <span className="font-mono">
-                    {token.mint
-                      ? `${token.mint.slice(0, 4)}...${token.mint.slice(-4)}`
+                    {t.mint
+                      ? `${t.mint.slice(0, 4)}...${t.mint.slice(-4)}`
                       : 'Unknown'}
                   </span>
                   <div className="flex items-center space-x-1">
                     <Users className="w-3 h-3" />
-                    <span>{token.holders || 0}</span>
+                    <span>{item.holders || 0}</span>
                   </div>
                 </div>
               </div>
@@ -511,7 +503,7 @@ const TokenList: React.FC<TokenListProps> = ({
               size="sm"
               disabled={isBuying}
               className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-6 py-2 rounded-lg font-medium flex items-center space-x-2 min-w-[80px]"
-              onClick={e => handleQuickBuy(token, e)}
+              onClick={e => handleQuickBuy({ mint: t.mint, symbol: t.symbol } as any, e)}
             >
               {isBuying ? (
                 <>
@@ -536,24 +528,19 @@ const TokenList: React.FC<TokenListProps> = ({
               <div className="flex items-center space-x-1">
                 <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                 <span className="text-muted-foreground">
-                  {Math.random() > 0.5
-                    ? `${(Math.random() * 20 - 10).toFixed(1)}%`
-                    : '0.0%'}
+                  {primaryPool?.price?.usd ? `${formatNumber(primaryPool.price.usd, 4)} USD` : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center space-x-1 px-2 py-1 bg-muted rounded text-xs">
-                <span className="text-purple-400">🏃‍♂️</span>
-                <span className="text-muted-foreground">Run</span>
+                <span className="text-muted-foreground">Buys</span>
+                <span className="font-medium">{primaryPool?.txns?.buys ?? item.buys ?? 0}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                 <span className="text-muted-foreground">
-                  {token.liquidityUsd && token.marketCapUsd
-                    ? ((token.liquidityUsd / token.marketCapUsd) * 100).toFixed(
-                        2
-                      )
-                    : '10.57'}
-                  %
+                  {primaryPool?.liquidity?.usd && primaryPool?.marketCap?.usd
+                    ? `${formatNumber((primaryPool.liquidity.usd / primaryPool.marketCap.usd) * 100, 2)}%`
+                    : '—'}
                 </span>
               </div>
             </div>
@@ -562,16 +549,14 @@ const TokenList: React.FC<TokenListProps> = ({
             <div className="flex items-center space-x-4 text-muted-foreground">
               <div className="flex items-center space-x-1">
                 <Users className="w-3 h-3" />
-                <span>{token.holders || 1}</span>
+                <span>{item.holders || 0}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <span className="w-3 h-3 bg-accent-gradient rounded"></span>
-                <span>
-                  {token.priceUsd ? token.priceUsd.toFixed(4) : '0.0058'}
-                </span>
+                <span>{primaryPool?.price?.usd ? formatNumber(primaryPool.price.usd, 6) : 'N/A'}</span>
               </div>
               <div className="text-xs">
-                TX {Math.floor(Math.random() * 10) + 1}
+                TX {primaryPool?.txns?.total ?? item.txns ?? 0}
               </div>
             </div>
           </div>
@@ -580,18 +565,10 @@ const TokenList: React.FC<TokenListProps> = ({
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border text-sm">
             <div className="flex items-center space-x-4">
               <span className="text-muted-foreground">
-                V $
-                {formatNumber(
-                  token.volume_24h || Math.floor(Math.random() * 10000),
-                  1
-                )}
+                V ${formatNumber(primaryPool?.txns?.volume24h || 0, 0)}
               </span>
               <span className="text-muted-foreground">
-                MC $
-                {formatNumber(
-                  token.marketCapUsd || Math.floor(Math.random() * 100000),
-                  1
-                )}
+                MC ${formatNumber(primaryPool?.marketCap?.usd || 0, 0)}
               </span>
             </div>
             {category === 'trending' && (
@@ -802,7 +779,7 @@ const TokenList: React.FC<TokenListProps> = ({
       <TradeConfigPrompt
         isOpen={showTradeConfigPrompt}
         onClose={handleTradeConfigPromptClose}
-        tokenSymbol={pendingBuyToken?.symbol || pendingBuyToken?.name}
+        tokenSymbol={pendingBuyToken?.token?.symbol || pendingBuyToken?.token?.name}
       />
     </div>
   );

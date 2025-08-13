@@ -17,8 +17,8 @@ import {
   Globe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
 import { useNotifications } from '@/stores/use-ui-store';
+import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 import {
   copyToClipboard,
   formatCurrency,
@@ -128,20 +128,63 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const router = useRouter();
-  const { showNotification } = useNotifications();
-
-  if (!isOpen) return null;
+  const { showError, showSuccess } = useNotifications();
+  const [dexPair, setDexPair] = React.useState<string | null>(null);
+  const [themeMode, setThemeMode] = React.useState<'dark' | 'light'>('dark');
+  const [isBuying, setIsBuying] = React.useState(false);
+  const [showTradeConfigPrompt, setShowTradeConfigPrompt] = React.useState(false);
 
   const { token, pools, events, risk } = tokenData;
+  const safeRisk = risk || { snipers: { count: 0 }, insiders: { count: 0 }, rugged: false, risks: [], score: 0, jupiterVerified: false };
   const primaryPool = pools[0]; // Use the first pool as primary
+
+  // Determine theme for embedded widget
+  React.useEffect(() => {
+    try {
+      const isDark = document.documentElement.classList.contains('dark');
+      setThemeMode(isDark ? 'dark' : 'light');
+    } catch {}
+  }, []);
+
+  // Resolve DexScreener pair address to embed
+  React.useEffect(() => {
+    let cancelled = false;
+    const resolvePair = async () => {
+      // Prefer poolId if available in provided pools
+      const poolWithId = pools.find(p => typeof (p as any)?.poolId === 'string' && (p as any).poolId.length > 0) as any;
+      if (poolWithId?.poolId) {
+        if (!cancelled) setDexPair(poolWithId.poolId);
+        return;
+      }
+      // Fallback: query DexScreener for pairs by token address
+      try {
+        const res = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${token.mint}`);
+        if (!res.ok) return;
+        const pairs: any[] = await res.json();
+        if (Array.isArray(pairs) && pairs.length > 0) {
+          // Pick by highest liquidity.usd
+          const best = pairs
+            .filter(p => p?.pairAddress)
+            .sort((a, b) => (b?.liquidity?.usd || 0) - (a?.liquidity?.usd || 0))[0];
+          if (!cancelled && best?.pairAddress) setDexPair(best.pairAddress);
+        }
+      } catch {}
+    };
+    resolvePair();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token.mint]);
+
+  if (!isOpen) return null;
 
   const handleCopyAddress = async () => {
     const success = await copyToClipboard(token.mint);
     if (success) {
-      showNotification('Copied!', 'Token address copied to clipboard');
+      showSuccess('Copied!', 'Token address copied to clipboard');
     } else {
-      showNotification('Copy Failed', 'Failed to copy token address', 'error');
+      showError('Copy Failed', 'Failed to copy token address', 'error');
     }
   };
 
@@ -151,17 +194,17 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
       const configCheck = await checkTradeConfig();
       
       if (!configCheck.hasConfig) {
-        // Close modal and redirect to settings
-        onClose();
-        router.push('/settings?tab=trading');
+        // Show trade config prompt instead of redirecting
+        setShowTradeConfigPrompt(true);
         return;
       }
 
       // Execute instant buy
+      setIsBuying(true);
       const result = await executeInstantBuy(token.mint, token.symbol);
 
       if (result.success) {
-        showNotification(
+        showSuccess(
           'Buy Order Executed',
           `Successfully bought ${token.symbol || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
         );
@@ -169,22 +212,17 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
 
         // Optional: Show transaction details
         if (result.result?.transactionId) {
-          console.log('Transaction ID:', result.result.transactionId);
+          void 0 && ('Transaction ID:', result.result.transactionId);
         }
       } else {
-        showNotification(
-          'Buy Order Failed',
-          result.error || 'Failed to execute buy order',
-          'error'
-        );
+        showError('Buy Order Failed', result.error || 'Failed to execute buy order');
       }
     } catch (error: any) {
       console.error('Buy order error:', error);
-      showNotification(
-        'Buy Order Error',
-        error.message || 'An unexpected error occurred',
-        'error'
-      );
+      showError('Buy Order Error', error.message || 'An unexpected error occurred');
+    }
+    finally {
+      setIsBuying(false);
     }
   };
 
@@ -256,7 +294,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                 <h2 className="text-lg sm:text-2xl font-bold text-foreground truncate">
                   {token.name}
                 </h2>
-                {risk.jupiterVerified && (
+                {safeRisk.jupiterVerified && (
                   <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
                     <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                   </div>
@@ -293,6 +331,27 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+          {/* Live Chart (DexScreener) */}
+          <div className="bg-muted/30 border border-border rounded-xl overflow-hidden">
+            <div className="p-4 sm:p-6 pb-0">
+              <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3">Live Chart</h3>
+            </div>
+            <div className="w-full overflow-hidden" style={{ minHeight: 420 }}>
+              {dexPair ? (
+                <iframe
+                  title="DexScreener Chart"
+                  src={`https://dexscreener.com/solana/${dexPair}?embed=1&theme=${themeMode}&chart=1&layout=chart&trades=0&info=0`}
+                  className="w-full h-[460px] border-0 block"
+                  allow="clipboard-write; encrypted-media"
+                />
+              ) : (
+                <div className="h-[420px] flex items-center justify-center text-muted-foreground">
+                  Loading chart...
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Price and Market Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Current Price */}
@@ -438,15 +497,15 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                     Risk Score
                   </span>
                   <div
-                    className={`text-xl sm:text-2xl font-bold ${getRiskColor(risk.score)}`}
+                    className={`text-xl sm:text-2xl font-bold ${getRiskColor(safeRisk.score || 0)}`}
                   >
-                    {risk.score}/10
+                    {safeRisk.score || 0}/10
                   </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span>Jupiter Verified</span>
-                    {risk.jupiterVerified ? (
+                    {safeRisk.jupiterVerified ? (
                       <CheckCircle className="w-4 h-4 text-green-500" />
                     ) : (
                       <X className="w-4 h-4 text-red-500" />
@@ -454,7 +513,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                   </div>
                   <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span>Rugged</span>
-                    {risk.rugged ? (
+                    {safeRisk.rugged ? (
                       <AlertTriangle className="w-4 h-4 text-red-500" />
                     ) : (
                       <CheckCircle className="w-4 h-4 text-green-500" />
@@ -502,7 +561,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
             </div>
 
             {/* Snipers & Insiders */}
-            {(risk.snipers.count > 0 || risk.insiders.count > 0) && (
+            {((safeRisk.snipers?.count || 0) > 0 || (safeRisk.insiders?.count || 0) > 0) && (
               <div className="mt-6 pt-4 border-t border-border">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
@@ -513,8 +572,8 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                       </span>
                     </div>
                     <div className="text-sm text-orange-700 dark:text-orange-300">
-                      {risk.snipers.count} wallets holding{' '}
-                      {formatNumber(risk.snipers.totalPercentage, 2)}%
+                      {(safeRisk.snipers?.count || 0)} wallets holding{' '}
+                      {formatNumber(safeRisk.snipers?.totalPercentage || 0, 2)}%
                     </div>
                   </div>
                   <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
@@ -525,8 +584,8 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                       </span>
                     </div>
                     <div className="text-sm text-red-700 dark:text-red-300">
-                      {risk.insiders.count} wallets holding{' '}
-                      {formatNumber(risk.insiders.totalPercentage, 2)}%
+                      {(safeRisk.insiders?.count || 0)} wallets holding{' '}
+                      {formatNumber(safeRisk.insiders?.totalPercentage || 0, 2)}%
                     </div>
                   </div>
                 </div>
@@ -671,14 +730,21 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
 
             <Button
               onClick={handleQuickBuy}
-              className="bg-green-500 hover:bg-green-600 text-white rounded-xl w-full sm:w-auto"
+              disabled={isBuying}
+              className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white rounded-xl w-full sm:w-auto"
             >
               <Zap className="h-4 w-4 mr-2" />
-              Buy Token
+              {isBuying ? 'Buying...' : 'Buy Token'}
             </Button>
           </div>
         </div>
       </div>
+      {/* Trade Config Prompt */}
+      <TradeConfigPrompt
+        isOpen={showTradeConfigPrompt}
+        onClose={() => setShowTradeConfigPrompt(false)}
+        tokenSymbol={token.symbol || token.name}
+      />
     </>
   );
 };

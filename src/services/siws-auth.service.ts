@@ -82,10 +82,10 @@ export class SiwsAuthService {
         mockChallenge.resources = request.resources;
       }
 
-      console.log(
+      void 0 && (
         '🔐 SIWS Challenge Input (Phantom will construct the message):'
       );
-      console.log(JSON.stringify(mockChallenge, null, 2));
+      void 0 && (JSON.stringify(mockChallenge, null, 2));
       return { challenge: mockChallenge };
     }
 
@@ -113,12 +113,12 @@ export class SiwsAuthService {
         uri = `https://${uri}`;
       }
 
-      console.log(
+      void 0 && (
         '🌐 Making backend API call to:',
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}${API_ENDPOINTS.WALLET.CHALLENGE}`
       );
 
-      console.log('🌐 Request payload:', {
+      void 0 && ('🌐 Request payload:', {
         domain,
         statement: request.statement || WALLET_CONFIG.STATEMENT,
         uri,
@@ -136,7 +136,7 @@ export class SiwsAuthService {
         }
       );
 
-      console.log('🌐 Backend response:', response);
+      void 0 && ('🌐 Backend response:', response);
 
       // Handle the actual backend response format
       if (!response || typeof response !== 'object') {
@@ -176,7 +176,7 @@ export class SiwsAuthService {
         }
       }
 
-      console.log('✅ Final SIWS challenge:', JSON.stringify(challenge, null, 2));
+      void 0 && ('✅ Final SIWS challenge:', JSON.stringify(challenge, null, 2));
       
       return { challenge };
     } catch (error: any) {
@@ -259,7 +259,7 @@ export class SiwsAuthService {
     }
 
     try {
-      console.log('🌐 Making wallet signup request to backend');
+      void 0 && ('🌐 Making wallet signup request to backend');
 
       const response = await apiClient.postRaw<any>(
         API_ENDPOINTS.WALLET.SIGNUP,
@@ -280,7 +280,7 @@ export class SiwsAuthService {
         }
       );
 
-      console.log('🌐 Signup response:', response);
+      void 0 && ('🌐 Signup response:', response);
 
       // Validate the response using the utility method
       this.validateWalletAuthResponse(response);
@@ -289,7 +289,7 @@ export class SiwsAuthService {
       let finalAccountDetails = response.user.accountDetails;
       
       if (response.user.accountDetails?._hasError) {
-        console.log('⚠️ Account details has error, user can still sign up. Will need to refresh manually.');
+        void 0 && ('⚠️ Account details has error, user can still sign up. Will need to refresh manually.');
         // Provide a minimal account details structure with error flag
         finalAccountDetails = {
           address: '', // Will be populated when user refreshes
@@ -299,7 +299,7 @@ export class SiwsAuthService {
           _errorMessage: response.user.accountDetails.error || 'Account details unavailable'
         };
       } else if (!response.user.accountDetails || typeof response.user.accountDetails !== 'object') {
-        console.log('⚠️ No account details provided, user can still sign up. Will need to refresh manually.');
+        void 0 && ('⚠️ No account details provided, user can still sign up. Will need to refresh manually.');
         // Provide a minimal account details structure
         finalAccountDetails = {
           address: '',
@@ -396,7 +396,7 @@ export class SiwsAuthService {
     }
 
     try {
-      console.log('🌐 Making wallet signin request to backend');
+      void 0 && ('🌐 Making wallet signin request to backend');
 
       const response = await apiClient.postRaw<any>(
         API_ENDPOINTS.WALLET.SIGNIN,
@@ -414,7 +414,7 @@ export class SiwsAuthService {
         }
       );
 
-      console.log('🌐 Signin response:', response);
+      void 0 && ('🌐 Signin response:', response);
 
       // Validate the response using the utility method
       this.validateWalletAuthResponse(response);
@@ -423,7 +423,7 @@ export class SiwsAuthService {
       let finalAccountDetails = response.user.accountDetails;
       
       if (response.user.accountDetails?._hasError) {
-        console.log('⚠️ Account details has error, user can still sign in. Will need to refresh manually.');
+        void 0 && ('⚠️ Account details has error, user can still sign in. Will need to refresh manually.');
         // Provide a minimal account details structure with error flag
         finalAccountDetails = {
           address: '', // Will be populated when user refreshes
@@ -433,7 +433,7 @@ export class SiwsAuthService {
           _errorMessage: response.user.accountDetails.error || 'Account details unavailable'
         };
       } else if (!response.user.accountDetails || typeof response.user.accountDetails !== 'object') {
-        console.log('⚠️ No account details provided, user can still sign in. Will need to refresh manually.');
+        void 0 && ('⚠️ No account details provided, user can still sign in. Will need to refresh manually.');
         // Provide a minimal account details structure
         finalAccountDetails = {
           address: '',
@@ -542,25 +542,25 @@ export class SiwsAuthService {
    * Store authentication token
    */
   static storeToken(token: string) {
-    console.log('💾 [SiwsAuthService.storeToken] Starting token storage process');
-    console.log('💾 [SiwsAuthService.storeToken] Token preview:', token.substring(0, 50) + '...');
+    void 0 && ('💾 [SiwsAuthService.storeToken] Starting token storage process');
+    void 0 && ('💾 [SiwsAuthService.storeToken] Token preview:', token.substring(0, 50) + '...');
     
     if (typeof window !== 'undefined') {
       // Store in localStorage using the same key as API client
       localStorage.setItem('authToken', token);
-      console.log('💾 [SiwsAuthService.storeToken] Token stored in localStorage with key "authToken"');
+      void 0 && ('💾 [SiwsAuthService.storeToken] Token stored in localStorage with key "authToken"');
 
       // CRITICAL: Update the API client with the new token
       apiClient.setToken(token);
-      console.log('💾 [SiwsAuthService.storeToken] Token set in API client');
+      void 0 && ('💾 [SiwsAuthService.storeToken] Token set in API client');
 
       // Verify token is stored and set properly
       const storedToken = localStorage.getItem('authToken');
       const apiClientToken = apiClient.getToken();
-      console.log('💾 [SiwsAuthService.storeToken] Verification - localStorage token:', storedToken?.substring(0, 50) + '...');
-      console.log('💾 [SiwsAuthService.storeToken] Verification - API client token:', apiClientToken?.substring(0, 50) + '...');
-      console.log('💾 [SiwsAuthService.storeToken] Verification - tokens match:', storedToken === apiClientToken);
-      console.log('💾 [SiwsAuthService.storeToken] Token storage process completed successfully');
+      void 0 && ('💾 [SiwsAuthService.storeToken] Verification - localStorage token:', storedToken?.substring(0, 50) + '...');
+      void 0 && ('💾 [SiwsAuthService.storeToken] Verification - API client token:', apiClientToken?.substring(0, 50) + '...');
+      void 0 && ('💾 [SiwsAuthService.storeToken] Verification - tokens match:', storedToken === apiClientToken);
+      void 0 && ('💾 [SiwsAuthService.storeToken] Token storage process completed successfully');
     } else {
       console.warn('💾 [SiwsAuthService.storeToken] Window not available, token not stored');
     }
@@ -582,7 +582,7 @@ export class SiwsAuthService {
   static initializeAuth(): void {
     const storedToken = this.getStoredToken();
     if (storedToken) {
-      console.log('🔄 Initializing API client with stored token');
+      void 0 && ('🔄 Initializing API client with stored token');
       apiClient.setToken(storedToken);
     }
   }
@@ -595,7 +595,7 @@ export class SiwsAuthService {
       localStorage.removeItem('authToken');
       // Also clear from API client
       apiClient.clearToken();
-      console.log('🗑️ Token removed from both localStorage and API client');
+      void 0 && ('🗑️ Token removed from both localStorage and API client');
     }
   }
 
@@ -615,11 +615,11 @@ export class SiwsAuthService {
     }[];
   } | null> {
     try {
-      console.log('🔄 Fetching user account details from features endpoint...');
+      void 0 && ('🔄 Fetching user account details from features endpoint...');
       
       const response = await apiClient.get<any>(API_ENDPOINTS.FEATURES.GET_USER_ACCOUNT_DETAILS);
       
-      console.log('🌐 Raw account details response:', response);
+      void 0 && ('🌐 Raw account details response:', response);
       
       // Handle different possible response formats
       let accountData = null;
@@ -651,7 +651,7 @@ export class SiwsAuthService {
         throw new Error('Account details missing required address field');
       }
 
-      console.log('✅ Account details fetched successfully:', accountData);
+      void 0 && ('✅ Account details fetched successfully:', accountData);
       
       // Return the account details in the exact expected format
       return {
@@ -684,7 +684,7 @@ export class SiwsAuthService {
    * Validate wallet authentication response structure
    */
   static validateWalletAuthResponse(response: any): void {
-    console.log('🔍 Validating wallet auth response:', response);
+    void 0 && ('🔍 Validating wallet auth response:', response);
     
     if (!response) {
       throw new Error('Response is null or undefined');
@@ -737,11 +737,11 @@ export class SiwsAuthService {
     }
     
     // Log the validated response structure
-    console.log('✅ Response validation passed');
-    console.log('📋 User ID:', response.user.id);
-    console.log('📋 Wallet Address:', response.user.walletAddress);
-    console.log('📋 Account Details:', response.user.accountDetails);
-    console.log('📋 Token length:', response.token?.length);
+    void 0 && ('✅ Response validation passed');
+    void 0 && ('📋 User ID:', response.user.id);
+    void 0 && ('📋 Wallet Address:', response.user.walletAddress);
+    void 0 && ('📋 Account Details:', response.user.accountDetails);
+    void 0 && ('📋 Token length:', response.token?.length);
   }
 
   /**
@@ -760,23 +760,23 @@ export class SiwsAuthService {
       value: number;
     }[];
   }> {
-    console.log('🔄 [SiwsAuthService.refreshAccountDetails] Starting account details refresh');
+    void 0 && ('🔄 [SiwsAuthService.refreshAccountDetails] Starting account details refresh');
     
     if (!this.isAuthenticated()) {
       console.error('❌ [SiwsAuthService.refreshAccountDetails] User not authenticated');
       throw new Error('User must be authenticated to refresh account details');
     }
     
-    console.log('✅ [SiwsAuthService.refreshAccountDetails] User is authenticated, proceeding with API call');
+    void 0 && ('✅ [SiwsAuthService.refreshAccountDetails] User is authenticated, proceeding with API call');
     const currentToken = apiClient.getToken();
-    console.log('🔑 [SiwsAuthService.refreshAccountDetails] Current API client token:', currentToken?.substring(0, 50) + '...');
+    void 0 && ('🔑 [SiwsAuthService.refreshAccountDetails] Current API client token:', currentToken?.substring(0, 50) + '...');
     
     try {
       // First, get the wallet address from the backend
-      console.log('🔄 Fetching wallet address from backend...');
+      void 0 && ('🔄 Fetching wallet address from backend...');
       const response = await apiClient.get<any>(API_ENDPOINTS.FEATURES.GET_USER_ACCOUNT_DETAILS);
       
-      console.log('🌐 Raw account details response:', response);
+      void 0 && ('🌐 Raw account details response:', response);
       
       // Handle different possible response formats to extract the address
       let accountData = null;
@@ -809,10 +809,10 @@ export class SiwsAuthService {
         throw new Error('Account details missing required address field');
       }
 
-      console.log('✅ Wallet address obtained from backend:', walletAddress);
+      void 0 && ('✅ Wallet address obtained from backend:', walletAddress);
       
       // Now use Solana service to get real blockchain data with USD values
-      console.log('🔄 Fetching real blockchain data with USD values using Solana service...');
+      void 0 && ('🔄 Fetching real blockchain data with USD values using Solana service...');
       
       // Initialize Solana service if needed
       SolanaService.initialize();
@@ -820,7 +820,7 @@ export class SiwsAuthService {
       // Fetch wallet balance with USD values
       const walletData = await SolanaService.getWalletBalanceWithUsd(walletAddress);
 
-      console.log('✅ Blockchain data with USD values fetched:', { 
+      void 0 && ('✅ Blockchain data with USD values fetched:', { 
         address: walletData.address, 
         solBalance: walletData.solBalance,
         solValueUsd: walletData.solValueUsd,
@@ -847,7 +847,7 @@ export class SiwsAuthService {
         totalValueUsd: walletData.totalValueUsd,
       };
       
-      console.log('✅ [SiwsAuthService.refreshAccountDetails] Account details refreshed successfully with Solana data');
+      void 0 && ('✅ [SiwsAuthService.refreshAccountDetails] Account details refreshed successfully with Solana data');
       return result;
     } catch (error: any) {
       console.error('❌ [SiwsAuthService.refreshAccountDetails] Failed to refresh account details:', error);

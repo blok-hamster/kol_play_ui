@@ -36,7 +36,7 @@ export class TokenService {
         throw new Error('Invalid Solana address format');
       }
 
-      console.log('🔍 Searching address with Solana service:', request.address);
+      void 0 && ('🔍 Searching address with Solana service:', request.address);
 
       // First, check if this address is a KOL by searching the KOL wallets
       let isKOL = false;
@@ -60,7 +60,7 @@ export class TokenService {
           if (foundKOL) {
             isKOL = true;
             kolData = foundKOL;
-            console.log('✅ Address found in KOL database:', foundKOL.name);
+            void 0 && ('✅ Address found in KOL database:', foundKOL.name);
           }
         }
       } catch (error) {
@@ -84,12 +84,12 @@ export class TokenService {
             totalPnL: (Math.random() - 0.3) * 10000, // Mostly positive PnL
             isActive: true,
           };
-          console.log('✅ Address treated as test KOL');
+          void 0 && ('✅ Address treated as test KOL');
         }
       }
 
       // Now use Solana service to get real blockchain data
-      console.log('🔄 Fetching real blockchain data using Solana service...');
+      void 0 && ('🔄 Fetching real blockchain data using Solana service...');
       
       // Initialize Solana service if needed
       SolanaService.initialize();
@@ -106,7 +106,7 @@ export class TokenService {
         })
       ]);
 
-      console.log('✅ Blockchain data fetched:', { 
+      void 0 && ('✅ Blockchain data fetched:', { 
         address: request.address, 
         solBalance, 
         tokensCount: tokens.length 
@@ -121,7 +121,7 @@ export class TokenService {
           )}`
         );
         addressTransactionData = response.data;
-        console.log('✅ Transaction data fetched from backend');
+        void 0 && ('✅ Transaction data fetched from backend');
       } catch (error) {
         console.warn('Failed to fetch transaction data from backend:', error);
         // Continue without transaction data - we have blockchain data
@@ -144,7 +144,7 @@ export class TokenService {
         }),
       };
 
-      console.log('✅ Address search completed with Solana data:', result);
+      void 0 && ('✅ Address search completed with Solana data:', result);
 
       return {
         message: `Address information retrieved for ${request.address}`,
@@ -370,7 +370,7 @@ export class TokenService {
         };
       }
 
-      console.log(`🔄 Fetching details for ${uniqueAddresses.length} tokens in batches of ${batchSize}`);
+      void 0 && (`🔄 Fetching details for ${uniqueAddresses.length} tokens in batches of ${batchSize}`);
 
       // Split addresses into batches
       const batches: string[][] = [];
@@ -378,13 +378,13 @@ export class TokenService {
         batches.push(uniqueAddresses.slice(i, i + batchSize));
       }
 
-      console.log(`📦 Created ${batches.length} batches for processing`);
+      void 0 && (`📦 Created ${batches.length} batches for processing`);
 
       // Process batches with concurrency control
       const allResults: GetTokenResponse[] = [];
       const processBatch = async (batch: string[], batchIndex: number): Promise<GetTokenResponse[]> => {
         try {
-          console.log(`🔄 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} tokens`);
+          void 0 && (`🔄 Processing batch ${batchIndex + 1}/${batches.length} with ${batch.length} tokens`);
           
           const response = await apiClient.post<GetTokenResponse[]>(
             API_ENDPOINTS.FEATURES.GET_MULTIPLE_TOKENS,
@@ -422,7 +422,7 @@ export class TokenService {
             holders: result.holders || 0
           }));
 
-          console.log(`✅ Batch ${batchIndex + 1} completed: ${normalizedResults.length} tokens processed`);
+          void 0 && (`✅ Batch ${batchIndex + 1} completed: ${normalizedResults.length} tokens processed`);
           
           // Call progress callback if provided
           if (onBatchComplete) {
@@ -464,7 +464,7 @@ export class TokenService {
         allResults.push(...batchResults.flat());
       }
 
-      console.log(`✅ All batches completed: ${allResults.length} total tokens processed`);
+      void 0 && (`✅ All batches completed: ${allResults.length} total tokens processed`);
 
       return {
         message: `Successfully fetched details for ${allResults.length} tokens`,
@@ -503,11 +503,11 @@ export class TokenService {
         params.append('verified', filters.verified.toString());
 
       const url = `${API_ENDPOINTS.FEATURES.GET_TRENDING_TOKENS}?${params.toString()}`;
-      console.log('📈 TokenService.getTrendingTokens - URL:', url);
+      void 0 && ('📈 TokenService.getTrendingTokens - URL:', url);
 
       const response = await apiClient.get<any[]>(url);
 
-      console.log(
+      void 0 && (
         '📈 TokenService.getTrendingTokens - Raw response:',
         response
       );
@@ -515,7 +515,7 @@ export class TokenService {
       // Transform the nested response structure to flat structure
       const transformedTokens = response.data.map(this.transformTokenData);
 
-      console.log(
+      void 0 && (
         '📈 TokenService.getTrendingTokens - Transformed tokens:',
         transformedTokens
       );
@@ -556,11 +556,11 @@ export class TokenService {
         params.append('verified', filters.verified.toString());
 
       const url = `${API_ENDPOINTS.FEATURES.GET_TOKENS_BY_VOLUME}?${params.toString()}`;
-      console.log('📊 TokenService.getTokensByVolume - URL:', url);
+      void 0 && ('📊 TokenService.getTokensByVolume - URL:', url);
 
       const response = await apiClient.get<any[]>(url);
 
-      console.log(
+      void 0 && (
         '📊 TokenService.getTokensByVolume - Raw response:',
         response
       );
@@ -568,7 +568,7 @@ export class TokenService {
       // Transform the nested response structure to flat structure
       const transformedTokens = response.data.map(this.transformTokenData);
 
-      console.log(
+      void 0 && (
         '📊 TokenService.getTokensByVolume - Transformed tokens:',
         transformedTokens
       );
@@ -600,16 +600,16 @@ export class TokenService {
         params.append('minLiquidity', filters.minLiquidity.toString());
 
       const url = `${API_ENDPOINTS.FEATURES.GET_LATEST_TOKENS}?${params.toString()}`;
-      console.log('🆕 TokenService.getLatestTokens - URL:', url);
+      void 0 && ('🆕 TokenService.getLatestTokens - URL:', url);
 
       const response = await apiClient.get<any[]>(url);
 
-      console.log('🆕 TokenService.getLatestTokens - Raw response:', response);
+      void 0 && ('🆕 TokenService.getLatestTokens - Raw response:', response);
 
       // Transform the nested response structure to flat structure
       const transformedTokens = response.data.map(this.transformTokenData);
 
-      console.log(
+      void 0 && (
         '🆕 TokenService.getLatestTokens - Transformed tokens:',
         transformedTokens
       );

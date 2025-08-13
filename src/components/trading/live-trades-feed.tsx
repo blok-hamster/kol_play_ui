@@ -264,7 +264,7 @@ export default function LiveTradesFeed({
   // Handle trade card click
   const handleTradeClick = useCallback((trade: KOLTrade) => {
     // Could open a modal or navigate to trade details
-    console.log('Trade clicked:', trade);
+    void 0 && ('Trade clicked:', trade);
   }, []);
 
   // Get unique KOLs for filter dropdown

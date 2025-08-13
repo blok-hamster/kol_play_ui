@@ -29,7 +29,7 @@ export default function OAuthCallbackPage() {
         const error = searchParams.get('error');
         const code = searchParams.get('code');
 
-        console.log('🔐 OAuth Callback - URL params:', { token, error, code });
+        void 0 && ('🔐 OAuth Callback - URL params:', { token, error, code });
 
         if (error) {
           // Handle OAuth error
@@ -55,14 +55,14 @@ export default function OAuthCallbackPage() {
 
         if (token) {
           // Direct token from backend redirect
-          console.log('🔐 Received token from redirect:', token);
+          void 0 && ('🔐 Received token from redirect:', token);
 
           // Set the token
           apiClient.setToken(token);
 
           // Get user info from the token
           try {
-            console.log('🔐 Fetching user data from token...');
+            void 0 && ('🔐 Fetching user data from token...');
             const user = await AuthService.getCurrentUser();
 
             if (user) {
@@ -75,7 +75,7 @@ export default function OAuthCallbackPage() {
               );
 
               // Redirect to portfolio
-              console.log(
+              void 0 && (
                 'OAuth callback successful, redirecting to portfolio'
               );
               router.push('/portfolio');
@@ -102,7 +102,7 @@ export default function OAuthCallbackPage() {
 
         if (code) {
           // Handle authorization code exchange
-          console.log('🔐 Exchanging authorization code:', code);
+          void 0 && ('🔐 Exchanging authorization code:', code);
           setMessage('Exchanging authorization code...');
 
           try {
@@ -136,7 +136,7 @@ export default function OAuthCallbackPage() {
               }
 
               // Redirect to portfolio
-              console.log(
+              void 0 && (
                 'OAuth callback successful, redirecting to portfolio'
               );
               router.push('/portfolio');

@@ -14,7 +14,7 @@ export const AuthInitProvider: React.FC<AuthInitProviderProps> = ({
 
   useEffect(() => {
     // Initialize authentication and user store on app startup
-    console.log('🚀 Initializing authentication...');
+    void 0 && ('🚀 Initializing authentication...');
     initialize().catch(error => {
       console.error('Failed to initialize authentication:', error);
     });
