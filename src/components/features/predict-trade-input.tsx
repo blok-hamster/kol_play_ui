@@ -91,7 +91,7 @@ export default function PredictTradeInput({ className = '' }: { className?: stri
           ref={textareaRef}
           rows={1}
           className="flex-1 min-h-[44px] max-h-60 px-3 py-2 border-2 border-[#ffffff] focus:border-[#ffffff] rounded-xl bg-transparent text-[#ffffff] text-base md:text-lg placeholder:text-white/60 outline-none resize-none overflow-hidden"
-          placeholder="Paste token mint address(es)"
+          placeholder="Paste token mint(s)"
           value={rawInput}
           onChange={e => {
             setRawInput(e.target.value);

@@ -10,7 +10,7 @@ export const THEME_CONFIG = {
 
 // API endpoints
 export const API_ENDPOINTS = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL?.endsWith("/api") ? process.env.NEXT_PUBLIC_API_URL.slice(0, -4) : process.env.NEXT_PUBLIC_API_URL?.endsWith("/") ? process.env.NEXT_PUBLIC_API_URL.slice(0, -1) : 'http://localhost:5000',
 
   // Authentication
   AUTH: {
