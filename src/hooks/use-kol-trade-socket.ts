@@ -193,20 +193,20 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         }
         
         // Load initial trades, stats, and trending tokens in parallel
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
         
         void 0 && ('Making API calls to:', apiUrl);
         
         const [tradesResponse, statsResponse, trendingResponse] = await Promise.all([
-          fetch(`${apiUrl}/api/kol-trades/recent?limit=100`, { headers }).catch(err => {
+          fetch(`${apiUrl}/kol-trades/recent?limit=100`, { headers }).catch(err => {
             console.error('Trades API error:', err);
             return null;
           }),
-          fetch(`${apiUrl}/api/kol-trades/stats`, { headers }).catch(err => {
+          fetch(`${apiUrl}/kol-trades/stats`, { headers }).catch(err => {
             console.error('Stats API error:', err);
             return null;
           }),
-          fetch(`${apiUrl}/api/kol-trades/trending-tokens?limit=20`, { headers }).catch(err => {
+          fetch(`${apiUrl}/kol-trades/trending-tokens?limit=20`, { headers }).catch(err => {
             console.error('Trending tokens API error:', err);
             return null;
           })
@@ -307,7 +307,7 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
           
           // Try to get additional tokens with activity (this endpoint may not exist yet)
           try {
-            const allTokensResponse = await fetch(`${apiUrl}/api/kol-trades/tokens-with-activity`, { headers });
+            const allTokensResponse = await fetch(`${apiUrl}/kol-trades/tokens-with-activity`, { headers });
             if (allTokensResponse && allTokensResponse.ok) {
               const allTokensData = await allTokensResponse.json();
               void 0 && ('✅ Additional tokens with activity response:', allTokensData);
@@ -330,7 +330,7 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
             const mindmapPromises = tokensToLoad.map(async (tokenMint: string) => {
               try {
                 void 0 && (`🗺️ Loading mindmap for token: ${tokenMint}`);
-                const mindmapResponse = await fetch(`${apiUrl}/api/kol-trades/mindmap/${tokenMint}`, { headers });
+                const mindmapResponse = await fetch(`${apiUrl}/kol-trades/mindmap/${tokenMint}`, { headers });
                 if (mindmapResponse.ok) {
                   const mindmapData = await mindmapResponse.json();
                   void 0 && (`✅ Mindmap data for ${tokenMint}:`, mindmapData);
