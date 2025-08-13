@@ -198,15 +198,15 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         void 0 && ('Making API calls to:', apiUrl);
         
         const [tradesResponse, statsResponse, trendingResponse] = await Promise.all([
-          fetch(`${apiUrl}/api/kol-trades/recent?limit=100`, { headers }).catch(err => {
+          fetch(`${apiUrl}/kol-trades/recent?limit=100`, { headers }).catch(err => {
             console.error('Trades API error:', err);
             return null;
           }),
-          fetch(`${apiUrl}/api/kol-trades/stats`, { headers }).catch(err => {
+          fetch(`${apiUrl}/kol-trades/stats`, { headers }).catch(err => {
             console.error('Stats API error:', err);
             return null;
           }),
-          fetch(`${apiUrl}/api/kol-trades/trending-tokens?limit=20`, { headers }).catch(err => {
+          fetch(`${apiUrl}/kol-trades/trending-tokens?limit=20`, { headers }).catch(err => {
             console.error('Trending tokens API error:', err);
             return null;
           })
@@ -307,7 +307,7 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
           
           // Try to get additional tokens with activity (this endpoint may not exist yet)
           try {
-            const allTokensResponse = await fetch(`${apiUrl}/api/kol-trades/tokens-with-activity`, { headers });
+            const allTokensResponse = await fetch(`${apiUrl}/kol-trades/tokens-with-activity`, { headers });
             if (allTokensResponse && allTokensResponse.ok) {
               const allTokensData = await allTokensResponse.json();
               void 0 && ('✅ Additional tokens with activity response:', allTokensData);
