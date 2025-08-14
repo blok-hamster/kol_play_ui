@@ -196,7 +196,20 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
         
         void 0 && ('Making API calls to:', apiUrl);
-        
+
+        // Derive Socket.IO base URL and path to avoid treating '/api' as a namespace
+        const rawApiUrl = apiUrl;
+        let socketBaseUrl = rawApiUrl;
+        let socketPath = process.env.NEXT_PUBLIC_SOCKET_IO_PATH || '/socket.io';
+        try {
+          const parsed = new URL(rawApiUrl);
+          socketBaseUrl = `${parsed.protocol}//${parsed.host}`;
+          // If API URL has a path (e.g., '/api') and no explicit SOCKET_IO_PATH is provided, assume '/api/socket.io'
+          if (parsed.pathname && parsed.pathname !== '/' && !process.env.NEXT_PUBLIC_SOCKET_IO_PATH) {
+            socketPath = `${parsed.pathname.replace(/\/+$/, '')}/socket.io`;
+          }
+        } catch {}
+ 
         const [tradesResponse, statsResponse, trendingResponse] = await Promise.all([
           fetch(`${apiUrl}/kol-trades/recent?limit=100`, { headers }).catch(err => {
             console.error('Trades API error:', err);
@@ -378,12 +391,14 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
           return;
         }
 
-        void 0 && ('🔌 Connecting to WebSocket:', apiUrl);
+        void 0 && ('🔌 Connecting to WebSocket:', socketBaseUrl);
         
-        const newSocket = io(apiUrl, {
+        const newSocket = io(socketBaseUrl, {
+          path: socketPath,
           auth: { token: authToken },
           transports: ['websocket'],
-          timeout: 10000
+          timeout: 10000,
+          withCredentials: true,
         });
 
         newSocket.on('connect', () => {
