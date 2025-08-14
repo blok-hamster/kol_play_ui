@@ -396,9 +396,13 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         const newSocket = io(socketBaseUrl, {
           path: socketPath,
           auth: { token: authToken },
-          transports: ['websocket'],
-          timeout: 10000,
+          transports: ['websocket', 'polling'],
+          timeout: 20000,
           withCredentials: true,
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelayMax: 30000,
+          forceNew: true,
         });
 
         newSocket.on('connect', () => {
