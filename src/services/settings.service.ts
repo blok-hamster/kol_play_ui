@@ -391,7 +391,7 @@ export class SettingsService {
   static async getUserSettings(): Promise<ApiResponse<UpdateSettingParams>> {
     try {
       const response = await apiClient.get<UpdateSettingParams>(
-        '/features/get-settings'
+        '/api/features/get-settings'
       );
       return response;
     } catch (error: any) {
@@ -407,7 +407,7 @@ export class SettingsService {
   ): Promise<ApiResponse<UpdateSettingParams>> {
     try {
       const response = await apiClient.post<UpdateSettingParams>(
-        '/features/update-settings/',
+        '/api/features/update-settings/',
         settings
       );
       return response;
