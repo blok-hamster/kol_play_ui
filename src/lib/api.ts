@@ -7,7 +7,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL?.endsWith("/api") ? process.env.NEXT_PUBLIC_API_URL : process.env.NEXT_PUBLIC_API_URL?.endsWith("/") ? process.env.NEXT_PUBLIC_API_URL + "api" : 'http://localhost:5000/api', // Change this URL to match your backend
+      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000', // Change this URL to match your backend
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',

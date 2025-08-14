@@ -115,7 +115,7 @@ export class SiwsAuthService {
 
       void 0 && (
         '🌐 Making backend API call to:',
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}${API_ENDPOINTS.WALLET.CHALLENGE}`
+        `${process.env.NEXT_PUBLIC_API_URL + '/api' || 'http://localhost:5000/api'}${API_ENDPOINTS.WALLET.CHALLENGE}`
       );
 
       void 0 && ('🌐 Request payload:', {
@@ -196,7 +196,7 @@ export class SiwsAuthService {
         );
       } else if (error.code === 'ECONNREFUSED') {
         throw new Error(
-          `Cannot connect to backend server at ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}. Make sure your backend is running.`
+          `Cannot connect to backend server at ${process.env.NEXT_PUBLIC_API_URL + '/api' || 'http://localhost:5000/api'}. Make sure your backend is running.`
         );
       } else if (
         error.message.includes('Invalid response format') ||
