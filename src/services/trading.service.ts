@@ -273,7 +273,7 @@ export class TradingService {
   static async getTopTraders(): Promise<ApiResponse<TopTrader[]>> {
     try {
       const response = await apiClient.get<TopTrader[]>(
-        '/features/get-top-traders'
+        '/api/features/get-top-traders'
       );
       return response;
     } catch (error: any) {

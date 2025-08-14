@@ -86,7 +86,7 @@ export const API_ENDPOINTS = {
     GET_USER_TRADE_STATS: '/api/features/get-user-trade-stats',
     GET_USER_TRANSACTION_DETAILS: '/api/features/get-user-transaction-details',
     GET_USER_TRANSACTIONS: '/api/features/get-user-transactions',
-    GET_USER_TRANSACTION_BY_MINT: '/features/get-user-transaction-by-mint',
+    GET_USER_TRANSACTION_BY_MINT: '/api/features/get-user-transaction-by-mint',
 
     // Trading
     PERFORM_SWAP: '/api/features/perform-swap',
