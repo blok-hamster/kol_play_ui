@@ -486,12 +486,31 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     const links: UnifiedLink[] = [];
     const kolMap = new Map<string, UnifiedNode>();
 
+    console.log('🗺️ Processing unified mindmap data:', {
+      tokensCount: Object.keys(tokensData).length,
+      tokensData: Object.keys(tokensData),
+      sampleData: Object.entries(tokensData).slice(0, 2).map(([mint, data]) => ({
+        mint,
+        kolConnectionsCount: Object.keys(data.kolConnections || {}).length,
+        networkMetrics: data.networkMetrics
+      }))
+    });
+
     // Process each token and its KOL connections
     Object.entries(tokensData).forEach(([tokenMint, data]) => {
       const kolConnections = Object.keys(data.kolConnections || {});
       const totalTrades = data.networkMetrics?.totalTrades || 0;
       const totalVolume = Object.values(data.kolConnections || {})
         .reduce((sum, kol) => sum + kol.totalVolume, 0);
+
+      console.log('🗺️ Processing token:', {
+        tokenMint: tokenMint.slice(0, 8),
+        kolConnectionsCount: kolConnections.length,
+        totalTrades,
+        totalVolume,
+        hasKolConnections: !!data.kolConnections,
+        kolConnectionsKeys: Object.keys(data.kolConnections || {}).slice(0, 3)
+      });
 
       // Add token node
       nodes.push({
@@ -545,6 +564,18 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
 
     // Add all KOL nodes to the main nodes array
     nodes.push(...Array.from(kolMap.values()));
+
+    console.log('🗺️ Unified mindmap processing complete:', {
+      totalNodes: nodes.length,
+      tokenNodes: nodes.filter(n => n.type === 'token').length,
+      kolNodes: nodes.filter(n => n.type === 'kol').length,
+      totalLinks: links.length,
+      sampleNodes: nodes.slice(0, 5).map(n => ({
+        id: n.id.slice(0, 8),
+        type: n.type,
+        connections: n.connections
+      }))
+    });
 
     return { nodes, links };
   };

@@ -369,6 +369,19 @@ export class AuthService {
   }
 
   /**
+   * Enhanced authentication clearing for 403 error handling
+   * Ensures comprehensive cleanup of all authentication state
+   */
+  static clearAuthForFailure(): void {
+    void 0 && ('🧹 AuthService - Clearing auth state for authentication failure');
+    
+    // Use enhanced token clearing method
+    apiClient.clearTokenForAuthFailure();
+    
+    void 0 && ('✅ AuthService - Authentication state cleared for failure');
+  }
+
+  /**
    * Get current user info from stored token
    */
   static async getCurrentUser(): Promise<User | null> {

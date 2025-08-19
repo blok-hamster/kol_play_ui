@@ -1,0 +1,1572 @@
+'use client';
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import axios, { AxiosResponse } from 'axios';
+import { useUserStore } from '@/stores/use-user-store';
+import { useNotifications } from '@/stores/use-ui-store';
+import { PredictionResult } from '@/types';
+import { cacheManager } from '@/lib/cache-manager';
+import { useEnhancedWebSocket } from './use-enhanced-websocket';
+import {
+  getRealTimeSyncService,
+  UpdateBatch,
+} from '@/services/realtime-sync.service';
+import { url } from 'inspector';
+
+export interface KOLTrade {
+  id: string;
+  kolWallet: string;
+  signature: string;
+  timestamp: Date;
+  tradeData: {
+    tokenIn: string;
+    tokenOut: string;
+    amountIn: number;
+    amountOut: number;
+    tradeType: 'buy' | 'sell';
+    mint?: string;
+    dexProgram: string; // Changed from 'source' to 'dexProgram'
+    fee?: number;
+    name?: string | undefined;
+    symbol?: string | undefined;
+    image?: string | undefined;
+    metadataUri?: string | undefined;
+  };
+  affectedUsers: string[];
+  processed: boolean;
+  prediction?: PredictionResult;
+  mindmapContribution?: {
+    tokenConnections: string[];
+    kolInfluenceScore: number;
+    relatedTrades: string[];
+  };
+}
+
+export interface MindmapUpdate {
+  tokenMint: string;
+  kolConnections: {
+    [kolWallet: string]: {
+      kolWallet: string;
+      tradeCount: number;
+      totalVolume: number;
+      lastTradeTime: Date;
+      influenceScore: number;
+      tradeTypes: string[];
+    };
+  };
+  relatedTokens: string[];
+  networkMetrics: {
+    centrality: number;
+    clustering: number;
+    totalTrades: number;
+  };
+  lastUpdate: Date;
+}
+
+// Loading phases for progressive initialization
+type LoadingPhase =
+  | 'idle'
+  | 'essential'
+  | 'enhanced'
+  | 'background'
+  | 'complete';
+
+// Connection state with retry information
+interface ConnectionState {
+  isConnected: boolean;
+  isConnecting: boolean;
+  retryCount: number;
+  lastError: string | null;
+  connectionHealth: 'healthy' | 'unstable' | 'failed';
+}
+
+// Data fetching priority levels
+type DataPriority = 'critical' | 'high' | 'medium' | 'low';
+
+// Retry configuration
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
+  backoffMultiplier: number;
+}
+
+interface UseKOLTradeSocketReturn {
+  socket: Socket | null;
+  isConnected: boolean;
+  recentTrades: KOLTrade[];
+  allMindmapData: { [tokenMint: string]: MindmapUpdate };
+  trendingTokens: string[];
+  isLoadingInitialData: boolean;
+  loadingPhase: LoadingPhase;
+  connectionState: ConnectionState;
+  stats: {
+    totalTrades: number;
+    uniqueKOLs: number;
+    uniqueTokens: number;
+    totalVolume: number;
+  };
+}
+
+// Global singleton state to prevent multiple instances
+let globalSocketState: UseKOLTradeSocketReturn | null = null;
+let instanceCount = 0;
+let currentInstanceId = 0;
+
+export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
+  // Increment instance counter
+  const [instanceId] = useState(() => {
+    instanceCount++;
+    currentInstanceId = instanceCount;
+    console.log(`🔍 KOL Socket Hook Instance #${currentInstanceId} created. Total instances: ${instanceCount}`);
+    return currentInstanceId;
+  });
+
+  // If we already have a global state and this isn't the first instance, return cached state
+  if (globalSocketState && instanceId > 1) {
+    console.log(`♻️ Returning cached socket state for instance #${instanceId}`);
+    return globalSocketState;
+  }
+
+  void 0 && '🚀 useKOLTradeSocket hook initialized with enhanced real-time synchronization';
+
+  const { user } = useUserStore();
+  const { showError } = useNotifications();
+
+  // Enhanced WebSocket with batching and health monitoring
+  const authToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+  const enhancedWebSocket = useEnhancedWebSocket({
+    auth: authToken ? { token: authToken } : {},
+    batchInterval: 100,
+    maxBatchSize: 50,
+    healthCheckInterval: 5000,
+    pollingFallbackInterval: 10000,
+  });
+
+  // Core state
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [recentTrades, setRecentTrades] = useState<KOLTrade[]>([]);
+  const [allMindmapData, setAllMindmapData] = useState<{
+    [tokenMint: string]: MindmapUpdate;
+  }>({});
+  const [trendingTokens, setTrendingTokens] = useState<string[]>([]);
+  const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('idle');
+  const [stats, setStats] = useState({
+    totalTrades: 0,
+    uniqueKOLs: 0,
+    uniqueTokens: 0,
+    totalVolume: 0,
+  });
+
+  // Enhanced connection state
+  const [connectionState, setConnectionState] = useState<ConnectionState>({
+    isConnected: false,
+    isConnecting: false,
+    retryCount: 0,
+    lastError: null,
+    connectionHealth: 'healthy',
+  });
+
+  // Refs for stable references
+  const mindmapDataRef = useRef<{ [tokenMint: string]: MindmapUpdate }>({});
+  const tokenMetadataCacheRef = useRef<
+    Map<string, { name?: string; symbol?: string; image?: string }>
+  >(new Map());
+  const retryTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const connectionHealthRef = useRef<{
+    lastPing: number;
+    missedPings: number;
+    healthCheckInterval?: NodeJS.Timeout;
+  }>({ lastPing: Date.now(), missedPings: 0 });
+  
+  // Request deduplication refs
+  const activeRequestsRef = useRef<Map<string, Promise<any>>>(new Map());
+  const initializationRef = useRef<{ isInitializing: boolean; hasInitialized: boolean }>({
+    isInitializing: false,
+    hasInitialized: false
+  });
+  
+  // Circuit breaker to prevent excessive requests
+  const circuitBreakerRef = useRef<Map<string, { 
+    failures: number; 
+    lastFailure: number; 
+    isOpen: boolean;
+    nextAttempt: number;
+  }>>(new Map());
+  
+
+
+  // Circuit breaker state to prevent infinite retries
+  const circuitBreakerRef = useRef<{
+    [key: string]: {
+      failures: number;
+      lastFailure: number;
+      isOpen: boolean;
+    };
+  }>({});
+
+  // Configuration - Very conservative to prevent server overload
+  const retryConfig: RetryConfig = {
+    maxRetries: 1, // Only 1 retry to prevent excessive requests
+    baseDelay: 5000, // 5 second delay between retries
+    maxDelay: 15000, // Max 15 second delay
+    backoffMultiplier: 3, // Aggressive backoff
+  };
+  
+  // Circuit breaker configuration
+  const circuitBreakerConfig = {
+    failureThreshold: 3, // Open circuit after 3 failures
+    timeout: 60000, // Keep circuit open for 1 minute
+    resetTimeout: 300000, // Reset after 5 minutes
+  };
+
+  // Derived state
+  const isConnected = connectionState.isConnected;
+
+  // Enhanced batched update processing with performance monitoring
+  const processBatchedUpdates = useCallback((batch: UpdateBatch) => {
+    const processingStartTime = Date.now();
+
+    void 0 &&
+      `📦 Processing enhanced batch ${batch.id} with ${batch.updates.length} updates (priority: ${batch.priority}, conflicts: ${batch.conflictsResolved}, integrity: ${batch.dataIntegrityScore.toFixed(2)})`;
+
+    try {
+      // Group updates by type for efficient processing
+      const updatesByType = batch.updates.reduce(
+        (acc, update) => {
+          if (!acc[update.type]) acc[update.type] = [];
+          acc[update.type].push(update);
+          return acc;
+        },
+        {} as Record<string, any[]>
+      );
+
+      // Process trade updates with enhanced conflict resolution tracking
+      if (updatesByType.trade) {
+        const tradeUpdates = updatesByType.trade;
+        setRecentTrades(prev => {
+          const existingIds = new Set(prev.map(t => t.id));
+          const newTrades: KOLTrade[] = [];
+          const updatedTrades: KOLTrade[] = [];
+
+          tradeUpdates.forEach(update => {
+            const trade = update.data as KOLTrade;
+            if (existingIds.has(trade.id)) {
+              updatedTrades.push(trade);
+            } else {
+              newTrades.push(trade);
+            }
+          });
+
+          if (newTrades.length === 0 && updatedTrades.length === 0) return prev;
+
+          // Merge new and updated trades
+          let updated = [...prev];
+
+          // Update existing trades
+          updatedTrades.forEach(updatedTrade => {
+            const index = updated.findIndex(t => t.id === updatedTrade.id);
+            if (index !== -1) {
+              updated[index] = updatedTrade;
+            }
+          });
+
+          // Add new trades
+          updated = [...newTrades, ...updated].slice(0, 100);
+
+          // Update cache with enhanced metadata
+          cacheManager.setTradeData('recent', updated, 60000);
+
+          // Enhanced stats calculation with conflict tracking
+          setStats(prevStats => ({
+            totalTrades: prevStats.totalTrades + newTrades.length,
+            uniqueKOLs: prevStats.uniqueKOLs, // Will be recalculated periodically
+            uniqueTokens: prevStats.uniqueTokens, // Will be recalculated periodically
+            totalVolume:
+              prevStats.totalVolume +
+              newTrades.reduce(
+                (sum, trade) => sum + (trade.tradeData?.amountIn || 0),
+                0
+              ),
+          }));
+
+          void 0 &&
+            `✅ Processed ${newTrades.length} new trades, ${updatedTrades.length} updated trades`;
+
+          return updated;
+        });
+      }
+
+      // Process mindmap updates with enhanced merging
+      if (updatesByType.mindmap) {
+        const mindmapUpdates = updatesByType.mindmap;
+        setAllMindmapData(prev => {
+          const updated = { ...prev };
+          let updatedCount = 0;
+
+          mindmapUpdates.forEach(update => {
+            const mindmapData = update.data as MindmapUpdate;
+            const existing = updated[mindmapData.tokenMint];
+
+            // Enhanced mindmap merging with conflict resolution tracking
+            if (existing && update.conflictResolution?.hadConflict) {
+              void 0 &&
+                `🔄 Resolving mindmap conflict for ${mindmapData.tokenMint} using ${update.conflictResolution.resolutionStrategy}`;
+            }
+
+            updated[mindmapData.tokenMint] = mindmapData;
+            cacheManager.setMindmapData(
+              mindmapData.tokenMint,
+              mindmapData,
+              600000
+            );
+            updatedCount++;
+          });
+
+          void 0 && `✅ Processed ${updatedCount} mindmap updates`;
+          return updated;
+        });
+      }
+
+      // Process stats updates with enhanced validation
+      if (updatesByType.stats) {
+        const statsUpdates = updatesByType.stats.filter(
+          update => update.data && typeof update.data === 'object'
+        );
+
+        if (statsUpdates.length > 0) {
+          const latestStats = statsUpdates[statsUpdates.length - 1];
+
+          // Handle different stats update types
+          if (latestStats.data.tradingStats) {
+            setStats(latestStats.data.tradingStats);
+            cacheManager.setStatsData(
+              'current',
+              latestStats.data.tradingStats,
+              120000
+            );
+          } else if (latestStats.data.type === 'enhanced_polling_update') {
+            // Handle polling mode updates
+            void 0 &&
+              `📊 Polling mode update - interval: ${latestStats.data.pollingInterval}ms`;
+          }
+        }
+      }
+
+      // Process trending tokens updates with deduplication
+      if (updatesByType.trending) {
+        const trendingUpdates = updatesByType.trending.filter(update =>
+          Array.isArray(update.data)
+        );
+
+        if (trendingUpdates.length > 0) {
+          const latestTrending = trendingUpdates[trendingUpdates.length - 1];
+          const uniqueTokens = Array.from(new Set(latestTrending.data));
+
+          setTrendingTokens(uniqueTokens);
+          cacheManager.setTrendingTokens(uniqueTokens, 300000);
+
+          void 0 &&
+            `✅ Updated trending tokens: ${uniqueTokens.length} unique tokens`;
+        }
+      }
+
+      // Performance monitoring
+      const processingTime = Date.now() - processingStartTime;
+      if (processingTime > 100) {
+        console.warn(
+          `⚠️ Batch processing took ${processingTime}ms (batch size: ${batch.updates.length})`
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error processing batched updates:', error);
+
+      // Fallback: try to process updates individually
+      batch.updates.forEach(update => {
+        try {
+          // Process individual update as a single-item batch
+          const fallbackBatch: UpdateBatch = {
+            id: `fallback_${update.id}`,
+            timestamp: Date.now(),
+            updates: [update],
+            priority: update.priority,
+            batchSize: 1,
+            conflictsResolved: 0,
+            dataIntegrityScore: 1.0,
+            adaptiveInterval: 100,
+          };
+
+          // Recursive call with single update (will not trigger this fallback again)
+          if (fallbackBatch.updates.length === 1) {
+            // Process the single update directly to avoid infinite recursion
+            console.warn(
+              `🔄 Processing update ${update.id} individually as fallback`
+            );
+          }
+        } catch (individualError) {
+          console.error(
+            `❌ Failed to process individual update ${update.id}:`,
+            individualError
+          );
+        }
+      });
+    }
+  }, []);
+
+  // Exponential backoff retry utility
+  const retryWithBackoff = useCallback(
+    async <T>(
+      operation: () => Promise<T>,
+      operationName: string,
+      priority: DataPriority = 'medium'
+    ): Promise<T | null> => {
+      // Check circuit breaker first
+      const circuitKey = operationName.split(' ')[0]; // Use base operation name
+      const circuit = circuitBreakerRef.current[circuitKey];
+      
+      // If circuit is open and not enough time has passed, fail fast
+      if (circuit?.isOpen && Date.now() - circuit.lastFailure < 60000) { // 1 minute cooldown
+        console.warn(`🚫 Circuit breaker open for ${operationName}, skipping retry`);
+        return null;
+      }
+
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
+        try {
+          const result = await operation();
+
+          // Reset circuit breaker on success
+          const circuitKey = operationName.split(' ')[0];
+          if (circuitBreakerRef.current[circuitKey]) {
+            circuitBreakerRef.current[circuitKey] = {
+              failures: 0,
+              lastFailure: 0,
+              isOpen: false,
+            };
+          }
+
+          // Clear any existing retry timeout for this operation
+          const timeoutKey = `${operationName}_retry`;
+          const existingTimeout = retryTimeoutsRef.current.get(timeoutKey);
+          if (existingTimeout) {
+            clearTimeout(existingTimeout);
+            retryTimeoutsRef.current.delete(timeoutKey);
+          }
+
+          return result;
+        } catch (error) {
+          lastError = error as Error;
+
+          // Check circuit breaker
+          const circuitKey = operationName.split(' ')[0]; // Use base operation name
+          const circuit = circuitBreakerRef.current[circuitKey] || {
+            failures: 0,
+            lastFailure: 0,
+            isOpen: false,
+          };
+
+          // Update circuit breaker
+          circuit.failures++;
+          circuit.lastFailure = Date.now();
+          
+          // Open circuit if too many failures or network error
+          const isNetworkError = error.message.includes('Network Error') ||
+            error.message.includes('ERR_NETWORK') ||
+            error.message.includes('ECONNREFUSED');
+            
+          if (circuit.failures >= 3 || isNetworkError) {
+            circuit.isOpen = true;
+            console.warn(`🚫 Circuit breaker opened for ${operationName} (failures: ${circuit.failures}, network error: ${isNetworkError})`);
+            circuitBreakerRef.current[circuitKey] = circuit;
+            break; // Exit retry loop immediately
+          }
+          
+          circuitBreakerRef.current[circuitKey] = circuit;
+
+          if (attempt === retryConfig.maxRetries) {
+            console.error(
+              `❌ ${operationName} failed after ${retryConfig.maxRetries} retries:`,
+              error
+            );
+            break;
+          }
+
+          // Calculate delay with exponential backoff
+          const delay = Math.min(
+            retryConfig.baseDelay *
+              Math.pow(retryConfig.backoffMultiplier, attempt),
+            retryConfig.maxDelay
+          );
+
+          // Add jitter to prevent thundering herd
+          const jitteredDelay = delay + Math.random() * 1000;
+
+          void 0 &&
+            `🔄 ${operationName} attempt ${attempt + 1} failed, retrying in ${jitteredDelay}ms`;
+
+          // Wait before retry, but allow cancellation
+          await new Promise<void>(resolve => {
+            const timeoutKey = `${operationName}_retry`;
+            const timeout = setTimeout(resolve, jitteredDelay);
+            retryTimeoutsRef.current.set(timeoutKey, timeout);
+          });
+        }
+      }
+
+      // Handle final failure based on priority
+      if (priority === 'critical') {
+        console.warn(`⚠️ Critical operation failed: ${operationName}. Continuing with graceful degradation.`);
+        // Don't show error notifications for network issues - let the UI handle it gracefully
+      }
+
+      return null;
+    },
+    [retryConfig, showError]
+  );
+
+  // Intelligent data fetching with prioritization and deduplication
+  const fetchWithPriority = useCallback(
+    async <T>(
+      url: string,
+      options: any = {},
+      priority: DataPriority = 'medium',
+      cacheKey?: string
+    ): Promise<T | null> => {
+      // Increment request counter for monitoring
+      requestCounterRef.current.count++;
+      const now = Date.now();
+      
+      // Reset counter every minute for monitoring
+      if (now - requestCounterRef.current.lastReset > 60000) {
+        console.log(`�e Request count in last minute: ${requestCounterRef.current.count}`);
+        requestCounterRef.current.count = 0;
+        requestCounterRef.current.lastReset = now;
+      }
+      
+      // Prevent excessive requests - hard limit
+      if (requestCounterRef.current.count > 50) {
+        console.error('🚨 Request limit exceeded! Blocking further requests.');
+        throw new Error('Request rate limit exceeded. Please wait before making more requests.');
+      }
+      
+      // Create a unique request key for deduplication
+      const requestKey = `${url}_${JSON.stringify(options)}_${priority}`;
+      
+      // Check circuit breaker
+      const circuitBreaker = circuitBreakerRef.current.get(requestKey);
+      if (circuitBreaker?.isOpen) {
+        if (now < circuitBreaker.nextAttempt) {
+          console.warn(`🔒 Circuit breaker open for ${url}. Next attempt in ${Math.round((circuitBreaker.nextAttempt - now) / 1000)}s`);
+          throw new Error(`Circuit breaker open for ${url}. Service temporarily unavailable.`);
+        } else {
+          // Reset circuit breaker after timeout
+          circuitBreakerRef.current.delete(requestKey);
+        }
+      }
+      
+      // Check if this exact request is already in progress
+      const activeRequest = activeRequestsRef.current.get(requestKey);
+      if (activeRequest) {
+        console.log(`🔄 Deduplicating request for ${url}`);
+        try {
+          return await activeRequest;
+        } catch (error) {
+          // If the active request failed, we'll try again below
+          activeRequestsRef.current.delete(requestKey);
+        }
+      }
+
+      // Check cache first for non-critical requests
+      if (cacheKey && priority !== 'critical') {
+        const cached = cacheManager.get<T>(cacheKey);
+        if (cached) {
+          void 0 && `📦 Cache hit for ${cacheKey}`;
+          return cached;
+        }
+      }
+
+      const operation = async (): Promise<T> => {
+        try {
+          console.log(`📡 Making request to ${url}`);
+          const response = await axios.get(url, {
+            ...options,
+            timeout: 15000, // Increased timeout to 15 seconds
+            validateStatus: (status) => status >= 200 && status < 300
+          });
+
+     = response.data;
+          
+          // RcacheKey &&  breaker on success
+          circuitBreakerRef.current.delete(requestKey);
+
+          // Cache successful responses
+          if (cacheKey && data) {
+            const ttl =
+              priority === 'critical'
+                ? 60000 // Increased to 1 minute for critical
+                : priority === 'high'
+                  ? 300000 // 5 minutes for high
+                  : priority === 'medium'
+                    ? 600000 // 10 minutes for medium
+                    : 1800000; // 30 minutes for low
+            cacheManager.set(cacheKey, data, ttl);
+          }
+
+          console.log(`✅ Request successful for ${url}`);
+          return data;
+        } catch (error) {
+          // Update circuit breaker on failure
+          const breaker = circuitBreakerRef.current.get(requestKey) || {
+            failures: 0,
+            lastFailure: 0,
+            isOpen: false,
+            nextAttempt: 0
+          };
+          
+          breaker.failures++;
+          breaker.lastFailure = Date.now();
+          
+          if (breaker.failures >= circuitBreakerConfig.failureThreshold) {
+            breaker.isOpen = true;
+            breaker.nextAttempt = Date.now() + circuitBreakerConfig.timeout;
+            console.error(`🔒 Circuit breaker opened for ${url} after ${breaker.failures} failures`);
+          }
+          
+          circuitBreakerRef.current.set(requestKey, breaker);
+          
+          // Enhanced error handling
+          if (axios.isAxiosError(error)) {
+            if (error.code === 'ERR_NETWORK') {
+              throw new Error(`Network error: Unable to connect to ${url}. Server may be down.`);
+            } else if (error.code === 'ECONNABORTED') {
+              throw new Error(`Request timeout: ${url} took too long to respond.`);
+            } else if (error.response) {
+              throw new Error(`HTTP ${error.response.status}: ${error.response.statusText}`);
+            }
+          }
+          throw error;
+        }
+      };
+
+      // Store the promise to deduplicate concurrent requests
+      const requestPromise = retryWithBackoff(operation, `fetch ${url}`, priority);
+      activeRequestsRef.current.set(requestKey, requestPromise);
+
+      try {
+        const result = await requestPromise;
+        activeRequestsRef.current.delete(requestKey);
+        return result;
+      } catch (error) {
+        activeRequestsRef.current.delete(requestKey);
+        throw error;
+      }
+    },
+    [retryWithBackoff]
+  );
+
+  // Enhanced token metadata enrichment with caching
+  const ensureTokenMetadata = useCallback(
+    async (trade: KOLTrade): Promise<KOLTrade> => {
+      try {
+        const { tradeData } = trade;
+        if (!tradeData) return trade;
+
+        // If image already present, nothing to do
+        if (tradeData.image && tradeData.image.length > 0) return trade;
+
+        const cacheKey = tradeData.metadataUri || tradeData.mint || '';
+        if (!cacheKey) return trade;
+
+        // Check memory cache first
+        const cached = tokenMetadataCacheRef.current.get(cacheKey);
+        if (cached) {
+          return {
+            ...trade,
+            tradeData: {
+              ...tradeData,
+              name: tradeData.name || cached.name,
+              symbol: tradeData.symbol || cached.symbol,
+              image: tradeData.image || cached.image,
+            },
+          };
+        }
+
+        // Fetch metadata with retry logic
+        if (tradeData.metadataUri) {
+          const metadata = await retryWithBackoff(
+            async () => {
+              const resp = await axios.get(tradeData.metadataUri!, {
+                timeout: 5000,
+              });
+              return resp.data;
+            },
+            `metadata for ${cacheKey}`,
+            'low'
+          );
+
+          if (
+            metadata &&
+            (metadata.image || metadata.name || metadata.symbol)
+          ) {
+            const rawImage: string | undefined =
+              typeof metadata.image === 'string' ? metadata.image : undefined;
+            const normalizedImage =
+              rawImage && rawImage.startsWith('ipfs://')
+                ? `https://ipfs.io/ipfs/${rawImage.replace('ipfs://', '')}`
+                : rawImage;
+
+            const enriched = {
+              name:
+                typeof metadata.name === 'string' ? metadata.name : undefined,
+              symbol:
+                typeof metadata.symbol === 'string'
+                  ? metadata.symbol
+                  : undefined,
+              image: normalizedImage,
+            };
+
+            tokenMetadataCacheRef.current.set(cacheKey, enriched);
+
+            return {
+              ...trade,
+              tradeData: {
+                ...tradeData,
+                name: tradeData.name || enriched.name,
+                symbol: tradeData.symbol || enriched.symbol,
+                image: enriched.image || tradeData.image,
+              },
+            };
+          }
+        }
+      } catch (error) {
+        // Silently handle metadata enrichment failures
+        (void 0 && `⚠️ Failed to enrich metadata for trade ${trade.id}:`,
+          error);
+      }
+      return trade;
+    },
+    [retryWithBackoff]
+  );
+
+  // Connection health monitoring
+  const startConnectionHealthCheck = useCallback((socket: Socket) => {
+    const healthCheck = () => {
+      if (!socket.connected) return;
+
+      const now = Date.now();
+      const timeSinceLastPing = now - connectionHealthRef.current.lastPing;
+
+      if (timeSinceLastPing > 60000) {
+        // 1 minute without ping
+        connectionHealthRef.current.missedPings++;
+
+        if (connectionHealthRef.current.missedPings >= 3) {
+          setConnectionState(prev => ({
+            ...prev,
+            connectionHealth: 'unstable',
+          }));
+          void 0 && '⚠️ Connection health degraded - missed pings';
+        }
+      }
+
+      // Send ping to server
+      socket.emit('ping', { timestamp: now });
+    };
+
+    connectionHealthRef.current.healthCheckInterval = setInterval(
+      healthCheck,
+      30000
+    );
+  }, []);
+
+  const stopConnectionHealthCheck = useCallback(() => {
+    if (connectionHealthRef.current.healthCheckInterval) {
+      clearInterval(connectionHealthRef.current.healthCheckInterval);
+      connectionHealthRef.current.healthCheckInterval = undefined;
+    }
+  }, []);
+
+  // Enhanced WebSocket connection management
+  const createWebSocketConnection = useCallback(
+    async (authToken: string): Promise<Socket | null> => {
+      try {
+        setConnectionState(prev => ({ ...prev, isConnecting: true }));
+
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        let socketBaseUrl = apiUrl;
+        let socketPath = process.env.NEXT_PUBLIC_SOCKET_IO_PATH || '/socket.io';
+
+        try {
+          const parsed = new URL(apiUrl);
+          socketBaseUrl = `${parsed.protocol}//${parsed.host}`;
+          if (
+            parsed.pathname &&
+            parsed.pathname !== '/' &&
+            !process.env.NEXT_PUBLIC_SOCKET_IO_PATH
+          ) {
+            socketPath = `${parsed.pathname.replace(/\/+$/, '')}/socket.io`;
+          }
+        } catch (error) {
+          void 0 && '⚠️ Failed to parse API URL, using as-is';
+        }
+
+        void 0 && `🔌 Creating WebSocket connection to ${socketBaseUrl}`;
+
+        const newSocket = io(socketBaseUrl, {
+          path: socketPath,
+          auth: { token: authToken },
+          transports: ['websocket', 'polling'],
+          timeout: 20000,
+          withCredentials: true,
+          reconnection: true,
+          reconnectionAttempts: retryConfig.maxRetries,
+          reconnectionDelayMax: retryConfig.maxDelay,
+          forceNew: true,
+        });
+
+        // Connection event handlers
+        newSocket.on('connect', () => {
+          void 0 && '✅ WebSocket connected successfully';
+          setConnectionState({
+            isConnected: true,
+            isConnecting: false,
+            retryCount: 0,
+            lastError: null,
+            connectionHealth: 'healthy',
+          });
+
+          connectionHealthRef.current.lastPing = Date.now();
+          connectionHealthRef.current.missedPings = 0;
+          startConnectionHealthCheck(newSocket);
+
+          // Subscribe to essential channels
+          newSocket.emit('subscribe_kol_trades');
+          newSocket.emit('subscribe_all_token_activity');
+
+          // Re-subscribe to existing mindmap tokens
+          const existingTokens = Object.keys(mindmapDataRef.current);
+          existingTokens.forEach(tokenMint => {
+            newSocket.emit('subscribe_mindmap', { tokenMint });
+          });
+
+          void 0 &&
+            `🔄 Subscribed to ${existingTokens.length} existing mindmap tokens`;
+        });
+
+        newSocket.on('disconnect', reason => {
+          void 0 && `❌ WebSocket disconnected: ${reason}`;
+          setConnectionState(prev => ({
+            ...prev,
+            isConnected: false,
+            lastError: reason,
+            connectionHealth:
+              reason === 'io server disconnect' ? 'failed' : 'unstable',
+          }));
+
+          stopConnectionHealthCheck();
+        });
+
+        newSocket.on('connect_error', error => {
+          console.error('❌ WebSocket connection error:', error);
+          setConnectionState(prev => ({
+            ...prev,
+            isConnected: false,
+            isConnecting: false,
+            retryCount: prev.retryCount + 1,
+            lastError: error.message,
+            connectionHealth: 'failed',
+          }));
+
+          stopConnectionHealthCheck();
+        });
+
+        // Health monitoring
+        newSocket.on('pong', data => {
+          connectionHealthRef.current.lastPing = Date.now();
+          connectionHealthRef.current.missedPings = 0;
+          setConnectionState(prev => ({
+            ...prev,
+            connectionHealth: 'healthy',
+          }));
+        });
+
+        return newSocket;
+      } catch (error) {
+        console.error('❌ Failed to create WebSocket connection:', error);
+        setConnectionState(prev => ({
+          ...prev,
+          isConnecting: false,
+          lastError: (error as Error).message,
+          connectionHealth: 'failed',
+        }));
+        return null;
+      }
+    },
+    [retryConfig, startConnectionHealthCheck, stopConnectionHealthCheck]
+  );
+
+  // Update ref when state changes
+  useEffect(() => {
+    mindmapDataRef.current = allMindmapData;
+  }, [allMindmapData]);
+
+  // Phase 1: Load essential data (critical for initial render)
+  const loadEssentialData = useCallback(
+    async (apiUrl: string, headers: Record<string, string>) => {
+      setLoadingPhase('essential');
+      void 0 && '🚀 Phase 1: Loading essential data';
+
+      try {
+        // Load cached data first for immediate display
+        const cachedTrades = cacheManager.getTradeData('recent');
+        const cachedStats = cacheManager.getStatsData('current');
+
+        if (cachedTrades) {
+          setRecentTrades(cachedTrades);
+          void 0 && `📦 Loaded ${cachedTrades.length} cached trades`;
+        }
+
+        if (cachedStats) {
+          setStats(cachedStats);
+          void 0 && '📦 Loaded cached stats';
+        }
+
+        // Fetch fresh essential data in parallel
+        const [tradesResponse, statsResponse] = await Promise.allSettled([
+          fetchWithPriority<any>(
+            `${apiUrl}/api/kol-trades/recent?limit=50`,
+            { headers },
+            'critical',
+            'recent_trades'
+          ),
+          fetchWithPriority<any>(
+            `${apiUrl}/api/kol-trades/stats`,
+            { headers },
+            'critical',
+            'current_stats'
+          ),
+        ]);
+
+        // Process trades response
+        if (
+          tradesResponse.status === 'fulfilled' &&
+          tradesResponse.value?.success
+        ) {
+          const tradesData = tradesResponse.value.data?.trades || [];
+          if (tradesData.length > 0) {
+            // Enrich only the first 10 trades immediately for fast display
+            const priorityTrades = tradesData.slice(0, 10);
+            const enrichedPriorityTrades = await Promise.all(
+              priorityTrades.map((trade: KOLTrade) =>
+                ensureTokenMetadata(trade)
+              )
+            );
+
+            setRecentTrades(prev => {
+              const combined = [
+                ...enrichedPriorityTrades,
+                ...tradesData.slice(10),
+              ];
+              cacheManager.setTradeData('recent', combined, 60000); // 1 minute cache
+              return combined;
+            });
+
+            void 0 &&
+              `✅ Phase 1: Loaded ${tradesData.length} trades (${priorityTrades.length} enriched)`;
+          }
+        }
+
+        // Process stats response
+        if (
+          statsResponse.status === 'fulfilled' &&
+          statsResponse.value?.success
+        ) {
+          const statsData = statsResponse.value.data?.tradingStats;
+          if (statsData) {
+            setStats(statsData);
+            cacheManager.setStatsData('current', statsData, 120000); // 2 minute cache
+            void 0 && '✅ Phase 1: Loaded fresh stats';
+          }
+        }
+      } catch (error) {
+        console.error('❌ Phase 1 failed:', error);
+        // Continue with cached data if available
+      }
+    },
+    [fetchWithPriority, ensureTokenMetadata]
+  );
+
+  // Phase 2: Load enhanced data (trending tokens, additional trades)
+  const loadEnhancedData = useCallback(
+    async (apiUrl: string, headers: Record<string, string>) => {
+      setLoadingPhase('enhanced');
+      void 0 && '🚀 Phase 2: Loading enhanced data';
+
+      try {
+        // Load trending tokens
+        const trendingResponse = await fetchWithPriority<any>(
+          `${apiUrl}/api/kol-trades/trending-tokens?limit=20`,
+          { headers },
+          'high',
+          'trending_tokens'
+        );
+
+        if (
+          trendingResponse?.success &&
+          trendingResponse.data?.trendingTokens
+        ) {
+          const tokens = trendingResponse.data.trendingTokens.map(
+            (t: any) => t.tokenMint || t
+          );
+          setTrendingTokens(tokens);
+          cacheManager.setTrendingTokens(tokens, 300000); // 5 minute cache
+          void 0 && `✅ Phase 2: Loaded ${tokens.length} trending tokens`;
+          return tokens;
+        }
+      } catch (error) {
+        console.error('❌ Phase 2 failed:', error);
+      }
+
+      return [];
+    },
+    [fetchWithPriority]
+  );
+
+  // Phase 3: Load background data (mindmap data, metadata enrichment)
+  const loadBackgroundData = useCallback(
+    async (
+      apiUrl: string,
+      headers: Record<string, string>,
+      tokens: string[]
+    ) => {
+      setLoadingPhase('background');
+      void 0 && '🚀 Phase 3: Loading background data';
+
+      try {
+        if (tokens.length === 0) return;
+
+        // Load mindmap data in chunks to avoid overwhelming the API
+        const chunkSize = 10;
+        const tokenChunks = [];
+        for (let i = 0; i < tokens.length; i += chunkSize) {
+          tokenChunks.push(tokens.slice(i, i + chunkSize));
+        }
+
+        const mindmapData: { [tokenMint: string]: MindmapUpdate } = {};
+
+        // Process chunks with delay to prevent API overload
+        for (let i = 0; i < tokenChunks.length; i++) {
+          const chunk = tokenChunks[i];
+
+          try {
+            const bulkResponse = await fetchWithPriority<any>(
+              `${apiUrl}/api/kol-trades/mindmap/bulk`,
+              {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                data: { tokenMints: chunk },
+              },
+              'medium',
+              `mindmap_bulk_${i}`
+            );
+
+            if (bulkResponse?.success && bulkResponse.data?.mindmaps) {
+              bulkResponse.data.mindmaps.forEach((mindmap: MindmapUpdate) => {
+                mindmapData[mindmap.tokenMint] = mindmap;
+                cacheManager.setMindmapData(mindmap.tokenMint, mindmap, 600000); // 10 minute cache
+              });
+              void 0 &&
+                `✅ Phase 3: Loaded mindmap chunk ${i + 1}/${tokenChunks.length}`;
+            }
+          } catch (error) {
+            void 0 &&
+              `⚠️ Phase 3: Mindmap chunk ${i + 1} failed, continuing...`;
+          }
+
+          // Add delay between chunks to prevent API overload
+          if (i < tokenChunks.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+
+        setAllMindmapData(mindmapData);
+        void 0 &&
+          `✅ Phase 3: Loaded mindmap data for ${Object.keys(mindmapData).length} tokens`;
+
+        // Enrich remaining trades in background
+        setRecentTrades(prev => {
+          const unenrichedTrades = prev.slice(10); // Skip already enriched trades
+          Promise.all(unenrichedTrades.map(ensureTokenMetadata)).then(
+            enriched => {
+              setRecentTrades(current => {
+                const updated = [...current.slice(0, 10), ...enriched];
+                cacheManager.setTradeData('recent', updated, 60000);
+                return updated;
+              });
+            }
+          );
+          return prev;
+        });
+      } catch (error) {
+        console.error('❌ Phase 3 failed:', error);
+      }
+    },
+    [fetchWithPriority, ensureTokenMetadata]
+  );
+
+  // Main initialization effect with enhanced synchronization
+  useEffect(() => {
+    let isMounted = true;
+    let batchUnsubscribe: (() => void) | null = null;
+
+    const initializeKOLTradeSocket = async () => {
+      // Only allow the first instance to initialize
+      if (instanceId !== 1) {
+        console.log(`⏭️ Skipping initialization for instance #${instanceId} (not primary)`);
+        return;
+      }
+
+      // Prevent multiple initializations
+      if (initializationRef.current.isInitializing || initializationRef.current.hasInitialized) {
+        console.log('⚠️ Initialization already in progress or completed, skipping...');
+        return;
+      }
+
+      initializationRef.current.isInitializing = true;
+      console.log('🚀 Primary instance initializing KOL Trade Socket...');
+
+      try {
+        void 0 &&
+          '🚀 Initializing KOL Trade Socket with enhanced synchronization';
+
+        // Get auth token from localStorage
+        const authToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+        // Create headers
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
+        void 0 && `🔧 Environment: API=${apiUrl}, Auth=${!!authToken}`;
+
+        // Phase 1: Load essential data immediately
+        await loadEssentialData(apiUrl, headers);
+        if (!isMounted) return;
+
+        // Phase 2: Load enhanced data
+        const trendingTokens = await loadEnhancedData(apiUrl, headers);
+        if (!isMounted) return;
+
+        // Phase 3: Load background data
+        await loadBackgroundData(apiUrl, headers, trendingTokens);
+        if (!isMounted) return;
+
+        // Mark initial loading as complete
+        setIsLoadingInitialData(false);
+        setLoadingPhase('complete');
+        void 0 && '✅ All phases completed successfully';
+
+        // Update global state for other instances
+        if (currentInstanceId === 1) {
+          globalSocketState = {
+            socket: enhancedWebSocket.socket,
+            isConnected: enhancedWebSocket.health.isConnected,
+            recentTrades: [],
+            allMindmapData: {},
+            trendingTokens: trendingTokens,
+            isLoadingInitialData: false,
+            loadingPhase: 'complete',
+            connectionState: {
+              isConnected: enhancedWebSocket.health.isConnected,
+              isConnecting: false,
+              retryCount: 0,
+              lastError: null,
+              connectionHealth: 'healthy',
+            },
+            stats: {
+              totalTrades: 0,
+              uniqueKOLs: 0,
+              uniqueTokens: 0,
+              totalVolume: 0,
+            },
+          };
+        }
+
+        // Update global state for other instances
+        if (currentInstanceId === 1) {
+          globalSocketState = {
+            socket: enhancedWebSocket.socket,
+            isConnected: enhancedWebSocket.health.isConnected,
+            recentTrades: [],
+            allMindmapData: {},
+            trendingTokens: trendingTokens,
+            isLoadingInitialData: false,
+            loadingPhase: 'complete',
+            connectionState: {
+              isConnected: enhancedWebSocket.health.isConnected,
+              isConnecting: false,
+              retryCount: 0,
+              lastError: null,
+              connectionHealth: 'healthy',
+            },
+            stats: {
+              totalTrades: 0,
+              uniqueKOLs: 0,
+              uniqueTokens: 0,
+              totalVolume: 0,
+            },
+          };
+        }
+
+        // Set up batched update processing
+        batchUnsubscribe = enhancedWebSocket.onBatchUpdate(
+          processBatchedUpdates
+        );
+
+        // Initialize enhanced WebSocket connection if auth token is available
+        if (authToken) {
+          try {
+            await enhancedWebSocket.connect();
+
+            // Subscribe to essential channels
+            enhancedWebSocket.subscribe([
+              'kol_trades',
+              'mindmap_updates',
+              'stats_updates',
+              'trending_tokens',
+            ]);
+
+            // Update connection state based on enhanced WebSocket health
+            setConnectionState(prev => ({
+              ...prev,
+              isConnected: enhancedWebSocket.health.isConnected,
+              connectionHealth:
+                enhancedWebSocket.health.connectionQuality === 'excellent' ||
+                enhancedWebSocket.health.connectionQuality === 'good'
+                  ? 'healthy'
+                  : 'unstable',
+            }));
+
+            setSocket(enhancedWebSocket.socket);
+
+            void 0 && '✅ Enhanced WebSocket connection established';
+          } catch (error) {
+            console.error('❌ Enhanced WebSocket connection failed:', error);
+            // Fallback to polling mode will be handled automatically
+          }
+        } else {
+          void 0 && '⚠️ No auth token found, skipping WebSocket connection';
+        }
+      } catch (error) {
+        console.error('❌ Failed to initialize KOL trade socket:', error);
+        if (isMounted) {
+          showError(
+            'Failed to load KOL trade data',
+            'Please check your network connection and try refreshing the page'
+          );
+          setIsLoadingInitialData(false);
+          setLoadingPhase('complete');
+        }
+      } finally {
+        initializationRef.current.isInitializing = false;
+        initializationRef.current.hasInitialized = true;
+      }
+    };
+
+    initializeKOLTradeSocket();
+
+    return () => {
+      isMounted = false;
+      void 0 && '🧹 Cleaning up enhanced KOL trade socket';
+
+      // Decrement instance counter
+      instanceCount--;
+      console.log(`🧹 KOL Socket Hook Instance #${instanceId} destroyed. Remaining instances: ${instanceCount}`);
+      
+      // Reset global state when last instance is destroyed
+      if (instanceCount === 0) {
+        globalSocketState = null;
+        console.log('🔄 Global socket state reset');
+      }
+
+      // Reset initialization state only for the primary instance
+      if (instanceId === 1) {
+        initializationRef.current.isInitializing = false;
+        initializationRef.current.hasInitialized = false;
+      }
+
+      // Clear all retry timeouts
+      retryTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      retryTimeoutsRef.current.clear();
+      
+      // Clear active requests
+      activeRequestsRef.current.clear();
+      
+      // Clear circuit breakers
+      circuitBreakerRef.current.clear();
+
+      // Unsubscribe from batch updates
+      if (batchUnsubscribe) {
+        batchUnsubscribe();
+      }
+
+      // Disconnect enhanced WebSocket
+      enhancedWebSocket.disconnect();
+    };
+  }, [
+    loadEssentialData,
+    loadEnhancedData,
+    loadBackgroundData,
+    enhancedWebSocket,
+    processBatchedUpdates,
+    showError,
+  ]);
+
+  // Enhanced WebSocket health monitoring
+  useEffect(() => {
+    const healthMonitorInterval = setInterval(() => {
+      const health = enhancedWebSocket.health;
+
+      setConnectionState(prev => ({
+        ...prev,
+        isConnected: health.isConnected,
+        connectionHealth:
+          health.connectionQuality === 'excellent' ||
+          health.connectionQuality === 'good'
+            ? 'healthy'
+            : health.connectionQuality === 'poor'
+              ? 'unstable'
+              : 'failed',
+        lastError: health.isConnected ? null : 'Connection lost',
+      }));
+    }, 1000);
+
+    return () => clearInterval(healthMonitorInterval);
+  }, [enhancedWebSocket]);
+
+  // Legacy WebSocket event handlers (kept for compatibility)
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleTradeUpdate = async (data: any) => {
+      const trade: KOLTrade = data.trade || data;
+
+      void 0 &&
+        `📈 Real-time trade update: ${trade.id} (${trade.tradeData?.tradeType})`;
+
+      try {
+        // Enrich trade with metadata (with timeout to prevent blocking)
+        const enrichedTrade = await Promise.race([
+          ensureTokenMetadata(trade),
+          new Promise<KOLTrade>(resolve =>
+            setTimeout(() => resolve(trade), 2000)
+          ),
+        ]);
+
+        const processedTrade: KOLTrade = {
+          ...enrichedTrade,
+          timestamp: enrichedTrade.timestamp
+            ? new Date(enrichedTrade.timestamp)
+            : new Date(),
+          id:
+            enrichedTrade.id ||
+            `${enrichedTrade.kolWallet}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        };
+
+        setRecentTrades(prev => {
+          // Check for duplicates
+          if (prev.some(t => t.id === processedTrade.id)) {
+            return prev;
+          }
+
+          // Add new trade and maintain cache
+          const updated = [processedTrade, ...prev.slice(0, 99)];
+          cacheManager.setTradeData('recent', updated, 60000);
+
+          return updated;
+        });
+
+        // Update stats efficiently
+        setStats(prevStats => {
+          const newStats = {
+            totalTrades: prevStats.totalTrades + 1,
+            uniqueKOLs: prevStats.uniqueKOLs, // Will be recalculated periodically
+            uniqueTokens: prevStats.uniqueTokens, // Will be recalculated periodically
+            totalVolume:
+              prevStats.totalVolume + (processedTrade.tradeData?.amountIn || 0),
+          };
+          cacheManager.setStatsData('current', newStats, 120000);
+          return newStats;
+        });
+      } catch (error) {
+        console.error('❌ Failed to process trade update:', error);
+      }
+    };
+
+    const handleMindmapUpdate = (update: MindmapUpdate) => {
+      void 0 && `🗺️ Mindmap update: ${update.tokenMint}`;
+
+      setAllMindmapData(prev => {
+        const updated = { ...prev, [update.tokenMint]: update };
+        cacheManager.setMindmapData(update.tokenMint, update, 600000);
+        return updated;
+      });
+    };
+
+    const handleTrendingTokensUpdate = (tokens: string[]) => {
+      void 0 && `📊 Trending tokens update: ${tokens.length} tokens`;
+
+      setTrendingTokens(tokens);
+      cacheManager.setTrendingTokens(tokens, 300000);
+
+      // Auto-subscribe to new trending tokens
+      tokens.forEach(tokenMint => {
+        if (!mindmapDataRef.current[tokenMint]) {
+          socket.emit('subscribe_mindmap', { tokenMint });
+        }
+      });
+    };
+
+    const handleStatsUpdate = (newStats: any) => {
+      void 0 && '📊 Stats update received';
+      setStats(newStats);
+      cacheManager.setStatsData('current', newStats, 120000);
+    };
+
+    // Batch update handler to prevent excessive re-renders
+    const batchedUpdates = new Map<string, any[]>();
+    const processBatchedUpdates = () => {
+      batchedUpdates.forEach((updates, type) => {
+        if (updates.length === 0) return;
+
+        switch (type) {
+          case 'trades':
+            setRecentTrades(prev => {
+              const existingIds = new Set(prev.map(t => t.id));
+              const newTrades = updates.filter(t => !existingIds.has(t.id));
+              if (newTrades.length === 0) return prev;
+
+              const updated = [...newTrades, ...prev].slice(0, 100);
+              cacheManager.setTradeData('recent', updated, 60000);
+              return updated;
+            });
+            break;
+          case 'mindmaps':
+            setAllMindmapData(prev => {
+              const updated = { ...prev };
+              updates.forEach(update => {
+                updated[update.tokenMint] = update;
+                cacheManager.setMindmapData(update.tokenMint, update, 600000);
+              });
+              return updated;
+            });
+            break;
+        }
+      });
+      batchedUpdates.clear();
+    };
+
+    // Set up batch processing interval
+    const batchInterval = setInterval(processBatchedUpdates, 1000);
+
+    // Register event handlers
+    socket.on('kol_trade_update', handleTradeUpdate);
+    socket.on('mindmap_update', handleMindmapUpdate);
+    socket.on('trending_tokens_update', handleTrendingTokensUpdate);
+    socket.on('stats_update', handleStatsUpdate);
+
+    // Handle personal alerts
+    socket.on('personal_kol_trade_alert', handleTradeUpdate);
+
+    // Handle bulk updates efficiently
+    socket.on('bulk_trade_updates', (trades: KOLTrade[]) => {
+      const existing = batchedUpdates.get('trades') || [];
+      batchedUpdates.set('trades', [...existing, ...trades]);
+    });
+
+    socket.on('bulk_mindmap_updates', (updates: MindmapUpdate[]) => {
+      const existing = batchedUpdates.get('mindmaps') || [];
+      batchedUpdates.set('mindmaps', [...existing, ...updates]);
+    });
+
+    return () => {
+      clearInterval(batchInterval);
+      socket.off('kol_trade_update', handleTradeUpdate);
+      socket.off('mindmap_update', handleMindmapUpdate);
+      socket.off('trending_tokens_update', handleTrendingTokensUpdate);
+      socket.off('stats_update', handleStatsUpdate);
+      socket.off('personal_kol_trade_alert', handleTradeUpdate);
+      socket.off('bulk_trade_updates');
+      socket.off('bulk_mindmap_updates');
+    };
+  }, [socket, isConnected, ensureTokenMetadata]);
+
+  // Auto-subscribe to mindmap updates for trending tokens
+  useEffect(() => {
+    if (socket && isConnected && trendingTokens.length > 0) {
+      trendingTokens.forEach(tokenMint => {
+        if (!mindmapDataRef.current[tokenMint]) {
+          socket.emit('subscribe_mindmap', { tokenMint });
+        }
+      });
+      void 0 &&
+        `🗺️ Auto-subscribed to mindmap updates for ${trendingTokens.length} trending tokens`;
+    }
+  }, [socket, isConnected, trendingTokens]);
+
+  // Periodic stats recalculation to ensure accuracy
+  useEffect(() => {
+    const recalculateStats = () => {
+      setRecentTrades(current => {
+        const uniqueKOLs = new Set(current.map(t => t.kolWallet));
+        const uniqueTokens = new Set(
+          current.flatMap(t =>
+            [
+              t.tradeData?.tokenIn,
+              t.tradeData?.tokenOut,
+              t.tradeData?.mint,
+            ].filter(Boolean)
+          )
+        );
+
+        const newStats = {
+          totalTrades: current.length,
+          uniqueKOLs: uniqueKOLs.size,
+          uniqueTokens: uniqueTokens.size,
+          totalVolume: current.reduce(
+            (sum, t) => sum + (t.tradeData?.amountIn || 0),
+            0
+          ),
+        };
+
+        setStats(newStats);
+        cacheManager.setStatsData('current', newStats, 120000);
+        return current;
+      });
+    };
+
+    const statsInterval = setInterval(recalculateStats, 30000); // Every 30 seconds
+    return () => clearInterval(statsInterval);
+  }, []);
+
+  return {
+    socket,
+    isConnected,
+    recentTrades,
+    allMindmapData,
+    trendingTokens,
+    isLoadingInitialData,
+    loadingPhase,
+    connectionState,
+    stats,
+  };
+};

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
+import { useKOLTradeSocketContext } from '@/contexts/kol-trade-socket-context';
 import { useKOLTradeStore } from '@/stores/use-kol-trade-store';
 import { KOLTradeCard } from './kol-trade-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,22 +34,12 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
   showFilters = true,
   className
 }) => {
-  void 0 && ('🚀 KOLRealtimeTrades component initialized');
-  
   const {
     isConnected,
     recentTrades,
     isLoadingInitialData,
     stats
-  } = useKOLTradeSocket();
-
-  void 0 && ('🔍 KOLRealtimeTrades state:', {
-    isConnected,
-    recentTradesCount: recentTrades.length,
-    isLoadingInitialData,
-    maxTrades,
-    showFilters
-  });
+  } = useKOLTradeSocketContext();
 
   const { filters, setFilters, clearFilters, setSelectedTrade } = useKOLTradeStore();
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);

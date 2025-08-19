@@ -586,6 +586,28 @@ export interface TradeAlert {
   trade: KOLTrade;
 }
 
+// Mindmap Types
+export interface MindmapUpdate {
+  tokenMint: string;
+  kolConnections: {
+    [kolWallet: string]: {
+      kolWallet: string;
+      tradeCount: number;
+      totalVolume: number;
+      lastTradeTime: Date;
+      influenceScore: number;
+      tradeTypes: string[];
+    };
+  };
+  relatedTokens: string[];
+  networkMetrics: {
+    centrality: number;
+    clustering: number;
+    totalTrades: number;
+  };
+  lastUpdate: Date;
+}
+
 // Top Trader Types
 export interface TopTrader {
   wallet: string;

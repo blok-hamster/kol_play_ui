@@ -1,0 +1,174 @@
+/**
+ * Authentication redirect utilities
+ * Provides centralized URL preservation and redirect logic for authentication errors
+ */
+
+interface RedirectState {
+  isRedirecting: boolean;
+  timestamp: number;
+}
+
+export class AuthRedirectManager {
+  private static readonly REDIRECT_STATE_KEY = 'authRedirectState';
+  private static readonly PRESERVED_URL_KEY = 'redirectUrl';
+  private static readonly REDIRECT_TIMEOUT = 5000; // 5 seconds
+  private static readonly EXCLUDED_PATHS = ['/login', '/signup', '/auth', '/oauth'];
+
+  /**
+   * Check if a redirect is currently in progress
+   */
+  static isRedirecting(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    const redirectState = localStorage.getItem(this.REDIRECT_STATE_KEY);
+    if (!redirectState) return false;
+
+    try {
+      const state: RedirectState = JSON.parse(redirectState);
+      const now = Date.now();
+      
+      // Consider redirect in progress if less than timeout period has passed
+      return state.isRedirecting && (now - state.timestamp) < this.REDIRECT_TIMEOUT;
+    } catch {
+      // If we can't parse the state, assume no redirect in progress
+      return false;
+    }
+  }
+
+  /**
+   * Set the redirect flag to prevent multiple simultaneous redirects
+   */
+  static setRedirectFlag(): void {
+    if (typeof window === 'undefined') return;
+    
+    const redirectState: RedirectState = {
+      isRedirecting: true,
+      timestamp: Date.now()
+    };
+    
+    try {
+      localStorage.setItem(this.REDIRECT_STATE_KEY, JSON.stringify(redirectState));
+    } catch (error) {
+      // Silently handle localStorage errors
+      console.warn('Failed to set redirect flag:', error);
+    }
+  }
+
+  /**
+   * Clear the redirect flag
+   */
+  static clearRedirectFlag(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(this.REDIRECT_STATE_KEY);
+    } catch (error) {
+      // Silently handle localStorage errors
+      console.warn('Failed to clear redirect flag:', error);
+    }
+  }
+
+  /**
+   * Preserve the current URL for post-login redirect
+   */
+  static preserveCurrentUrl(): void {
+    if (typeof window === 'undefined') return;
+    
+    const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+    
+    // Don't preserve certain URLs (signin, signup, etc.)
+    const shouldPreserve = !this.EXCLUDED_PATHS.some(path => currentUrl.startsWith(path));
+    
+    if (shouldPreserve) {
+      try {
+        localStorage.setItem(this.PRESERVED_URL_KEY, currentUrl);
+        console.log('🔄 AuthRedirect - Preserved URL for post-login redirect:', currentUrl);
+      } catch (error) {
+        // Silently handle localStorage errors
+        console.warn('Failed to preserve URL:', error);
+      }
+    }
+  }
+
+  /**
+   * Get the preserved URL
+   */
+  static getPreservedUrl(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(this.PRESERVED_URL_KEY);
+  }
+
+  /**
+   * Clear the preserved URL
+   */
+  static clearPreservedUrl(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(this.PRESERVED_URL_KEY);
+      console.log('🔄 AuthRedirect - Cleared preserved URL');
+    } catch (error) {
+      // Silently handle localStorage errors
+      console.warn('Failed to clear preserved URL:', error);
+    }
+  }
+
+  /**
+   * Redirect to signin page with optional URL preservation
+   */
+  static redirectToSignin(preserveUrl: boolean = true): void {
+    if (typeof window === 'undefined') return;
+
+    // Check if we're already redirecting to prevent multiple simultaneous redirects
+    if (this.isRedirecting()) {
+      console.log('🚫 AuthRedirect - Redirect already in progress, skipping');
+      return;
+    }
+
+    // Set redirect flag to prevent multiple redirects
+    this.setRedirectFlag();
+
+    // Preserve current URL if requested and not already on signin page
+    if (preserveUrl && !window.location.pathname.includes('/login')) {
+      this.preserveCurrentUrl();
+    }
+
+    // Redirect to signin page
+    window.location.href = '/login';
+  }
+
+  /**
+   * Handle successful authentication - clear flags and redirect to preserved URL if available
+   */
+  static handleSuccessfulAuth(): void {
+    // Clear redirect flag when authentication is successful
+    this.clearRedirectFlag();
+    
+    // Handle post-login redirect if URL was preserved
+    const preservedUrl = this.getPreservedUrl();
+    if (preservedUrl && typeof window !== 'undefined') {
+      this.clearPreservedUrl();
+      console.log('🔄 AuthRedirect - Redirecting to preserved URL:', preservedUrl);
+      window.location.href = preservedUrl;
+    }
+  }
+
+  /**
+   * Clear all redirect-related data (useful for logout)
+   */
+  static clearAll(): void {
+    this.clearRedirectFlag();
+    this.clearPreservedUrl();
+  }
+}
+
+// Export convenience functions for easier usage
+export const {
+  isRedirecting,
+  setRedirectFlag,
+  clearRedirectFlag,
+  preserveCurrentUrl,
+  getPreservedUrl,
+  clearPreservedUrl,
+  redirectToSignin,
+  handleSuccessfulAuth,
+  clearAll: clearAllRedirectData
+} = AuthRedirectManager;

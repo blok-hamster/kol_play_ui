@@ -600,6 +600,41 @@ export class SiwsAuthService {
   }
 
   /**
+   * Enhanced token removal for authentication failures
+   * Works with the new 403 error handling system
+   */
+  static removeTokenForAuthFailure() {
+    void 0 && ('🧹 SiwsAuthService - Removing token for authentication failure');
+    
+    if (typeof window !== 'undefined') {
+      // Remove from localStorage
+      localStorage.removeItem('authToken');
+      
+      // Use enhanced API client clearing
+      apiClient.clearTokenForAuthFailure();
+      
+      // Clear any wallet-specific auth data
+      const walletAuthKeys = [
+        'wallet-auth-token',
+        'wallet-signature',
+        'wallet-challenge',
+        'siws-auth-data'
+      ];
+      
+      walletAuthKeys.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+          void 0 && (`🧹 Cleared wallet auth key: ${key}`);
+        } catch (error) {
+          // Silently continue if removal fails
+        }
+      });
+      
+      void 0 && ('✅ SiwsAuthService - Token and wallet auth data cleared for failure');
+    }
+  }
+
+  /**
    * Fetch user account details from features endpoint
    */
   static async fetchUserAccountDetails(): Promise<{

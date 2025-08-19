@@ -1,37 +1,26 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import * as d3 from 'd3';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { useKOLTradeSocket, MindmapUpdate } from '@/hooks/use-kol-trade-socket';
+import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
+import { useResponsiveOptimizedMindmap } from '@/hooks/use-responsive-optimized-mindmap';
+import { UnifiedNode } from '@/lib/mindmap-renderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { 
+import {
   Network,
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Maximize2,
-  Info
+  AlertCircle,
+  Activity,
+  Smartphone,
+  Tablet,
+  Monitor,
 } from 'lucide-react';
 
-interface Node extends d3.SimulationNodeDatum {
-  id: string;
-  type: 'token' | 'kol';
-  label: string;
-  value: number;
-  influenceScore?: number;
-  tradeCount?: number;
-  totalVolume?: number;
-}
-
-interface Link extends d3.SimulationLinkDatum<Node> {
-  source: string | Node;
-  target: string | Node;
-  value: number;
-  tradeCount: number;
-}
+// Interfaces moved to mindmap-renderer.ts for consistency
 
 interface KOLMindmapProps {
   tokenMint: string;
@@ -46,17 +35,64 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
   width = 800,
   height = 600,
   compact = false,
-  className
+  className,
 }) => {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { allMindmapData, isConnected } = useKOLTradeSocket();
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedNode, setSelectedNode] = useState<UnifiedNode | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [showUpdateAlert, setShowUpdateAlert] = useState(false);
   const [previousDataHash, setPreviousDataHash] = useState<string>('');
 
   const data = allMindmapData[tokenMint];
+
+  // Prepare data for responsive renderer
+  const tokensData = useMemo(() => {
+    return data ? { [tokenMint]: data } : {};
+  }, [data, tokenMint]);
+
+  // Use responsive optimized mindmap hook
+  const {
+    svgRef,
+    isRendering,
+    renderError,
+    deviceInfo,
+    responsiveConfig,
+    performanceMetrics,
+    controls,
+  } = useResponsiveOptimizedMindmap({
+    containerRef,
+    tokensData,
+    trendingTokens: [], // Single token view doesn't need trending
+    onNodeClick: node => {
+      setSelectedNode(node);
+    },
+    onNodeHover:
+      deviceInfo.isTouch && deviceInfo.isMobile
+        ? undefined
+        : () => {
+            // Only enable hover on non-touch devices or larger touch devices
+          },
+    baseConfig: {
+      // Override responsive defaults if compact mode is requested
+      dimensions: compact
+        ? {
+            width: Math.min(responsiveConfig?.dimensions.width || width, 600),
+            height: Math.min(
+              responsiveConfig?.dimensions.height || height,
+              400
+            ),
+          }
+        : undefined,
+      nodeRadius: compact
+        ? {
+            token: { base: 12, max: 30 },
+            kol: { base: 8, max: 20 },
+          }
+        : undefined,
+      linkDistance: compact ? 50 : undefined,
+    },
+  });
 
   // Detect mindmap updates for visual feedback
   React.useEffect(() => {
@@ -64,248 +100,48 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
       const currentDataHash = JSON.stringify({
         kolCount: Object.keys(data.kolConnections || {}).length,
         totalTrades: data.networkMetrics?.totalTrades || 0,
-        lastUpdate: data.lastUpdate
+        lastUpdate: data.lastUpdate,
       });
-      
+
       if (previousDataHash && previousDataHash !== currentDataHash) {
         setShowUpdateAlert(true);
         const timer = setTimeout(() => setShowUpdateAlert(false), 3000);
         return () => clearTimeout(timer);
       }
-      
+
       setPreviousDataHash(currentDataHash);
+
+      // Update last update time
+      if (data.lastUpdate) {
+        setLastUpdate(new Date(data.lastUpdate));
+      }
     }
   }, [data, previousDataHash]);
 
-  useEffect(() => {
-    // Validate data structure before proceeding
-    if (!data || !svgRef.current || !data.kolConnections || !data.networkMetrics || !data.lastUpdate) {
-      return;
-    }
-
-    try {
-      setLastUpdate(new Date(data.lastUpdate));
-      renderMindmap(data);
-    } catch (error) {
-      console.error('Failed to render mindmap:', error);
-    }
-  }, [data, width, height, tokenMint]);
-
-  const renderMindmap = (data: MindmapUpdate) => {
-    const svg = d3.select<SVGSVGElement, unknown>(svgRef.current!);
-    svg.selectAll("*").remove();
-
-    const nodeRadius = compact ? 15 : 25;
-    const linkDistance = compact ? 60 : 100;
-
-    // Create container for zoom/pan
-    const container = svg.append("g");
-
-    // Set up zoom behavior
-    const zoomBehavior = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.1, 4])
-      .on("zoom", (event) => {
-        container.attr("transform", event.transform);
-      });
-
-    svg.call(zoomBehavior);
-    zoomRef.current = zoomBehavior;
-
-    // Create nodes
-    const nodes: Node[] = [
-      {
-        id: data.tokenMint,
-        type: 'token',
-        label: compact ? `${data.tokenMint.slice(0, 4)}...` : `${data.tokenMint.slice(0, 8)}...`,
-        value: data.networkMetrics.totalTrades * (compact ? 5 : 10),
-        x: width / 2,
-        y: height / 2
-      }
-    ];
-
-    // Add KOL nodes
-    Object.values(data.kolConnections).forEach(kol => {
-      nodes.push({
-        id: kol.kolWallet,
-        type: 'kol',
-        label: compact ? `${kol.kolWallet.slice(0, 4)}...` : `${kol.kolWallet.slice(0, 6)}...`,
-        value: kol.tradeCount * (compact ? 3 : 5),
-        influenceScore: kol.influenceScore,
-        tradeCount: kol.tradeCount,
-        totalVolume: kol.totalVolume
-      });
-    });
-
-    // Create links
-    const links: Link[] = Object.values(data.kolConnections).map(kol => ({
-      source: data.tokenMint,
-      target: kol.kolWallet,
-      value: kol.totalVolume,
-      tradeCount: kol.tradeCount
-    }));
-
-    // Create simulation
-    const simulation = d3.forceSimulation<Node>(nodes)
-      .force("link", d3.forceLink<Node, Link>(links).id(d => d.id).distance(linkDistance))
-      .force("charge", d3.forceManyBody().strength(compact ? -200 : -300))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(nodeRadius + 5));
-
-    // Create link elements
-    const link = container.append("g")
-      .selectAll("line")
-      .data(links)
-      .enter().append("line")
-      .attr("stroke", "var(--border)")
-      .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", d => Math.max(1, Math.sqrt(d.tradeCount)));
-
-    // Create node elements
-    const node = container.append("g")
-      .selectAll("circle")
-      .data(nodes)
-      .enter().append("circle")
-      .attr("r", d => Math.max(nodeRadius * 0.5, Math.sqrt(d.value)))
-      .attr("fill", d => {
-        if (d.type === 'token') return 'var(--primary)';
-        const score = d.influenceScore || 0;
-        if (score >= 80) return '#dc2626'; // red-600
-        if (score >= 60) return '#d97706'; // amber-600
-        if (score >= 40) return '#059669'; // emerald-600
-        return '#10b981'; // emerald-500
-      })
-      .attr("stroke", "var(--background)")
-      .attr("stroke-width", 2)
-      .style("cursor", "pointer")
-      .call(d3.drag<SVGCircleElement, Node>()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended));
-
-    // Add labels (only if not compact)
-    if (!compact) {
-      const labels = container.append("g")
-        .selectAll("text")
-        .data(nodes)
-        .enter().append("text")
-        .text(d => d.label)
-        .attr("font-size", "12px")
-        .attr("font-family", "Darker Grotesque, sans-serif")
-        .attr("text-anchor", "middle")
-        .attr("dy", 3)
-        .attr("fill", "var(--foreground)")
-        .style("pointer-events", "none");
-      
-      simulation.on("tick", () => {
-        labels
-          .attr("x", d => d.x!)
-          .attr("y", d => d.y!);
-      });
-    }
-
-    // Create tooltip
-    const tooltip = d3.select("body").append("div")
-      .attr("class", "fixed z-50 px-3 py-2 bg-popover text-popover-foreground border border-border rounded-lg shadow-md pointer-events-none opacity-0 text-sm")
-      .style("transition", "opacity 0.2s");
-
-    node
-      .on("mouseover", (event, d) => {
-        tooltip.style("opacity", 1);
-        const content = d.type === 'token' 
-          ? `<strong>Token:</strong> ${d.id}<br/><strong>Total Trades:</strong> ${data.networkMetrics.totalTrades}<br/><strong>KOL Connections:</strong> ${Object.keys(data.kolConnections).length}`
-          : `<strong>KOL:</strong> ${d.id}<br/><strong>Trades:</strong> ${d.tradeCount}<br/><strong>Volume:</strong> ${d.totalVolume?.toFixed(4)} SOL<br/><strong>Influence:</strong> ${d.influenceScore?.toFixed(0)}`;
-        
-        tooltip.html(content)
-          .style("left", (event.pageX + 10) + "px")
-          .style("top", (event.pageY - 28) + "px");
-      })
-      .on("mouseout", () => {
-        tooltip.style("opacity", 0);
-      })
-      .on("click", (event, d) => {
-        setSelectedNode(d);
-      });
-
-    // Update positions on simulation tick
-    simulation.on("tick", () => {
-      link
-        .attr("x1", d => (d.source as Node).x!)
-        .attr("y1", d => (d.source as Node).y!)
-        .attr("x2", d => (d.target as Node).x!)
-        .attr("y2", d => (d.target as Node).y!);
-
-      node
-        .attr("cx", d => d.x!)
-        .attr("cy", d => d.y!);
-    });
-
-    // Drag functions
-    function dragstarted(event: any, d: Node) {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
-    }
-
-    function dragged(event: any, d: Node) {
-      d.fx = event.x;
-      d.fy = event.y;
-    }
-
-    function dragended(event: any, d: Node) {
-      if (!event.active) simulation.alphaTarget(0);
-      d.fx = null;
-      d.fy = null;
-    }
-
-    // Cleanup function
-    return () => {
-      tooltip.remove();
-    };
+  // Get device-specific icon
+  const getDeviceIcon = () => {
+    if (deviceInfo.isMobile) return Smartphone;
+    if (deviceInfo.isTablet) return Tablet;
+    return Monitor;
   };
 
-  const handleZoomIn = () => {
-    if (zoomRef.current && svgRef.current) {
-      try {
-        d3.select(svgRef.current).transition().call(
-          zoomRef.current.scaleBy, 1.5
-        );
-      } catch (error) {
-        console.warn('Zoom in failed:', error);
-      }
-    }
-  };
+  const DeviceIcon = getDeviceIcon();
 
-  const handleZoomOut = () => {
-    if (zoomRef.current && svgRef.current) {
-      try {
-        d3.select(svgRef.current).transition().call(
-          zoomRef.current.scaleBy, 1 / 1.5
-        );
-      } catch (error) {
-        console.warn('Zoom out failed:', error);
-      }
-    }
-  };
-
-  const handleResetZoom = () => {
-    if (zoomRef.current && svgRef.current) {
-      try {
-        d3.select(svgRef.current).transition().call(
-          zoomRef.current.transform,
-          d3.zoomIdentity
-        );
-      } catch (error) {
-        console.warn('Reset zoom failed:', error);
-      }
-    }
-  };
+  // Zoom controls are now handled by the responsive renderer
+  const {
+    zoomIn: handleZoomIn,
+    zoomOut: handleZoomOut,
+    resetZoom: handleResetZoom,
+  } = controls;
 
   if (!data) {
     return (
-      <Card className={cn('w-full', className)}>
+      <Card className={cn('w-full', className)} ref={containerRef}>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Network className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-lg font-medium text-foreground mb-2">No network data</p>
+          <p className="text-lg font-medium text-foreground mb-2">
+            No network data
+          </p>
           <p className="text-muted-foreground">
             Network data for this token is not available yet
           </p>
@@ -315,7 +151,7 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
   }
 
   return (
-    <Card className={cn('w-full', className)}>
+    <Card className={cn('w-full', className)} ref={containerRef}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -323,33 +159,59 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
               <Network className="h-5 w-5 text-white" />
             </div>
             <div>
-              <CardTitle className="text-xl">Token Network Map</CardTitle>
+              <div className="flex items-center space-x-2">
+                <CardTitle className="text-xl">Token Network Map</CardTitle>
+                {!compact && (
+                  <div className="flex items-center space-x-1 px-2 py-1 bg-muted/20 rounded-md">
+                    <DeviceIcon className="h-3 w-3" />
+                    <span className="text-xs text-muted-foreground">
+                      {deviceInfo.isMobile
+                        ? 'Mobile'
+                        : deviceInfo.isTablet
+                          ? 'Tablet'
+                          : 'Desktop'}
+                      {deviceInfo.isLowPowered && ' (Low Power)'}
+                    </span>
+                  </div>
+                )}
+              </div>
               {!compact && (
                 <div className="flex items-center space-x-4 mt-1 text-sm text-muted-foreground">
                   <span>🔗 {Object.keys(data.kolConnections).length} KOLs</span>
                   <span>📊 {data.networkMetrics.totalTrades} trades</span>
+                  <span>
+                    📱 {responsiveConfig.dimensions.width}×
+                    {responsiveConfig.dimensions.height}
+                  </span>
                   {lastUpdate && (
-                    <span>🕒 Updated {formatDistanceToNow(lastUpdate, { addSuffix: true })}</span>
+                    <span>
+                      🕒 Updated{' '}
+                      {formatDistanceToNow(lastUpdate, { addSuffix: true })}
+                    </span>
                   )}
                 </div>
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
-            <div className={cn(
-              'flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium',
-              isConnected 
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-            )}>
-              <div className={cn(
-                'w-2 h-2 rounded-full',
-                isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-              )} />
+            <div
+              className={cn(
+                'flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium',
+                isConnected
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                  : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+              )}
+            >
+              <div
+                className={cn(
+                  'w-2 h-2 rounded-full',
+                  isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                )}
+              />
               <span>{isConnected ? 'Live' : 'Offline'}</span>
             </div>
-            
+
             {showUpdateAlert && (
               <div className="flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400 animate-pulse">
                 <div className="w-2 h-2 rounded-full bg-purple-500" />
@@ -359,32 +221,126 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
           </div>
         </div>
 
-        {!compact && (
+        {!compact && responsiveConfig.interactions.enableZoom && (
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={handleZoomIn}>
+            <Button
+              variant="outline"
+              size={deviceInfo.isMobile ? 'sm' : 'sm'}
+              onClick={handleZoomIn}
+              disabled={isRendering}
+            >
               <ZoomIn className="h-4 w-4" />
+              {!deviceInfo.isMobile && (
+                <span className="ml-1 hidden sm:inline">Zoom In</span>
+              )}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleZoomOut}>
+            <Button
+              variant="outline"
+              size={deviceInfo.isMobile ? 'sm' : 'sm'}
+              onClick={handleZoomOut}
+              disabled={isRendering}
+            >
               <ZoomOut className="h-4 w-4" />
+              {!deviceInfo.isMobile && (
+                <span className="ml-1 hidden sm:inline">Zoom Out</span>
+              )}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleResetZoom}>
+            <Button
+              variant="outline"
+              size={deviceInfo.isMobile ? 'sm' : 'sm'}
+              onClick={handleResetZoom}
+              disabled={isRendering}
+            >
               <RotateCcw className="h-4 w-4" />
+              {!deviceInfo.isMobile && (
+                <span className="ml-1 hidden sm:inline">Reset</span>
+              )}
             </Button>
+            {process.env.NODE_ENV === 'development' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={controls.forceRerender}
+                disabled={isRendering}
+              >
+                <Activity className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         )}
       </CardHeader>
-      
+
       <CardContent className="p-0">
         <div className="relative">
+          {/* Render Error Display */}
+          {renderError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
+              <div className="flex flex-col items-center space-y-2 p-4 bg-card border border-border rounded-lg shadow-lg">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+                <p className="text-sm font-medium">Rendering Error</p>
+                <p className="text-xs text-muted-foreground text-center max-w-xs">
+                  {renderError}
+                </p>
+                <Button size="sm" onClick={controls.forceRerender}>
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Loading Indicator */}
+          {isRendering && (
+            <div className="absolute top-2 left-2 flex items-center space-x-2 px-2 py-1 bg-card/90 border border-border rounded-md shadow-sm z-10">
+              <Activity className="h-3 w-3 animate-spin" />
+              <span className="text-xs text-muted-foreground">
+                Rendering...
+              </span>
+            </div>
+          )}
+
+          {/* Performance Metrics (Development Only) */}
+          {process.env.NODE_ENV === 'development' && !compact && (
+            <div className="absolute bottom-2 left-2 px-2 py-1 bg-card/90 border border-border rounded-md shadow-sm text-xs text-muted-foreground">
+              <div>Renders: {performanceMetrics.renderCount}</div>
+              <div>Cache: {performanceMetrics.cacheSize}</div>
+              <div>Nodes: {performanceMetrics.nodeLimit}</div>
+              <div>Memory: N/A</div>
+              <div>Avg Render: N/A</div>
+              <div>
+                Touch: {performanceMetrics.touchActive ? 'Active' : 'Inactive'}
+              </div>
+              <div>
+                Animations: {performanceMetrics.animationEnabled ? 'On' : 'Off'}
+              </div>
+            </div>
+          )}
+
           <svg
             ref={svgRef}
-            width={width}
-            height={height}
-            className="border border-border rounded-b-lg bg-muted/10"
+            width={responsiveConfig.dimensions.width}
+            height={responsiveConfig.dimensions.height}
+            className={cn(
+              'border border-border rounded-b-lg bg-muted/10 w-full h-full',
+              deviceInfo.isTouch && 'touch-pan-y touch-pinch-zoom',
+              deviceInfo.isMobile && 'cursor-pointer',
+              !deviceInfo.isMobile && 'cursor-grab active:cursor-grabbing'
+            )}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              touchAction: deviceInfo.isTouch ? 'manipulation' : 'auto',
+            }}
           />
-          
+
           {selectedNode && !compact && (
-            <div className="absolute top-4 right-4 w-64 p-4 bg-card border border-border rounded-lg shadow-lg">
+            <div
+              className={cn(
+                'absolute p-4 bg-card border border-border rounded-lg shadow-lg',
+                deviceInfo.isMobile
+                  ? 'bottom-4 left-4 right-4 w-auto'
+                  : 'top-4 right-4 w-64'
+              )}
+            >
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-semibold">Selected Node</h4>
                 <Button
@@ -395,10 +351,17 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
                   ×
                 </Button>
               </div>
-              <div className="space-y-2 text-sm">
+              <div
+                className={cn(
+                  'space-y-2 text-sm',
+                  deviceInfo.isMobile && 'grid grid-cols-2 gap-2 space-y-0'
+                )}
+              >
                 <div>
                   <span className="text-muted-foreground">ID:</span>
-                  <span className="ml-2 font-mono">{selectedNode.id.slice(0, 12)}...</span>
+                  <span className="ml-2 font-mono">
+                    {selectedNode.id.slice(0, 12)}...
+                  </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Type:</span>
@@ -408,17 +371,38 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
                   <>
                     <div>
                       <span className="text-muted-foreground">Trades:</span>
-                      <span className="ml-2 font-semibold">{selectedNode.tradeCount}</span>
+                      <span className="ml-2 font-semibold">
+                        {selectedNode.tradeCount}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Volume:</span>
-                      <span className="ml-2 font-semibold">{selectedNode.totalVolume?.toFixed(4)} SOL</span>
+                      <span className="ml-2 font-semibold">
+                        {selectedNode.totalVolume?.toFixed(4)} SOL
+                      </span>
                     </div>
-                    <div>
+                    <div className={deviceInfo.isMobile ? 'col-span-2' : ''}>
                       <span className="text-muted-foreground">Influence:</span>
-                      <span className="ml-2 font-semibold">{selectedNode.influenceScore?.toFixed(0)}</span>
+                      <span className="ml-2 font-semibold">
+                        {selectedNode.influenceScore?.toFixed(0)}
+                      </span>
                     </div>
                   </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Touch Interaction Hints for Mobile */}
+          {deviceInfo.isTouch && deviceInfo.isMobile && !compact && (
+            <div className="absolute bottom-2 right-2 px-2 py-1 bg-card/90 border border-border rounded-md shadow-sm text-xs text-muted-foreground">
+              <div className="flex items-center space-x-2">
+                <span>👆 Tap nodes</span>
+                {responsiveConfig.interactions.enableZoom && (
+                  <span>🤏 Pinch to zoom</span>
+                )}
+                {responsiveConfig.interactions.doubleTapZoom && (
+                  <span>👆👆 Double tap</span>
                 )}
               </div>
             </div>
@@ -427,4 +411,4 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
       </CardContent>
     </Card>
   );
-}; 
+};

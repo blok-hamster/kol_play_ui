@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { useUserStore } from '@/stores/use-user-store';
+import axios from 'axios';
 import { useNotifications } from '@/stores/use-ui-store';
 import { PredictionResult } from '@/types';
+import { cacheManager } from '@/lib/cache-manager';
 
 export interface KOLTrade {
   id: string;
@@ -18,7 +19,7 @@ export interface KOLTrade {
     amountOut: number;
     tradeType: 'buy' | 'sell';
     mint?: string;
-    dexProgram: string; // Changed from 'source' to 'dexProgram'
+    dexProgram: string;
     fee?: number;
     name?: string | undefined;
     symbol?: string | undefined;
@@ -28,11 +29,6 @@ export interface KOLTrade {
   affectedUsers: string[];
   processed: boolean;
   prediction?: PredictionResult;
-  mindmapContribution?: {
-    tokenConnections: string[];
-    kolInfluenceScore: number;
-    relatedTrades: string[];
-  };
 }
 
 export interface MindmapUpdate {
@@ -56,6 +52,21 @@ export interface MindmapUpdate {
   lastUpdate: Date;
 }
 
+type LoadingPhase =
+  | 'idle'
+  | 'essential'
+  | 'enhanced'
+  | 'background'
+  | 'complete';
+
+interface ConnectionState {
+  isConnected: boolean;
+  isConnecting: boolean;
+  retryCount: number;
+  lastError: string | null;
+  connectionHealth: 'healthy' | 'unstable' | 'failed';
+}
+
 interface UseKOLTradeSocketReturn {
   socket: Socket | null;
   isConnected: boolean;
@@ -63,6 +74,8 @@ interface UseKOLTradeSocketReturn {
   allMindmapData: { [tokenMint: string]: MindmapUpdate };
   trendingTokens: string[];
   isLoadingInitialData: boolean;
+  loadingPhase: LoadingPhase;
+  connectionState: ConnectionState;
   stats: {
     totalTrades: number;
     uniqueKOLs: number;
@@ -71,674 +84,650 @@ interface UseKOLTradeSocketReturn {
   };
 }
 
-export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
-  void 0 && ('🚀 useKOLTradeSocket hook initialized');
-  
-  const { user } = useUserStore();
-  const { showError } = useNotifications();
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [recentTrades, setRecentTrades] = useState<KOLTrade[]>([]);
-  const [allMindmapData, setAllMindmapData] = useState<{ [tokenMint: string]: MindmapUpdate }>({});
-  const [trendingTokens, setTrendingTokens] = useState<string[]>([]);
-  const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
-  const [stats, setStats] = useState({
-    totalTrades: 0,
-    uniqueKOLs: 0,
-    uniqueTokens: 0,
-    totalVolume: 0
-  });
+// Global state to ensure single requests across all hook instances
+const globalState = {
+  hasInitialized: false,
+  isInitializing: false,
+  mindmapInitialized: false,
+  socket: null as Socket | null,
+  isConnected: false,
+  data: {
+    trades: [] as KOLTrade[],
+    stats: {
+      totalTrades: 0,
+      uniqueKOLs: 0,
+      uniqueTokens: 0,
+      totalVolume: 0,
+    },
+    trendingTokens: [] as string[],
+    mindmapData: {} as { [tokenMint: string]: MindmapUpdate },
+  },
+  loadingPhase: 'idle' as LoadingPhase,
+  isLoadingInitialData: true,
+};
 
-  void 0 && ('🔍 Hook state:', {
-    recentTradesCount: recentTrades.length,
-    isConnected,
-    isLoadingInitialData,
-    hasUser: !!user
-  });
+// Memory optimization: Limit data sizes
+const MAX_TRADES = 25; // Reduced from 50
+const MAX_MINDMAP_ENTRIES = 20; // Increased limit for better coverage
+const CLEANUP_INTERVAL = 300000; // 5 minutes
 
-  // Use ref to store current mindmap data to avoid dependency issues
-  const mindmapDataRef = useRef<{ [tokenMint: string]: MindmapUpdate }>({});
-  
-  // Simple cache for token metadata by uri or mint
-  const tokenMetadataCacheRef = useRef<Map<string, { name?: string; symbol?: string; image?: string }>>(new Map());
+// Global listeners for state updates
+const listeners = new Set<() => void>();
 
-  // Helper to enrich a trade with token metadata if image is missing
-  const ensureTokenMetadata = useCallback(async (trade: KOLTrade): Promise<KOLTrade> => {
+function notifyListeners() {
+  listeners.forEach(listener => {
     try {
-      const { tradeData } = trade;
-      if (!tradeData) return trade;
+      listener();
+    } catch (error) {
+      console.error('Listener notification failed:', error);
+    }
+  });
+}
 
-      // If image already present, nothing to do
-      if (tradeData.image && tradeData.image.length > 0) return trade;
+// Memory cleanup function
+function cleanupOldData() {
+  // Keep only recent trades
+  if (globalState.data.trades.length > MAX_TRADES) {
+    globalState.data.trades = globalState.data.trades.slice(0, MAX_TRADES);
+  }
 
-      const cacheKey = tradeData.metadataUri || tradeData.mint || '';
-      if (!cacheKey) return trade;
+  // Clean up old mindmap data - keep data for tokens that appear in recent trades
+  const mindmapKeys = Object.keys(globalState.data.mindmapData);
+  if (mindmapKeys.length > MAX_MINDMAP_ENTRIES) {
+    // Get tokens from recent trades to prioritize
+    const recentTokens = new Set(
+      globalState.data.trades
+        .slice(0, MAX_TRADES)
+        .map(trade => trade.tradeData?.mint)
+        .filter(Boolean)
+    );
 
-      const cached = tokenMetadataCacheRef.current.get(cacheKey);
-      if (cached) {
-        return {
-          ...trade,
+    // Remove mindmap data for tokens not in recent trades, starting with oldest
+    const keysToRemove = mindmapKeys
+      .filter(key => !recentTokens.has(key))
+      .slice(MAX_MINDMAP_ENTRIES - recentTokens.size);
+
+    keysToRemove.forEach(key => {
+      delete globalState.data.mindmapData[key];
+    });
+  }
+}
+
+// Function to ensure mindmap subscription for active tokens
+function ensureMindmapSubscriptions() {
+  if (!globalState.socket || !globalState.isConnected) return;
+
+  // Get unique tokens from recent trades
+  const activeTokens = new Set(
+    globalState.data.trades
+      .slice(0, 10) // Only check last 10 trades
+      .map(trade => trade.tradeData?.mint)
+      .filter(Boolean)
+  );
+
+  // Subscribe to mindmap updates for active tokens that we don't have data for
+  activeTokens.forEach(tokenMint => {
+    if (!globalState.data.mindmapData[tokenMint]) {
+      globalState.socket!.emit('subscribe_mindmap', { tokenMint });
+    }
+  });
+}
+
+export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
+  const { showError } = useNotifications();
+
+  // Local state that syncs with global state
+  const [, forceUpdate] = useState({});
+  const rerender = useCallback(() => forceUpdate({}), []);
+
+  // Subscribe to global state changes
+  useEffect(() => {
+    listeners.add(rerender);
+    return () => {
+      listeners.delete(rerender);
+    };
+  }, [rerender]);
+
+  // Mock data for fallback
+  const getMockData = useCallback(() => {
+    return {
+      trades: [
+        {
+          id: 'mock-1',
+          kolWallet: 'mock-kol-1',
+          signature: 'mock-sig-1',
+          timestamp: new Date(),
           tradeData: {
-            ...tradeData,
-            name: tradeData.name || cached.name,
-            symbol: tradeData.symbol || cached.symbol,
-            image: tradeData.image || cached.image,
+            tokenIn: 'SOL',
+            tokenOut: 'DEMO1',
+            amountIn: 1000,
+            amountOut: 500,
+            tradeType: 'buy' as const,
+            mint: 'mock-token-1',
+            dexProgram: 'demo',
+            name: 'Demo Token 1',
+            symbol: 'DEMO1',
           },
-        };
-      }
-
-      if (tradeData.metadataUri) {
-        const resp = await fetch(tradeData.metadataUri).catch(() => null);
-        if (resp && resp.ok) {
-          const meta = await resp.json().catch(() => null);
-          if (meta && (meta.image || meta.name || meta.symbol)) {
-            const rawImage: string | undefined = typeof meta.image === 'string' ? meta.image : undefined;
-            const normalizedImage = rawImage && rawImage.startsWith('ipfs://')
-              ? `https://ipfs.io/ipfs/${rawImage.replace('ipfs://', '')}`
-              : rawImage;
-            const enriched = {
-              name: typeof meta.name === 'string' ? meta.name : undefined,
-              symbol: typeof meta.symbol === 'string' ? meta.symbol : undefined,
-              image: normalizedImage,
-            } as { name?: string; symbol?: string; image?: string };
-            tokenMetadataCacheRef.current.set(cacheKey, enriched);
-            return {
-              ...trade,
-              tradeData: {
-                ...tradeData,
-                name: tradeData.name || enriched.name,
-                symbol: tradeData.symbol || enriched.symbol,
-                image: enriched.image || tradeData.image,
-              },
-            };
-          }
-        }
-      }
-    } catch {}
-    return trade;
+          affectedUsers: [],
+          processed: true,
+        },
+        {
+          id: 'mock-2',
+          kolWallet: 'mock-kol-2',
+          signature: 'mock-sig-2',
+          timestamp: new Date(),
+          tradeData: {
+            tokenIn: 'DEMO2',
+            tokenOut: 'SOL',
+            amountIn: 500,
+            amountOut: 1200,
+            tradeType: 'sell' as const,
+            mint: 'mock-token-2',
+            dexProgram: 'demo',
+            name: 'Demo Token 2',
+            symbol: 'DEMO2',
+          },
+          affectedUsers: [],
+          processed: true,
+        },
+      ],
+      stats: {
+        totalTrades: 1250,
+        uniqueKOLs: 45,
+        uniqueTokens: 128,
+        totalVolume: 2500000,
+      },
+      trendingTokens: ['mock-token-1', 'mock-token-2', 'mock-token-3'],
+    };
   }, []);
-  
-  // Update ref when state changes
-  useEffect(() => {
-    mindmapDataRef.current = allMindmapData;
-  }, [allMindmapData]);
 
-  useEffect(() => {
-    let isMounted = true; // Flag to prevent state updates after unmount
-    
-    const initializeKOLTradeSocket = async () => {
+  // WebSocket connection setup
+  const setupWebSocket = useCallback(async (authToken: string) => {
+    if (globalState.socket) {
+      return; // Already connected
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      let socketBaseUrl = apiUrl;
+      let socketPath = '/socket.io';
+
+      // Parse URL for WebSocket
       try {
-        // Get auth token from localStorage
-        const authToken = localStorage.getItem('authToken');
-        
-        void 0 && ('🚀 KOL Trade Socket initializing...');
-        void 0 && ('Environment check:', {
-          apiUrl: process.env.NEXT_PUBLIC_API_URL,
-          hasUser: !!user,
-          hasAuthToken: !!authToken
+        const parsed = new URL(apiUrl);
+        socketBaseUrl = `${parsed.protocol}//${parsed.host}`;
+        if (parsed.pathname && parsed.pathname !== '/') {
+          socketPath = `${parsed.pathname.replace(/\/+$/, '')}/socket.io`;
+        }
+      } catch (error) {
+        console.warn('Failed to parse WebSocket URL, using as-is');
+      }
+
+      const socket = io(socketBaseUrl, {
+        path: socketPath,
+        auth: { token: authToken },
+        transports: ['websocket', 'polling'],
+        timeout: 20000,
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelayMax: 30000,
+        forceNew: true,
+      });
+
+      // WebSocket event handlers
+      socket.on('connect', () => {
+        globalState.socket = socket;
+        globalState.isConnected = true;
+
+        // Subscribe to real-time channels simultaneously
+        socket.emit('subscribe_kol_trades');
+        socket.emit('subscribe_all_token_activity');
+
+        // Subscribe to mindmap updates for all available trending tokens immediately
+        // This ensures mindmap data is available when trades start coming in
+        const tokensToSubscribe =
+          globalState.data.trendingTokens.length > 0
+            ? globalState.data.trendingTokens.slice(0, 5)
+            : ['default']; // Subscribe to a default channel if no trending tokens yet
+
+        tokensToSubscribe.forEach(tokenMint => {
+          socket.emit('subscribe_mindmap', { tokenMint });
         });
 
-        // Load initial data
-        void 0 && ('🔄 Loading initial KOL trade data...');
-        void 0 && ('API URL:', process.env.NEXT_PUBLIC_API_URL);
-        void 0 && ('Auth token:', authToken ? 'Present' : 'Missing');
-        
-        // Create headers - make auth optional for now
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json'
-        };
-        
-        if (authToken) {
-          headers['Authorization'] = `Bearer ${authToken}`;
-        }
-        
-        // Load initial trades, stats, and trending tokens in parallel
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        
-        void 0 && ('Making API calls to:', apiUrl);
+        // Also subscribe to general mindmap updates
+        socket.emit('subscribe_all_mindmap_updates');
 
-        // Derive Socket.IO base URL and path to avoid treating '/api' as a namespace
-        const rawApiUrl = apiUrl;
-        let socketBaseUrl = rawApiUrl;
-        let socketPath = process.env.NEXT_PUBLIC_SOCKET_IO_PATH || '/socket.io';
-        try {
-          const parsed = new URL(rawApiUrl);
-          socketBaseUrl = `${parsed.protocol}//${parsed.host}`;
-          // If API URL has a path (e.g., '/api') and no explicit SOCKET_IO_PATH is provided, assume '/api/socket.io'
-          if (parsed.pathname && parsed.pathname !== '/' && !process.env.NEXT_PUBLIC_SOCKET_IO_PATH) {
-            socketPath = `${parsed.pathname.replace(/\/+$/, '')}/socket.io`;
-          }
-        } catch {}
- 
-        const [tradesResponse, statsResponse, trendingResponse] = await Promise.all([
-          fetch(`${apiUrl}/api/kol-trades/recent?limit=100`, { headers }).catch(err => {
-            console.error('Trades API error:', err);
-            return null;
-          }),
-          fetch(`${apiUrl}/api/kol-trades/stats`, { headers }).catch(err => {
-            console.error('Stats API error:', err);
-            return null;
-          }),
-          fetch(`${apiUrl}/api/kol-trades/trending-tokens?limit=20`, { headers }).catch(err => {
-            console.error('Trending tokens API error:', err);
-            return null;
-          })
-        ]);
+        notifyListeners();
+      });
 
-        if (!isMounted) return; // Exit if component unmounted
+      socket.on('disconnect', () => {
+        globalState.isConnected = false;
+        notifyListeners();
+      });
 
-        // Handle trades response
-        if (tradesResponse && tradesResponse.ok) {
-          try {
-            const tradesData = await tradesResponse.json();
-            void 0 && ('✅ Trades response:', tradesData);
-            if (tradesData.success && tradesData.data?.trades) {
-              // Debug: Check if any initial trades have predictions
-              const tradesWithPredictions = tradesData.data.trades.filter((t: any) => t.prediction);
-              void 0 && (`🧠 Initial trades with predictions: ${tradesWithPredictions.length}/${tradesData.data.trades.length}`);
-              
-              // Log a sample trade to see structure
-              if (tradesData.data.trades.length > 0) {
-                void 0 && ('🔍 Sample initial trade structure:', {
-                  id: tradesData.data.trades[0].id,
-                  kolWallet: tradesData.data.trades[0].kolWallet,
-                  prediction: tradesData.data.trades[0].prediction,
-                  hasPrediction: !!tradesData.data.trades[0].prediction,
-                  fullTrade: tradesData.data.trades[0]
-                });
-              }
-              
-              // Enrich trades with token metadata when needed
-              const enrichedTrades = await Promise.all(
-                tradesData.data.trades.map((t: KOLTrade) => ensureTokenMetadata(t))
-              );
+      socket.on('connect_error', () => {
+        globalState.isConnected = false;
+        notifyListeners();
+      });
 
-              setRecentTrades(enrichedTrades);
-              void 0 && (`📊 Loaded ${enrichedTrades.length} trades (enriched)`);
-            } else {
-              console.warn('⚠️ Trades response missing data:', tradesData);
-            }
-          } catch (parseError) {
-            console.error('❌ Failed to parse trades response:', parseError);
-          }
-        } else if (tradesResponse) {
-          console.error('❌ Trades API failed:', tradesResponse.status, tradesResponse.statusText);
-          const errorText = await tradesResponse.text();
-          console.error('Error response:', errorText);
+      // Real-time trade updates
+      socket.on('kol_trade_update', (eventData: any) => {
+        // Extract trade from event structure
+        let trade: KOLTrade;
+        if (eventData.trade) {
+          trade = eventData.trade;
+        } else if (eventData.event?.trade) {
+          trade = eventData.event.trade;
         } else {
-          console.error('❌ Trades API request failed completely');
+          trade = eventData;
         }
 
-        // Handle stats response
-        if (statsResponse && statsResponse.ok) {
-          try {
-            const statsData = await statsResponse.json();
-            void 0 && ('✅ Stats response:', statsData);
-            if (statsData.success && statsData.data?.tradingStats) {
-              setStats(statsData.data.tradingStats);
-              void 0 && ('📈 Loaded stats:', statsData.data.tradingStats);
-            } else {
-              console.warn('⚠️ Stats response missing data:', statsData);
-            }
-          } catch (parseError) {
-            console.error('❌ Failed to parse stats response:', parseError);
+        // Add new trade with memory optimization
+        globalState.data.trades = [
+          trade,
+          ...globalState.data.trades.slice(0, MAX_TRADES - 1),
+        ];
+
+        // Auto-subscribe to mindmap updates for the token in this trade
+        if (trade.tradeData?.mint && globalState.socket) {
+          const tokenMint = trade.tradeData.mint;
+          if (!globalState.data.mindmapData[tokenMint]) {
+            globalState.socket.emit('subscribe_mindmap', { tokenMint });
           }
-        } else if (statsResponse) {
-          console.error('❌ Stats API failed:', statsResponse.status, statsResponse.statusText);
         }
 
-        // Handle trending tokens response
-        let trendingData: any = null;
-        if (trendingResponse && trendingResponse.ok) {
-          try {
-            trendingData = await trendingResponse.json();
-            void 0 && ('✅ Trending tokens response:', trendingData);
-            if (trendingData.success && trendingData.data?.trendingTokens) {
-              const tokens = trendingData.data.trendingTokens.map((t: any) => t.tokenMint || t);
-              setTrendingTokens(tokens);
-              void 0 && (`🔥 Loaded ${tokens.length} trending tokens:`, tokens);
-            } else {
-              console.warn('⚠️ Trending tokens response missing data:', trendingData);
-            }
-          } catch (parseError) {
-            console.error('❌ Failed to parse trending tokens response:', parseError);
-          }
-        } else if (trendingResponse) {
-          console.error('❌ Trending tokens API failed:', trendingResponse.status, trendingResponse.statusText);
+        // Update cache
+        cacheManager.setTradeData('recent', globalState.data.trades, 300000);
+
+        // Ensure mindmap subscriptions for active tokens
+        ensureMindmapSubscriptions();
+
+        // Cleanup old data periodically
+        cleanupOldData();
+
+        notifyListeners();
+      });
+
+      // Handle kol_trade_detected events (alternative event type)
+      socket.on('kol_trade_detected', (eventData: any) => {
+        // Extract trade from event structure
+        let trade: KOLTrade;
+        if (eventData.trade) {
+          trade = eventData.trade;
+        } else if (eventData.event?.trade) {
+          trade = eventData.event.trade;
+        } else {
+          trade = eventData;
         }
 
-        // Load ALL available tokens with KOL activity, not just trending ones
-        void 0 && ('🗺️ Loading mindmap data for available tokens...');
-        try {
-          let tokensToLoad: string[] = [];
-          
-          // First, try to get trending tokens as our primary source
-          if (trendingData?.success && trendingData.data?.trendingTokens) {
-            tokensToLoad = trendingData.data.trendingTokens.map((t: any) => t.tokenMint || t).slice(0, 20);
-            void 0 && (`📊 Using ${tokensToLoad.length} trending tokens for mindmap data`);
-          }
-          
-          // Try to get additional tokens with activity (this endpoint may not exist yet)
-          try {
-            const allTokensResponse = await fetch(`${apiUrl}/api/kol-trades/tokens-with-activity`, { headers });
-            if (allTokensResponse && allTokensResponse.ok) {
-              const allTokensData = await allTokensResponse.json();
-              void 0 && ('✅ Additional tokens with activity response:', allTokensData);
-              
-              if (allTokensData.success && allTokensData.data?.tokens) {
-                const additionalTokens = allTokensData.data.tokens.map((t: any) => t.tokenMint || t);
-                // Merge with trending tokens, avoiding duplicates
-                const existingTokens = new Set(tokensToLoad);
-                const newTokens = additionalTokens.filter((token: string) => !existingTokens.has(token));
-                tokensToLoad = [...tokensToLoad, ...newTokens].slice(0, 50); // Limit total to 50
-                void 0 && (`📊 Found ${newTokens.length} additional tokens with KOL activity, total: ${tokensToLoad.length}`);
-              }
-            }
-          } catch (error) {
-            void 0 && ('ℹ️ Additional tokens endpoint not available, using trending tokens only');
-          }
-          
-          if (tokensToLoad.length > 0) {
-            // Load mindmap data for all tokens
-            const mindmapPromises = tokensToLoad.map(async (tokenMint: string) => {
-              try {
-                void 0 && (`🗺️ Loading mindmap for token: ${tokenMint}`);
-                const mindmapResponse = await fetch(`${apiUrl}/api/kol-trades/mindmap/${tokenMint}`, { headers });
-                if (mindmapResponse.ok) {
-                  const mindmapData = await mindmapResponse.json();
-                  void 0 && (`✅ Mindmap data for ${tokenMint}:`, mindmapData);
-                  if (mindmapData.success && mindmapData.data?.mindmap) {
-                    return { tokenMint, data: mindmapData.data.mindmap };
-                  }
-                } else {
-                  console.warn(`⚠️ Mindmap API failed for ${tokenMint}:`, mindmapResponse.status);
-                }
-              } catch (error) {
-                console.warn(`❌ Failed to load mindmap for ${tokenMint}:`, error);
-              }
-              return null;
-            });
+        // Add new trade with memory optimization
+        globalState.data.trades = [
+          trade,
+          ...globalState.data.trades.slice(0, MAX_TRADES - 1),
+        ];
 
-            const mindmapResults = await Promise.all(mindmapPromises);
-            const initialMindmapData: { [tokenMint: string]: MindmapUpdate } = {};
-            
-            mindmapResults.forEach(result => {
-              if (result) {
-                initialMindmapData[result.tokenMint] = result.data;
-                void 0 && (`📊 Added mindmap for ${result.tokenMint}`);
-              }
-            });
-            
-            if (isMounted) {
-              setAllMindmapData(initialMindmapData);
-              void 0 && (`🗺️ Total mindmap data loaded: ${Object.keys(initialMindmapData).length} tokens`);
-            }
-          } else {
-            console.warn('⚠️ No tokens available for mindmap data loading');
+        // Auto-subscribe to mindmap updates for the token in this trade
+        if (trade.tradeData?.mint && globalState.socket) {
+          const tokenMint = trade.tradeData.mint;
+          if (!globalState.data.mindmapData[tokenMint]) {
+            globalState.socket.emit('subscribe_mindmap', { tokenMint });
           }
-        } catch (error) {
-          console.error('❌ Failed to load mindmap data:', error);
         }
 
-        if (isMounted) {
-          setIsLoadingInitialData(false);
-          void 0 && ('✅ Initial data loading completed');
-        }
+        // Update cache
+        cacheManager.setTradeData('recent', globalState.data.trades, 300000);
 
-        // Only connect WebSocket if we have an auth token
-        if (!authToken) {
-          console.warn('⚠️ No auth token found, skipping WebSocket connection');
+        // Ensure mindmap subscriptions for active tokens
+        ensureMindmapSubscriptions();
+
+        // Cleanup old data periodically
+        cleanupOldData();
+
+        notifyListeners();
+      });
+
+      // Real-time mindmap updates (from WebSocket, not bulk endpoint)
+      socket.on('mindmap_update', (eventData: any) => {
+        // Extract mindmap data from event structure
+        let update: MindmapUpdate;
+        if (eventData.data) {
+          // Event wrapper structure with nested data object
+          update = eventData.data;
+        } else if (eventData.tokenMint) {
+          // Direct mindmap structure
+          update = eventData;
+        } else {
+          console.warn('Invalid mindmap update format:', eventData);
           return;
         }
 
-        void 0 && ('🔌 Connecting to WebSocket:', socketBaseUrl);
-        
-        const newSocket = io(socketBaseUrl, {
-          path: socketPath,
-          auth: { token: authToken },
-          transports: ['websocket', 'polling'],
-          timeout: 20000,
-          withCredentials: true,
-          reconnection: true,
-          reconnectionAttempts: 10,
-          reconnectionDelayMax: 30000,
-          forceNew: true,
-        });
-
-        newSocket.on('connect', () => {
-          void 0 && ('✅ Connected to KOL Trade WebSocket');
-          if (isMounted) {
-            setIsConnected(true);
-          }
-          
-          // Automatically subscribe to all trades on connection
-          newSocket.emit('subscribe_kol_trades');
-          void 0 && ('🔄 Auto-subscribed to all KOL trades');
-          
-          // Subscribe to get all tokens with KOL activity updates
-          newSocket.emit('subscribe_all_token_activity');
-          void 0 && ('🔄 Auto-subscribed to all token activity updates');
-          
-          // Re-subscribe to mindmap updates for existing tokens
-          const existingTokens = Object.keys(mindmapDataRef.current);
-          if (existingTokens.length > 0) {
-            existingTokens.forEach(tokenMint => {
-              newSocket.emit('subscribe_mindmap', { tokenMint });
-            });
-            void 0 && (`🔄 Re-subscribed to mindmap updates for ${existingTokens.length} existing tokens`);
-          }
-          
-          // Send heartbeat to keep connection alive
-          const heartbeat = setInterval(() => {
-            if (newSocket.connected) {
-              newSocket.emit('heartbeat');
-            } else {
-              clearInterval(heartbeat);
-            }
-          }, 30000); // Every 30 seconds
-          
-          // Periodic refresh to ensure comprehensive data coverage
-          const dataRefresh = setInterval(() => {
-            if (newSocket.connected) {
-              // Request fresh data periodically to ensure we don't miss anything
-              newSocket.emit('request_all_active_tokens');
-              newSocket.emit('request_recent_trades', { limit: 100 });
-              void 0 && ('🔄 Periodic refresh: requested all active tokens and recent trades');
-            } else {
-              clearInterval(dataRefresh);
-            }
-          }, 120000); // Every 2 minutes
-          
-          // Store interval references for cleanup
-          (newSocket as any)._intervals = { heartbeat, dataRefresh };
-        });
-
-        newSocket.on('disconnect', (reason) => {
-          void 0 && ('❌ Disconnected from KOL Trade WebSocket:', reason);
-          if (isMounted) {
-            setIsConnected(false);
-          }
-          
-          // Attempt to reconnect after a delay
-          if (reason === 'io server disconnect') {
-            // Server initiated disconnect, try to reconnect
-            setTimeout(() => {
-              if (isMounted) {
-                void 0 && ('🔄 Attempting to reconnect...');
-                newSocket.connect();
-              }
-            }, 5000);
-          }
-        });
-
-        newSocket.on('connect_error', (error) => {
-          console.error('❌ WebSocket connection error:', error);
-          if (isMounted) {
-            setIsConnected(false);
-            showError('Connection Error', 'Failed to connect to live trade feed');
-          }
-        });
-
-        // Real-time trade updates (ALL TRADES)
-        newSocket.on('kol_trade_update', async (data: any) => {
-          // Extract the actual trade data from the nested structure
-          const trade: KOLTrade = data.trade || data;
-          
-          void 0 && ('📈 New KOL trade received:', {
-            id: trade.id,
-            kolWallet: trade.kolWallet,
-            tokenIn: trade.tradeData?.tokenIn,
-            tokenOut: trade.tradeData?.tokenOut,
-            tradeType: trade.tradeData?.tradeType,
-            amountIn: trade.tradeData?.amountIn,
-            dexProgram: trade.tradeData?.dexProgram, // Add dexProgram logging
-            timestamp: trade.timestamp,
-            prediction: trade.prediction, // Add prediction logging
-            hasPrediction: !!trade.prediction,
-            rawData: data
-          });
-
-          // Detailed prediction debugging
-          if (trade.prediction) {
-            void 0 && ('🧠 WebSocket - ML Prediction received:', {
-              classLabel: trade.prediction.classLabel,
-              probability: trade.prediction.probability,
-              probabilityPercentage: (trade.prediction.probability * 100).toFixed(1) + '%',
-              taskType: trade.prediction.taskType,
-              classIndex: trade.prediction.classIndex,
-              allProbabilities: trade.prediction.probabilities
-            });
-          } else {
-            void 0 && ('❌ WebSocket - No ML prediction in trade data');
-            void 0 && ('🔍 WebSocket - Full raw data structure:', JSON.stringify(data, null, 2));
-          }
-          
-          if (isMounted) {
-            // Enrich trade with token metadata if necessary
-            const enrichedTrade = await ensureTokenMetadata(trade);
-            // Ensure the trade has a proper timestamp and unique ID
-            const processedTrade: KOLTrade = {
-              ...enrichedTrade,
-              timestamp: enrichedTrade.timestamp ? new Date(enrichedTrade.timestamp) : new Date(),
-              id: enrichedTrade.id || `${enrichedTrade.kolWallet}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-            };
-            
-            void 0 && ('📈 Processed trade for state update:', {
-              id: processedTrade.id,
-              kolWallet: processedTrade.kolWallet,
-              prediction: processedTrade.prediction,
-              hasPrediction: !!processedTrade.prediction
-            });
-            
-            setRecentTrades(prev => {
-              // Check for duplicates
-              if (prev.some(t => t.id === processedTrade.id)) {
-                void 0 && ('🔄 Skipping duplicate trade:', processedTrade.id);
-                return prev;
-              }
-              
-              // Add new trade and keep last 100
-              const updated = [processedTrade, ...prev.slice(0, 99)];
-              void 0 && (`📊 Updated trades array: ${updated.length} total trades`);
-              
-              // Debug: Check if any trades have predictions
-              const tradesWithPredictions = updated.filter(t => t.prediction);
-              void 0 && (`🧠 Trades with predictions in state: ${tradesWithPredictions.length}/${updated.length}`);
-              
-              return updated;
-            });
-            
-            // Update stats after a brief delay to ensure the trade is in state
-            setTimeout(() => {
-              setRecentTrades(current => {
-                const uniqueKOLs = new Set(current.map(t => t.kolWallet));
-                const uniqueTokens = new Set(current.flatMap(t => [
-                  t.tradeData?.tokenIn, 
-                  t.tradeData?.tokenOut, 
-                  t.tradeData?.mint
-                ].filter(Boolean)));
-                
-                setStats({
-                  totalTrades: current.length,
-                  uniqueKOLs: uniqueKOLs.size,
-                  uniqueTokens: uniqueTokens.size,
-                  totalVolume: current.reduce((sum, t) => sum + (t.tradeData?.amountIn || 0), 0)
-                });
-                
-                return current;
-              });
-            }, 10);
-          }
-        });
-
-        newSocket.on('personal_kol_trade_alert', (data: any) => {
-          (async () => {
-            const trade: KOLTrade = data.trade || data;
-            void 0 && ('🔔 Personal KOL trade alert:', trade);
-            if (!isMounted) return;
-            const enrichedTrade = await ensureTokenMetadata(trade);
-            const processedTrade: KOLTrade = {
-              ...enrichedTrade,
-              timestamp: enrichedTrade.timestamp ? new Date(enrichedTrade.timestamp) : new Date(),
-              id:
-                enrichedTrade.id ||
-                `${enrichedTrade.kolWallet}-${Date.now()}-${Math.random()
-                  .toString(36)
-                  .substr(2, 9)}`,
-            };
-            setRecentTrades(prev => {
-              if (prev.some(t => t.id === processedTrade.id)) return prev;
-              return [processedTrade, ...prev.slice(0, 99)];
-            });
-          })();
-        });
-
-        // Real-time mindmap updates
-        newSocket.on('mindmap_update', (update: MindmapUpdate) => {
-          void 0 && ('🗺️ Mindmap update received for token:', update.tokenMint);
-          void 0 && ('📊 Mindmap data:', {
-            tokenMint: update.tokenMint,
-            kolCount: Object.keys(update.kolConnections || {}).length,
-            totalTrades: update.networkMetrics?.totalTrades || 0,
-            lastUpdate: update.lastUpdate
-          });
-          
-          if (isMounted) {
-            setAllMindmapData(prev => {
-              const updated = {
-                ...prev,
-                [update.tokenMint]: update
-              };
-              void 0 && (`🗺️ Updated mindmap data: ${Object.keys(updated).length} tokens available`);
-              return updated;
-            });
-          }
-        });
-
-        // Listen for new trending tokens
-        newSocket.on('trending_tokens_update', (tokens: string[]) => {
-          void 0 && ('📊 Trending tokens updated:', tokens);
-          if (isMounted) {
-            setTrendingTokens(tokens);
-            
-            // Auto-subscribe to mindmap updates for new trending tokens
-            tokens.forEach(tokenMint => {
-              if (!mindmapDataRef.current[tokenMint]) {
-                void 0 && (`🔄 Auto-subscribing to mindmap for new trending token: ${tokenMint}`);
-                newSocket.emit('subscribe_mindmap', { tokenMint });
-              }
-            });
-          }
-        });
-
-        // Listen for all token activity updates (comprehensive)
-        newSocket.on('all_token_activity_update', (data: { tokens: string[], totalKOLs: number, totalTrades: number }) => {
-          void 0 && ('📊 All token activity updated:', data);
-          if (isMounted && data.tokens) {
-            // Auto-subscribe to mindmap updates for all active tokens
-            data.tokens.forEach(tokenMint => {
-              if (!mindmapDataRef.current[tokenMint]) {
-                void 0 && (`🔄 Auto-subscribing to mindmap for active token: ${tokenMint}`);
-                newSocket.emit('subscribe_mindmap', { tokenMint });
-              }
-            });
-            
-            // Update stats with comprehensive data
-            setStats(prevStats => ({
-              ...prevStats,
-              uniqueTokens: data.tokens.length,
-              uniqueKOLs: data.totalKOLs,
-              totalTrades: data.totalTrades
-            }));
-          }
-        });
-
-        // Real-time stats updates
-        newSocket.on('stats_update', (newStats: any) => {
-          void 0 && ('📊 Stats update received:', newStats);
-          if (isMounted) {
-            setStats(newStats);
-          }
-        });
-
-        // Handle periodic refresh responses
-        newSocket.on('all_active_tokens_response', (data: { tokens: string[] }) => {
-          void 0 && ('📊 All active tokens response:', data);
-          if (isMounted && data.tokens) {
-            // Subscribe to mindmap updates for any new tokens we discover
-            data.tokens.forEach(tokenMint => {
-              if (!mindmapDataRef.current[tokenMint]) {
-                void 0 && (`🔄 Discovered new active token, subscribing to mindmap: ${tokenMint}`);
-                newSocket.emit('subscribe_mindmap', { tokenMint });
-              }
-            });
-          }
-        });
-
-        newSocket.on('recent_trades_response', (data: { trades: KOLTrade[] }) => {
-          void 0 && ('📊 Recent trades response:', data);
-          if (isMounted && data.trades) {
-            // Merge with existing trades, avoiding duplicates
-            setRecentTrades(prev => {
-              const existingIds = new Set(prev.map(t => t.id));
-              const newTrades = data.trades.filter(t => !existingIds.has(t.id));
-              const merged = [...newTrades, ...prev].slice(0, 100); // Keep last 100
-              
-              if (newTrades.length > 0) {
-                void 0 && (`📈 Merged ${newTrades.length} new trades from refresh`);
-              }
-              
-              return merged;
-            });
-          }
-        });
-
-        if (isMounted) {
-          setSocket(newSocket);
+        // Only store if we have space or it's already tracked
+        const mindmapKeys = Object.keys(globalState.data.mindmapData);
+        if (
+          mindmapKeys.length < MAX_MINDMAP_ENTRIES ||
+          globalState.data.mindmapData[update.tokenMint]
+        ) {
+          globalState.data.mindmapData[update.tokenMint] = update;
+          cacheManager.setMindmapData(update.tokenMint, update, 600000);
         }
 
-      } catch (error) {
-        console.error('❌ Failed to initialize KOL trade socket:', error);
-        if (isMounted) {
-          showError('Failed to load KOL trade data', 'Please check your network connection and try refreshing the page');
-          setIsLoadingInitialData(false);
+        cleanupOldData();
+        notifyListeners();
+      });
+
+      // Handle initial_mindmap_data events (alternative event type)
+      socket.on('initial_mindmap_data', (eventData: any) => {
+        console.log('📊 Initial mindmap data received:', {
+          eventData,
+          hasData: !!eventData.data,
+          hasTokenMint: !!eventData.tokenMint,
+          currentMindmapCount: Object.keys(globalState.data.mindmapData).length,
+        });
+
+        // Extract mindmap data from event structure
+        let update: MindmapUpdate;
+        if (eventData.data) {
+          update = eventData.data;
+        } else if (eventData.tokenMint) {
+          update = eventData;
+        } else {
+          console.warn('Invalid initial mindmap data format:', eventData);
+          return;
+        }
+
+        console.log('📊 Processing mindmap update:', {
+          tokenMint: update.tokenMint,
+          kolConnectionsCount: Object.keys(update.kolConnections || {}).length,
+          networkMetrics: update.networkMetrics,
+        });
+
+        // Store initial mindmap data
+        const mindmapKeys = Object.keys(globalState.data.mindmapData);
+        if (
+          mindmapKeys.length < MAX_MINDMAP_ENTRIES ||
+          globalState.data.mindmapData[update.tokenMint]
+        ) {
+          globalState.data.mindmapData[update.tokenMint] = update;
+          cacheManager.setMindmapData(update.tokenMint, update, 600000);
+
+          console.log('📊 Mindmap data stored:', {
+            tokenMint: update.tokenMint,
+            totalMindmapEntries: Object.keys(globalState.data.mindmapData)
+              .length,
+            kolConnections: Object.keys(update.kolConnections || {}).length,
+          });
+        } else {
+          console.log('📊 Mindmap data rejected (limit reached):', {
+            currentCount: mindmapKeys.length,
+            maxEntries: MAX_MINDMAP_ENTRIES,
+            tokenMint: update.tokenMint,
+          });
+        }
+
+        cleanupOldData();
+        notifyListeners();
+      });
+
+      // Generic event handler to catch mindmap-related events
+      socket.onAny((eventName: string, ...args: any[]) => {
+        if (eventName.includes('mindmap') || eventName.includes('network')) {
+          console.log(`🗺️ Mindmap-related WebSocket event: ${eventName}`, args);
+        }
+      });
+
+      // Real-time stats updates
+      socket.on('stats_update', (newStats: any) => {
+        globalState.data.stats = newStats;
+        cacheManager.setStatsData('current', newStats, 600000);
+        notifyListeners();
+      });
+
+      // Real-time trending tokens updates
+      socket.on('trending_tokens_update', (tokens: string[]) => {
+        // Limit trending tokens to prevent memory bloat
+        const previousTokens = globalState.data.trendingTokens;
+        globalState.data.trendingTokens = tokens.slice(0, 10);
+        cacheManager.setTrendingTokens(globalState.data.trendingTokens, 900000);
+
+        // Subscribe to mindmap updates for new trending tokens immediately
+        globalState.data.trendingTokens.slice(0, 5).forEach(tokenMint => {
+          if (
+            !previousTokens.includes(tokenMint) &&
+            !globalState.data.mindmapData[tokenMint]
+          ) {
+            socket.emit('subscribe_mindmap', { tokenMint });
+          }
+        });
+
+        notifyListeners();
+      });
+
+      globalState.socket = socket;
+    } catch (error) {
+      console.error('❌ WebSocket setup failed:', error);
+    }
+  }, []);
+
+  // Single initialization function
+  const initializeOnce = useCallback(async () => {
+    if (globalState.hasInitialized || globalState.isInitializing) {
+      return;
+    }
+
+    globalState.isInitializing = true;
+    globalState.loadingPhase = 'essential';
+    notifyListeners();
+
+    try {
+      const authToken =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('authToken')
+          : null;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      // Check cache first
+      const cachedTrades = cacheManager.getTradeData('recent');
+      const cachedStats = cacheManager.getStatsData('current');
+      const cachedTrending = cacheManager.getTrendingTokens();
+
+      if (cachedTrades) {
+        globalState.data.trades = cachedTrades.slice(0, MAX_TRADES);
+      }
+      if (cachedStats) {
+        globalState.data.stats = cachedStats;
+      }
+      if (cachedTrending) {
+        globalState.data.trendingTokens = cachedTrending.slice(0, 10);
+      }
+
+      // If we have all cached data, use it and skip API calls
+      if (cachedTrades && cachedStats && cachedTrending) {
+        globalState.loadingPhase = 'complete';
+        globalState.isLoadingInitialData = false;
+        globalState.hasInitialized = true;
+        globalState.isInitializing = false;
+        notifyListeners();
+        return;
+      }
+
+      // Call each endpoint only once
+      const promises = [];
+
+      if (!cachedTrades) {
+        promises.push(
+          axios
+            .get(`${apiUrl}/api/kol-trades/recent?limit=${MAX_TRADES}`, {
+              headers,
+              timeout: 30000,
+            })
+            .then(response => ({ type: 'trades', data: response.data }))
+            .catch(error => ({ type: 'trades', error }))
+        );
+      }
+
+      if (!cachedStats) {
+        promises.push(
+          axios
+            .get(`${apiUrl}/api/kol-trades/stats`, {
+              headers,
+              timeout: 30000,
+            })
+            .then(response => ({ type: 'stats', data: response.data }))
+            .catch(error => ({ type: 'stats', error }))
+        );
+      }
+
+      if (!cachedTrending) {
+        promises.push(
+          axios
+            .get(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
+              headers,
+              timeout: 30000,
+            })
+            .then(response => ({ type: 'trending', data: response.data }))
+            .catch(error => ({ type: 'trending', error }))
+        );
+      }
+
+      // Wait for all API calls to complete
+      const results = await Promise.allSettled(promises);
+
+      // Process results
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          const { type, data, error } = result.value;
+
+          if (error) {
+            return;
+          }
+
+          if (data?.success) {
+            switch (type) {
+              case 'trades':
+                const trades = (data.data?.trades || []).slice(0, MAX_TRADES);
+                globalState.data.trades = trades;
+                cacheManager.setTradeData('recent', trades, 300000);
+                break;
+
+              case 'stats':
+                const stats = data.data?.tradingStats || globalState.data.stats;
+                globalState.data.stats = stats;
+                cacheManager.setStatsData('current', stats, 600000);
+                break;
+
+              case 'trending':
+                const tokens = (data.data?.trendingTokens || [])
+                  .map((t: any) => t.tokenMint || t)
+                  .slice(0, 10);
+                globalState.data.trendingTokens = tokens;
+                cacheManager.setTrendingTokens(tokens, 900000);
+                break;
+            }
+          }
+        }
+      });
+
+      // Load mindmap data for trending tokens synchronously with trades
+      if (
+        globalState.data.trendingTokens.length > 0 &&
+        !globalState.mindmapInitialized
+      ) {
+        globalState.loadingPhase = 'enhanced'; // Changed from 'background' to 'enhanced'
+        globalState.mindmapInitialized = true;
+        notifyListeners();
+
+        try {
+          // Load mindmap data for trending tokens to ensure it's available with trades
+          const mindmapResponse = await axios.post(
+            `${apiUrl}/api/kol-trades/mindmap/bulk`,
+            {
+              tokenMints: globalState.data.trendingTokens.slice(0, 5), // Increased to 5 for better coverage
+            },
+            {
+              headers,
+              timeout: 30000,
+            }
+          );
+
+          if (
+            mindmapResponse.data?.success &&
+            mindmapResponse.data.data?.mindmaps
+          ) {
+            mindmapResponse.data.data.mindmaps.forEach(
+              (mindmap: MindmapUpdate) => {
+                globalState.data.mindmapData[mindmap.tokenMint] = mindmap;
+                cacheManager.setMindmapData(mindmap.tokenMint, mindmap, 600000);
+              }
+            );
+          }
+        } catch (error) {
+          globalState.mindmapInitialized = false;
         }
       }
-    };
 
-    initializeKOLTradeSocket();
+      // Ensure we move to background phase after mindmap loading
+      globalState.loadingPhase = 'background';
+      notifyListeners();
+
+      // Set up WebSocket for real-time updates (after initial data is loaded)
+      if (authToken) {
+        await setupWebSocket(authToken);
+      }
+    } catch (error) {
+      // Use mock data as fallback
+      const mockData = getMockData();
+      globalState.data.trades = mockData.trades;
+      globalState.data.stats = mockData.stats;
+      globalState.data.trendingTokens = mockData.trendingTokens;
+
+      showError(
+        'Using demo data',
+        'Unable to connect to live data. Showing demo data for testing.'
+      );
+    } finally {
+      globalState.loadingPhase = 'complete';
+      globalState.isLoadingInitialData = false;
+      globalState.hasInitialized = true;
+      globalState.isInitializing = false;
+      notifyListeners();
+    }
+  }, [getMockData, showError, setupWebSocket]);
+
+  // Initialize once on first mount
+  useEffect(() => {
+    initializeOnce();
+
+    // Set up periodic cleanup
+    const cleanupInterval = setInterval(cleanupOldData, CLEANUP_INTERVAL);
 
     return () => {
-      isMounted = false; // Prevent state updates after unmount
-      void 0 && ('🔌 Disconnecting WebSocket...');
-      if (socket) {
-        socket.disconnect();
-        // Clean up intervals if they exist
-        if ((socket as any)._intervals) {
-          clearInterval((socket as any)._intervals.heartbeat);
-          clearInterval((socket as any)._intervals.dataRefresh);
-        }
-      }
+      clearInterval(cleanupInterval);
     };
-  }, []); // Empty dependency array - only run once on mount
-
-  // Auto-subscribe to mindmap updates for trending tokens
-  useEffect(() => {
-    if (socket && isConnected && trendingTokens.length > 0) {
-      trendingTokens.forEach(tokenMint => {
-        socket.emit('subscribe_mindmap', { tokenMint });
-      });
-      void 0 && (`🗺️ Auto-subscribed to mindmap updates for ${trendingTokens.length} trending tokens`);
-    }
-  }, [socket, isConnected, trendingTokens]);
+  }, [initializeOnce]);
 
   return {
-    socket,
-    isConnected,
-    recentTrades,
-    allMindmapData,
-    trendingTokens,
-    isLoadingInitialData,
-    stats
+    socket: globalState.socket,
+    isConnected: globalState.isConnected,
+    recentTrades: globalState.data.trades,
+    allMindmapData: globalState.data.mindmapData,
+    trendingTokens: globalState.data.trendingTokens,
+    isLoadingInitialData: globalState.isLoadingInitialData,
+    loadingPhase: globalState.loadingPhase,
+    connectionState: {
+      isConnected: globalState.isConnected,
+      isConnecting: false,
+      retryCount: 0,
+      lastError: null,
+      connectionHealth: globalState.isConnected ? 'healthy' : 'unstable',
+    },
+    stats: globalState.data.stats,
   };
-}; 
+};

@@ -40,6 +40,7 @@ interface UserState {
   verifyOTP: (email: string, otp: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearAuth: () => void;
+  clearAuthForFailure: () => void;
 
   // Wallet actions
   connectWallet: () => Promise<void>;
@@ -217,6 +218,30 @@ export const useUserStore = create<UserState>()(
           walletInfo: null,
           isWalletConnected: false,
         });
+      },
+
+      /**
+       * Enhanced authentication clearing for 403 error handling
+       * Ensures comprehensive cleanup when authentication fails
+       */
+      clearAuthForFailure: () => {
+        void 0 && ('🧹 UserStore - Clearing auth state for authentication failure');
+        
+        // Use enhanced clearing methods
+        AuthService.clearAuthForFailure();
+        SiwsAuthService.removeTokenForAuthFailure();
+        
+        // Clear all user state
+        set({
+          user: null,
+          isAuthenticated: false,
+          error: null,
+          walletInfo: null,
+          isWalletConnected: false,
+          isLoading: false,
+        });
+        
+        void 0 && ('✅ UserStore - Authentication state cleared for failure');
       },
 
       // Wallet actions

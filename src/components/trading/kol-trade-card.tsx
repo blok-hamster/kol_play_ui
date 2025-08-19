@@ -85,7 +85,6 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   hideKOLInfo = false,
   compact = false
 }) => {
-  void 0 && ('🚀 KOLTradeCard component rendered');
   
   const { showSuccess, showError } = useNotifications();
   const { getKOL } = useKOLStore();
@@ -97,40 +96,75 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
 
   // Extract trade data regardless of structure
   const getTradeData = (trade: KOLTradeUnion) => {
-    if (hasNestedTradeData(trade)) {
+    if (!trade) {
+      console.warn('⚠️ No trade data provided to getTradeData');
       return {
-        tokenIn: trade.tradeData?.tokenIn || 'Unknown',
-        tokenOut: trade.tradeData?.tokenOut || 'Unknown',
-        amountIn: trade.tradeData?.amountIn || 0,
-        amountOut: trade.tradeData?.amountOut || 0,
-        tradeType: trade.tradeData?.tradeType ?? 'sell',
-        mint: trade.tradeData?.mint || '',
-        source: trade.tradeData?.dexProgram || 'Unknown', // Socket interface uses 'dexProgram' in tradeData
-        fee: trade.tradeData?.fee || 0,
-        // new optional token metadata fields
-        name: trade.tradeData?.name,
-        symbol: trade.tradeData?.symbol,
-        image: trade.tradeData?.image,
-        metadataUri: trade.tradeData?.metadataUri,
-        // Get prediction from either top-level or nested in tradeData
-        prediction: trade.prediction || (trade.tradeData as any)?.prediction,
+        tokenIn: 'Unknown',
+        tokenOut: 'Unknown',
+        amountIn: 0,
+        amountOut: 0,
+        tradeType: 'sell' as const,
+        mint: '',
+        source: 'Unknown',
+        fee: 0,
+        name: undefined,
+        symbol: undefined,
+        image: undefined,
+        metadataUri: undefined,
+        prediction: undefined,
+      };
+    }
+
+    if (hasNestedTradeData(trade)) {
+      const tradeData = trade.tradeData;
+      if (!tradeData) {
+        console.warn('⚠️ Trade has nested structure but no tradeData');
+        return {
+          tokenIn: 'Unknown',
+          tokenOut: 'Unknown',
+          amountIn: 0,
+          amountOut: 0,
+          tradeType: 'sell' as const,
+          mint: '',
+          source: 'Unknown',
+          fee: 0,
+          name: undefined,
+          symbol: undefined,
+          image: undefined,
+          metadataUri: undefined,
+          prediction: trade.prediction,
+        };
+      }
+
+      return {
+        tokenIn: tradeData.tokenIn || 'Unknown',
+        tokenOut: tradeData.tokenOut || 'Unknown',
+        amountIn: typeof tradeData.amountIn === 'number' ? tradeData.amountIn : 0,
+        amountOut: typeof tradeData.amountOut === 'number' ? tradeData.amountOut : 0,
+        tradeType: tradeData.tradeType ?? 'sell',
+        mint: tradeData.mint || '',
+        source: tradeData.dexProgram || 'Unknown',
+        fee: typeof tradeData.fee === 'number' ? tradeData.fee : 0,
+        name: tradeData.name,
+        symbol: tradeData.symbol,
+        image: tradeData.image,
+        metadataUri: tradeData.metadataUri,
+        prediction: trade.prediction || (tradeData as any)?.prediction,
       };
     } else {
       return {
         tokenIn: trade.tokenIn || 'Unknown',
         tokenOut: trade.tokenOut || 'Unknown',
-        amountIn: trade.amountIn || 0,
-        amountOut: trade.amountOut || 0,
+        amountIn: typeof trade.amountIn === 'number' ? trade.amountIn : 0,
+        amountOut: typeof trade.amountOut === 'number' ? trade.amountOut : 0,
         tradeType: trade.tradeType ?? 'sell',
         mint: (trade as any).mint || '',
-        source: (trade as any).dexProgram || 'Unknown', // Types interface uses 'dexProgram' at top level
-        fee: (trade as any).fee || 0,
-        // Keep shape parity by including optional fields if provided on flat type
+        source: (trade as any).dexProgram || 'Unknown',
+        fee: typeof (trade as any).fee === 'number' ? (trade as any).fee : 0,
         name: (trade as any).name,
         symbol: (trade as any).symbol,
         image: (trade as any).image,
         metadataUri: (trade as any).metadataUri,
-        // Get prediction from trade object
         prediction: (trade as any).prediction,
       };
     }
@@ -155,21 +189,31 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   const getTradeAmounts = (tradeData: any) => {
     const isBuy = (tradeData.tradeType ?? 'sell') === 'buy';
     
+    // Convert lamports to SOL if needed (amounts > 1000000 are likely in lamports)
+    const convertIfLamports = (amount: number) => {
+      if (typeof amount !== 'number' || isNaN(amount)) return 0;
+      return amount > 1000000 ? amount / 1_000_000_000 : amount;
+    };
+    
+    // Based on the WebSocket data structure:
+    // Sell: tokenIn=SOL, tokenOut=token, amountIn=SOL_received, amountOut=tokens_sold
+    // Buy: tokenIn=SOL, tokenOut=token, amountIn=SOL_spent, amountOut=tokens_bought
+    
     if (isBuy) {
-      // For buy trades: amountIn = tokens bought, amountOut = SOL spent
+      // For buy trades: amountIn = SOL spent, amountOut = tokens bought
       return {
-        tokensAmount: tradeData.amountIn || 0,
-        solAmount: tradeData.amountOut || 0,
+        tokensAmount: tradeData.amountOut || 0,
+        solAmount: convertIfLamports(tradeData.amountIn || 0),
         description: {
           tokens: 'Tokens Bought',
           sol: 'SOL Spent'
         }
       };
     } else {
-      // For sell trades: amountOut = tokens sold, amountIn = SOL received
+      // For sell trades: amountIn = SOL received, amountOut = tokens sold
       return {
         tokensAmount: tradeData.amountOut || 0,
-        solAmount: tradeData.amountIn || 0,
+        solAmount: convertIfLamports(tradeData.amountIn || 0),
         description: {
           tokens: 'Tokens Sold',
           sol: 'SOL Received'
@@ -183,12 +227,32 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     return lamports / 1_000_000_000; // 1 SOL = 1,000,000,000 lamports
   };
 
+  // Early return if no trade data
+  if (!trade) {
+    console.warn('⚠️ KOLTradeCard: No trade data provided');
+    return null;
+  }
+
   const tradeData = React.useMemo(() => getTradeData(trade), [trade]);
-  const additionalData = React.useMemo(() => getAdditionalData(trade), [trade]);
+  const additionalData = React.useMemo(() => getAdditionalData(trade), [getAdditionalData, trade]);
   const { kolWallet, timestamp, id } = trade;
 
   // Get the correct amounts based on trade type
-  const tradeAmounts = React.useMemo(() => getTradeAmounts(tradeData), [tradeData]);
+  const tradeAmounts = React.useMemo(() => {
+    try {
+      return getTradeAmounts(tradeData);
+    } catch (error) {
+      console.error('Error calculating trade amounts:', error, tradeData);
+      return {
+        tokensAmount: 0,
+        solAmount: 0,
+        description: {
+          tokens: 'Tokens',
+          sol: 'SOL'
+        }
+      };
+    }
+  }, [tradeData]);
   
   // Convert fee from lamports to SOL if it exists
   const feeInSol = React.useMemo(() => {
@@ -201,53 +265,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   // Only show prediction for buy trades
   const shouldShowPrediction = prediction && (tradeData.tradeType === 'buy');
 
-  // Debug logging for trade data
-  React.useEffect(() => {
-    void 0 && ('🔍 KOLTradeCard rendered with trade:', {
-      id: trade.id,
-      kolWallet: hasNestedTradeData(trade) ? trade.kolWallet : 'N/A',
-      timestamp: trade.timestamp,
-      hasTradeData: hasNestedTradeData(trade),
-      tradeData: hasNestedTradeData(trade) ? trade.tradeData : 'No nested tradeData',
-      topLevelPrediction: trade.prediction,
-      nestedPrediction: hasNestedTradeData(trade) ? (trade.tradeData as any)?.prediction : 'No nested data',
-      extractedPrediction: prediction,
-      tradeType: tradeData.tradeType,
-      shouldShowPrediction: shouldShowPrediction,
-      predictionReason: !shouldShowPrediction ? 
-        (!prediction ? 'No prediction data - showing skeleton' : 'Not a buy trade (showing skeleton placeholder)') : 
-        'Will show prediction',
-      hasPrediction: !!prediction,
-      predictionDetails: prediction ? {
-        classLabel: prediction.classLabel,
-        probability: prediction.probability,
-        taskType: prediction.taskType,
-        classIndex: prediction.classIndex
-      } : 'No prediction',
-      rawTrade: trade
-    });
 
-    // Additional debug for prediction specifically
-    if (prediction) {
-      void 0 && ('🧠 ML Prediction found:', {
-        classLabel: prediction.classLabel,
-        probability: prediction.probability,
-        probabilityPercentage: (prediction.probability * 100).toFixed(1) + '%',
-        taskType: prediction.taskType,
-        classIndex: prediction.classIndex,
-        tradeType: tradeData.tradeType,
-        shouldShowPrediction: shouldShowPrediction,
-        showReason: shouldShowPrediction ? 'Buy trade - will show' : 'Sell trade - showing skeleton placeholder (buy trades only)',
-        allProbabilities: prediction.probabilities
-      });
-    } else {
-      void 0 && ('❌ No ML prediction found in trade data');
-      void 0 && ('🔍 Checking both locations:', {
-        topLevel: trade.prediction,
-        nested: hasNestedTradeData(trade) ? (trade.tradeData as any)?.prediction : 'No nested data'
-      });
-    }
-  }, [trade, prediction, shouldShowPrediction]);
 
   // Safely convert timestamp to Date object
   const tradeDate = React.useMemo(() => {
@@ -260,22 +278,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     }
   }, [timestamp]);
 
-  // Debug the extracted data
-  React.useEffect(() => {
-    void 0 && ('🔍 Extracted trade data:', {
-      tradeData,
-      tradeAmounts,
-      feeInSol,
-      additionalData,
-      kolWallet,
-      timestamp,
-      tradeDate,
-      id,
-      displayName: hasNestedTradeData(trade) ? 
-        `KOL ${formatWalletAddress(kolWallet)}` : 
-        (trade.kolName || `KOL ${formatWalletAddress(kolWallet)}`)
-    });
-  }, [tradeData, tradeAmounts, feeInSol, additionalData, kolWallet, timestamp, tradeDate, id]);
+
 
   const getInfluenceLevel = (score: number) => {
     if (score >= 80) return { level: 'High', color: 'bg-red-500', textColor: 'text-red-500' };
@@ -354,7 +357,11 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   };
 
   // Helper function to get prediction icon
-  const getPredictionIcon = (classLabel: string) => {
+  const getPredictionIcon = (classLabel: string | undefined | null) => {
+    if (!classLabel) {
+      return <Target className="w-3 h-3" />;
+    }
+    
     switch (classLabel.toLowerCase()) {
       case 'bullish':
       case 'buy':
