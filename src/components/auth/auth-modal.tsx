@@ -13,6 +13,7 @@ import { WalletAuthCompact } from './wallet-auth-compact';
 import OAuthService from '@/services/oauth.service';
 import { SUCCESS_MESSAGES } from '@/lib/constants';
 import AuthService from '@/services/auth.service';
+import { AuthRedirectManager } from '@/lib/auth-redirect';
 
 interface AuthModalProps {
   defaultTab?: 'signin' | 'signup';
@@ -29,8 +30,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
   const isOpen = isModalOpen('auth');
 
   const handleAuthSuccess = () => {
+    // Clear modal opening flag when authentication succeeds
+    AuthRedirectManager.clearModalOpeningFlag();
     closeModal();
     // Additional success handling can be added here
+  };
+
+  const handleModalClose = () => {
+    // Clear modal opening flag when modal is closed
+    AuthRedirectManager.clearModalOpeningFlag();
+    closeModal();
   };
 
   const handleRedirectToLogin = () => {
@@ -301,7 +310,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={closeModal}
+      onClose={handleModalClose}
       title="Welcome to KOL Play"
       description="The ultimate Solana copy trading platform"
       size="lg"

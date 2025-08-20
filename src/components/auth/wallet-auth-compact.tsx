@@ -13,6 +13,7 @@ import {
 } from '@/services/siws-auth.service';
 import { useUserStore } from '@/stores/use-user-store';
 import { useNotifications } from '@/stores/use-ui-store';
+import { AuthRedirectManager } from '@/lib/auth-redirect';
 
 interface WalletAuthCompactProps {
   mode: 'signin' | 'signup' | 'link';
@@ -61,6 +62,15 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
       const error = `${wallet.adapter.name} wallet does not support Sign-in with Solana`;
       onError?.(error);
       showError('Wallet Not Supported', error);
+      return;
+    }
+
+    // Prevent wallet auth during modal opening to avoid infinite loops
+    if (AuthRedirectManager.isModalOpening()) {
+      void 0 && ('🚫 Wallet Auth - Blocked during modal opening to prevent infinite loop');
+      const error = 'Authentication in progress, please wait...';
+      onError?.(error);
+      showError('Authentication In Progress', error);
       return;
     }
 

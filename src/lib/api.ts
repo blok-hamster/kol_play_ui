@@ -20,9 +20,18 @@ class ApiClient {
   }
 
   private setupInterceptors(): void {
-    // Request interceptor to add JWT token
+    // Request interceptor to add JWT token and prevent circular calls
     this.client.interceptors.request.use(
       config => {
+        // Prevent API calls when modal is opening to avoid infinite loops
+        if (AuthRedirectManager.isModalOpening()) {
+          void 0 && ('🚫 API Request - Blocked during modal opening to prevent infinite loop:', config.url);
+          const error = new Error('API call blocked during authentication modal opening') as any;
+          error.config = config;
+          error.isBlocked = true;
+          return Promise.reject(error);
+        }
+
         if (this.token) {
           config.headers.Authorization = `Bearer ${this.token}`;
           void 0 && (
@@ -55,6 +64,12 @@ class ApiClient {
         return response;
       },
       (error: AxiosError) => {
+        // Handle blocked requests gracefully (don't trigger auth errors)
+        if ((error as any).isBlocked) {
+          void 0 && ('🚫 API Request - Request was blocked during modal opening, rejecting silently');
+          return Promise.reject(error);
+        }
+
         if (error.response?.status === 401) {
           // Token expired or invalid - use enhanced clearing
           this.clearAuthenticationState();
@@ -110,6 +125,12 @@ class ApiClient {
 
   private handleAuthenticationError(): void {
     void 0 && ('🚫 API Client - Authentication error detected, clearing token and redirecting');
+    
+    // Check if modal is already opening to prevent infinite loops
+    if (AuthRedirectManager.isModalOpening()) {
+      void 0 && ('🚫 API Client - Modal already opening, skipping redirect to prevent infinite loop');
+      return;
+    }
     
     // Clear authentication state comprehensively
     this.clearAuthenticationState();

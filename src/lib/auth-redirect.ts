@@ -11,10 +11,15 @@ interface RedirectState {
 // Global modal opener function - will be set by the app initialization
 let globalModalOpener: ((modalId: string, data?: any) => void) | null = null;
 
+// Track modal opening state to prevent infinite loops
+let isModalOpening = false;
+let modalOpeningTimeout: NodeJS.Timeout | null = null;
+
 export class AuthRedirectManager {
   private static readonly REDIRECT_STATE_KEY = 'authRedirectState';
   private static readonly PRESERVED_URL_KEY = 'redirectUrl';
   private static readonly REDIRECT_TIMEOUT = 5000; // 5 seconds
+  private static readonly MODAL_OPENING_TIMEOUT = 2000; // 2 seconds to prevent rapid modal opening
   private static readonly EXCLUDED_PATHS = ['/login', '/signup', '/auth', '/oauth'];
 
   /**
@@ -22,6 +27,42 @@ export class AuthRedirectManager {
    */
   static setModalOpener(opener: (modalId: string, data?: any) => void): void {
     globalModalOpener = opener;
+  }
+
+  /**
+   * Check if modal is currently being opened to prevent infinite loops
+   */
+  static isModalOpening(): boolean {
+    return isModalOpening;
+  }
+
+  /**
+   * Set modal opening flag with automatic timeout
+   */
+  private static setModalOpeningFlag(): void {
+    isModalOpening = true;
+    
+    // Clear any existing timeout
+    if (modalOpeningTimeout) {
+      clearTimeout(modalOpeningTimeout);
+    }
+    
+    // Auto-clear the flag after timeout
+    modalOpeningTimeout = setTimeout(() => {
+      isModalOpening = false;
+      modalOpeningTimeout = null;
+    }, this.MODAL_OPENING_TIMEOUT);
+  }
+
+  /**
+   * Clear modal opening flag
+   */
+  static clearModalOpeningFlag(): void {
+    isModalOpening = false;
+    if (modalOpeningTimeout) {
+      clearTimeout(modalOpeningTimeout);
+      modalOpeningTimeout = null;
+    }
   }
 
   /**
@@ -133,8 +174,17 @@ export class AuthRedirectManager {
       return;
     }
 
+    // Check if modal is currently being opened to prevent infinite loops
+    if (this.isModalOpening()) {
+      console.log('🚫 AuthRedirect - Modal opening already in progress, preventing infinite loop');
+      return;
+    }
+
     // Set redirect flag to prevent multiple redirects
     this.setRedirectFlag();
+
+    // Set modal opening flag to prevent circular API calls
+    this.setModalOpeningFlag();
 
     // Preserve current URL if requested and not already on auth-related pages
     if (preserveUrl && !this.isAuthRelatedPage()) {
@@ -143,13 +193,35 @@ export class AuthRedirectManager {
 
     // Open auth modal instead of redirecting to a page
     if (globalModalOpener) {
-      globalModalOpener('auth', { defaultTab: 'signin' });
-      console.log('🔄 AuthRedirect - Opened signin modal');
+      try {
+        globalModalOpener('auth', { defaultTab: 'signin' });
+        console.log('🔄 AuthRedirect - Opened signin modal');
+      } catch (error) {
+        console.error('🚫 AuthRedirect - Error opening modal:', error);
+        this.clearModalOpeningFlag();
+        this.handleModalOpeningFallback();
+      }
     } else {
       console.warn('🚫 AuthRedirect - Modal opener not set, falling back to page redirect');
-      // Fallback to page redirect if modal opener is not available
-      window.location.href = '/';
+      this.clearModalOpeningFlag();
+      this.handleModalOpeningFallback();
     }
+  }
+
+  /**
+   * Handle fallback when modal opening fails
+   */
+  private static handleModalOpeningFallback(): void {
+    // Clear the redirect flag since we're not actually redirecting
+    this.clearRedirectFlag();
+    
+    // Fallback to page redirect if modal opener is not available
+    // Use a small delay to prevent immediate API calls
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    }, 100);
   }
 
   /**
@@ -168,6 +240,9 @@ export class AuthRedirectManager {
   static handleSuccessfulAuth(): void {
     // Clear redirect flag when authentication is successful
     this.clearRedirectFlag();
+    
+    // Clear modal opening flag when authentication is successful
+    this.clearModalOpeningFlag();
     
     // Handle post-login redirect if URL was preserved
     const preservedUrl = this.getPreservedUrl();
@@ -188,6 +263,7 @@ export class AuthRedirectManager {
   static clearAll(): void {
     this.clearRedirectFlag();
     this.clearPreservedUrl();
+    this.clearModalOpeningFlag();
   }
 }
 
