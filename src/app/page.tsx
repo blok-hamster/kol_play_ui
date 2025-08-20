@@ -156,7 +156,7 @@ const HomePage: React.FC = () => {
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => window.open('/kol-trades-demo', '_self')}
+                onClick={() => window.open('/kol-trades', '_self')}
                 className="text-base md:text-lg px-7 md:px-8 py-4"
               >
                 View Live Trades

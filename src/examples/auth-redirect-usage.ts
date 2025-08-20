@@ -1,5 +1,6 @@
 /**
  * Example usage of AuthRedirectManager for authentication error handling
+ * Note: The AuthRedirectManager now opens the auth modal instead of redirecting to /login
  */
 
 import { AuthRedirectManager } from '@/lib/auth-redirect';
@@ -12,10 +13,10 @@ export class ExampleService {
       const response = await apiClient.get('/user/profile');
       return response.data;
     } catch (error: any) {
-      // The API client will automatically handle 403 errors and redirect
-      // But you can also manually trigger redirects if needed
+      // The API client will automatically handle 403 errors and open auth modal
+      // But you can also manually trigger the auth modal if needed
       if (error.response?.status === 403) {
-        console.log('Access denied - redirecting to signin');
+        console.log('Access denied - opening signin modal');
         // This is already handled by the API client, but shown for example
         AuthRedirectManager.redirectToSignin(true);
       }
@@ -62,15 +63,13 @@ export class AuthService {
   }
 }
 
-// Example 3: Manual URL preservation (if needed outside of automatic handling)
+// Example 3: Manual URL preservation and auth modal opening
 export function preserveCurrentPageForLogin() {
   // This is automatically handled by the API client, but can be called manually if needed
   AuthRedirectManager.preserveCurrentUrl();
   
-  // Then redirect to login
-  if (typeof window !== 'undefined') {
-    window.location.href = '/login';
-  }
+  // Then open auth modal (this will also preserve URL automatically)
+  AuthRedirectManager.redirectToSignin(true);
 }
 
 // Example 4: Check if redirect is in progress (useful for UI state)
@@ -86,4 +85,26 @@ export function getPreservedRedirectUrl(): string | null {
 // Example 6: Clear all redirect data (useful for cleanup)
 export function clearAuthRedirectData() {
   AuthRedirectManager.clearAll();
+}
+
+// Example 7: Setting up AuthRedirectManager in your app (should be done in root layout or app component)
+export function setupAuthRedirectInApp() {
+  // This should be done in your root component using the useAuthRedirectSetup hook
+  // 
+  // import { useAuthRedirectSetup } from '@/hooks/use-auth-redirect-setup';
+  // 
+  // function RootLayout() {
+  //   useAuthRedirectSetup(); // This sets up the modal opener
+  //   return <YourAppContent />;
+  // }
+}
+
+// Example 8: Manual modal opener setup (alternative to using the hook)
+import { useModal } from '@/stores/use-ui-store';
+
+export function manualSetupAuthRedirect() {
+  const { openModal } = useModal();
+  
+  // Set up the modal opener manually
+  AuthRedirectManager.setModalOpener(openModal);
 }

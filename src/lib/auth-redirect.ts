@@ -8,11 +8,21 @@ interface RedirectState {
   timestamp: number;
 }
 
+// Global modal opener function - will be set by the app initialization
+let globalModalOpener: ((modalId: string, data?: any) => void) | null = null;
+
 export class AuthRedirectManager {
   private static readonly REDIRECT_STATE_KEY = 'authRedirectState';
   private static readonly PRESERVED_URL_KEY = 'redirectUrl';
   private static readonly REDIRECT_TIMEOUT = 5000; // 5 seconds
   private static readonly EXCLUDED_PATHS = ['/login', '/signup', '/auth', '/oauth'];
+
+  /**
+   * Set the global modal opener function (should be called during app initialization)
+   */
+  static setModalOpener(opener: (modalId: string, data?: any) => void): void {
+    globalModalOpener = opener;
+  }
 
   /**
    * Check if a redirect is currently in progress
@@ -112,7 +122,7 @@ export class AuthRedirectManager {
   }
 
   /**
-   * Redirect to signin page with optional URL preservation
+   * Show signin modal with optional URL preservation
    */
   static redirectToSignin(preserveUrl: boolean = true): void {
     if (typeof window === 'undefined') return;
@@ -126,13 +136,30 @@ export class AuthRedirectManager {
     // Set redirect flag to prevent multiple redirects
     this.setRedirectFlag();
 
-    // Preserve current URL if requested and not already on signin page
-    if (preserveUrl && !window.location.pathname.includes('/login')) {
+    // Preserve current URL if requested and not already on auth-related pages
+    if (preserveUrl && !this.isAuthRelatedPage()) {
       this.preserveCurrentUrl();
     }
 
-    // Redirect to signin page
-    window.location.href = '/login';
+    // Open auth modal instead of redirecting to a page
+    if (globalModalOpener) {
+      globalModalOpener('auth', { defaultTab: 'signin' });
+      console.log('🔄 AuthRedirect - Opened signin modal');
+    } else {
+      console.warn('🚫 AuthRedirect - Modal opener not set, falling back to page redirect');
+      // Fallback to page redirect if modal opener is not available
+      window.location.href = '/';
+    }
+  }
+
+  /**
+   * Check if current page is auth-related and shouldn't be preserved
+   */
+  private static isAuthRelatedPage(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    const currentPath = window.location.pathname;
+    return this.EXCLUDED_PATHS.some(path => currentPath.startsWith(path));
   }
 
   /**
@@ -147,7 +174,11 @@ export class AuthRedirectManager {
     if (preservedUrl && typeof window !== 'undefined') {
       this.clearPreservedUrl();
       console.log('🔄 AuthRedirect - Redirecting to preserved URL:', preservedUrl);
-      window.location.href = preservedUrl;
+      
+      // Use a small delay to ensure the modal closes first
+      setTimeout(() => {
+        window.location.href = preservedUrl;
+      }, 100);
     }
   }
 

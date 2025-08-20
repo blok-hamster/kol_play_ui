@@ -88,25 +88,45 @@ describe('AuthRedirectManager', () => {
     });
   });
 
-  describe('redirect prevention logic', () => {
-    it('should prevent redirect when already redirecting', () => {
+  describe('modal opening logic', () => {
+    it('should prevent modal opening when already redirecting', () => {
       AuthRedirectManager.setRedirectFlag();
       
-      // Mock window.location to track if redirect was attempted
-      const mockLocation = { href: '' };
+      // Mock modal opener
+      const mockModalOpener = jest.fn();
+      AuthRedirectManager.setModalOpener(mockModalOpener);
+      
+      AuthRedirectManager.redirectToSignin(true);
+      
+      // Should not have called modal opener since redirect was prevented
+      expect(mockModalOpener).not.toHaveBeenCalled();
+    });
+
+    it('should open auth modal when not already redirecting', () => {
+      // Mock window.location for pathname check
+      const mockLocation = { 
+        pathname: '/dashboard'
+      };
       Object.defineProperty(window, 'location', {
         value: mockLocation,
         writable: true
       });
       
-      AuthRedirectManager.redirectToSignin(true);
+      // Mock modal opener
+      const mockModalOpener = jest.fn();
+      AuthRedirectManager.setModalOpener(mockModalOpener);
       
-      // Should not have changed href since redirect was prevented
-      expect(mockLocation.href).toBe('');
+      AuthRedirectManager.redirectToSignin(false);
+      
+      expect(mockModalOpener).toHaveBeenCalledWith('auth', { defaultTab: 'signin' });
+      expect(AuthRedirectManager.isRedirecting()).toBe(true);
     });
 
-    it('should allow redirect when not already redirecting', () => {
-      // Mock window.location to track redirect
+    it('should fallback to page redirect when modal opener is not set', () => {
+      // Clear modal opener
+      AuthRedirectManager.setModalOpener(null as any);
+      
+      // Mock window.location to track fallback redirect
       const mockLocation = { 
         href: '',
         pathname: '/dashboard'
@@ -118,13 +138,23 @@ describe('AuthRedirectManager', () => {
       
       AuthRedirectManager.redirectToSignin(false);
       
-      expect(mockLocation.href).toBe('/login');
+      expect(mockLocation.href).toBe('/');
       expect(AuthRedirectManager.isRedirecting()).toBe(true);
     });
   });
 
   describe('handleSuccessfulAuth', () => {
-    it('should clear redirect flag and redirect to preserved URL', () => {
+    beforeEach(() => {
+      // Clear any existing timers
+      jest.clearAllTimers();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should clear redirect flag and redirect to preserved URL with delay', () => {
       // Set up initial state
       AuthRedirectManager.setRedirectFlag();
       const testUrl = '/dashboard?tab=overview';
@@ -145,6 +175,13 @@ describe('AuthRedirectManager', () => {
       
       expect(AuthRedirectManager.isRedirecting()).toBe(false);
       expect(AuthRedirectManager.getPreservedUrl()).toBeNull();
+      
+      // Initially no redirect should have occurred
+      expect(mockLocation.href).toBe('');
+      
+      // Fast-forward the timer to trigger the delayed redirect
+      jest.advanceTimersByTime(100);
+      
       expect(mockLocation.href).toBe(testUrl);
     });
 
@@ -163,6 +200,10 @@ describe('AuthRedirectManager', () => {
       AuthRedirectManager.handleSuccessfulAuth();
       
       expect(AuthRedirectManager.isRedirecting()).toBe(false);
+      
+      // Fast-forward timers to ensure no delayed redirect occurs
+      jest.advanceTimersByTime(200);
+      
       expect(mockLocation.href).toBe(''); // No redirect occurred
     });
   });

@@ -7,7 +7,14 @@ import { cn, formatWalletAddress } from '@/lib/utils';
 import { useTokenSearch } from '@/stores/use-token-store';
 import { useNotifications } from '@/stores/use-ui-store';
 import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
+import { 
+  transformSearchResultToTokenDetail, 
+  validateSearchResult,
+  type TokenDetailData 
+} from '@/lib/token-data-utils';
 import TokenDetailModal from './token-detail-modal';
+import SimpleTestModal from './simple-test-modal';
+import TokenModalErrorBoundary from '../error-boundaries/token-modal-error-boundary';
 import KOLTradesModal from '../trading/kol-trades-modal';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 import { TokenService } from '@/services/token.service';
@@ -50,18 +57,14 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
     []
   );
 
-  // Modal states
-  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
-  const [selectedToken, setSelectedToken] = useState<any | null>(null);
-  const [isKOLModalOpen, setIsKOLModalOpen] = useState(false);
-  const [selectedKOLAddress, setSelectedKOLAddress] = useState<string | null>(
-    null
-  );
-  const [selectedKOLData, setSelectedKOLData] = useState<any | null>(null);
+  // Simplified modal states
+  const [modals, setModals] = useState({
+    token: { isOpen: false, data: null as TokenDetailData | null },
+    kol: { isOpen: false, address: null as string | null, data: null as any },
+    tradeConfig: { isOpen: false, pendingToken: null as SearchTokenResult | null }
+  });
 
-  // Trade config prompt state
-  const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
-  const [pendingBuyToken, setPendingBuyToken] = useState<SearchTokenResult | null>(null);
+
 
   // Instant buy loading state
   const [buyingTokens, setBuyingTokens] = useState<Set<string>>(new Set());
@@ -69,6 +72,108 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // Modal opening helper functions
+  const openTokenModal = useCallback((token: SearchTokenResult) => {
+    try {
+      console.log('🔍 Opening token modal for:', token.symbol || token.name);
+      
+      // Validate the search result before transformation
+      const validation = validateSearchResult(token);
+      
+      if (!validation.isValid) {
+        console.warn('Invalid token data:', validation.missingFields);
+        showError(
+          'Invalid Token Data',
+          `Cannot open token details: ${validation.missingFields.join(', ')} missing`
+        );
+        return false;
+      }
+
+      // Log warnings but continue
+      if (validation.warnings.length > 0) {
+        console.warn('Token data warnings:', validation.warnings);
+      }
+
+      // Transform search result to modal format
+      const tokenDetailData = transformSearchResultToTokenDetail(token);
+      console.log('📊 Transformed token data:', tokenDetailData);
+      
+      // Update modal state
+      setModals(prev => {
+        const newState = {
+          ...prev,
+          token: { isOpen: true, data: tokenDetailData }
+        };
+        console.log('🎯 Setting modal state:', newState);
+        return newState;
+      });
+      
+      console.log('✅ Token modal should now be open');
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to open token modal:', error);
+      showError(
+        'Modal Error',
+        error instanceof Error ? error.message : 'Failed to open token details'
+      );
+      return false;
+    }
+  }, [showError]);
+
+  const openKOLModal = useCallback((address: AddressSearchResult) => {
+    try {
+      if (!address.address) {
+        throw new Error('Address is required');
+      }
+
+      // Create KOL data object
+      const kolData = {
+        id: address.address,
+        walletAddress: address.address,
+        name: address.displayName,
+        description: address.description,
+        totalTrades: address.totalTransactions || 0,
+        winRate: 0, // Will be calculated by the modal
+        totalPnL: 0, // Will be calculated by the modal
+        subscriberCount: 0,
+        isActive: address.verified || true,
+        avatar: undefined,
+      };
+
+      setModals(prev => ({
+        ...prev,
+        kol: { isOpen: true, address: address.address, data: kolData }
+      }));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to open KOL modal:', error);
+      showError(
+        'Modal Error',
+        error instanceof Error ? error.message : 'Failed to open KOL details'
+      );
+      return false;
+    }
+  }, [showError]);
+
+  const openTradeConfigPrompt = useCallback((token: SearchTokenResult) => {
+    setModals(prev => ({
+      ...prev,
+      tradeConfig: { isOpen: true, pendingToken: token }
+    }));
+  }, []);
+
+  const closeModal = useCallback((modalType: 'token' | 'kol' | 'tradeConfig') => {
+    setModals(prev => ({
+      ...prev,
+      [modalType]: modalType === 'token' 
+        ? { isOpen: false, data: null }
+        : modalType === 'kol'
+        ? { isOpen: false, address: null, data: null }
+        : { isOpen: false, pendingToken: null }
+    }));
+  }, []);
 
   // Debounced search function
   const performSearch = useCallback(
@@ -163,7 +268,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
         case 'Enter':
           e.preventDefault();
           if (selectedIndex >= 0 && selectedIndex < unifiedResults.length) {
-            handleResultSelect(unifiedResults[selectedIndex]);
+            handleResultSelect(unifiedResults[selectedIndex], e as any);
           }
           break;
         case 'Escape':
@@ -181,159 +286,77 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
 
   // Handle result selection
   const handleResultSelect = useCallback(
-    (result: UnifiedSearchResult) => {
-      if (result.type === 'token') {
-        const token = result.data as SearchTokenResult;
-        if (onTokenSelect) {
-          onTokenSelect(token);
-          setIsOpen(false);
-          setLocalQuery(token.symbol || token.name || '');
-        } else {
-          // Convert Token to TokenDetailData format for modal
-          const tokenDetailData = {
-            token: {
-              name: token.name || token.symbol || 'Unknown Token',
-              symbol: token.symbol || 'N/A',
-              mint: token.mint,
-              uri: (token as any).uri,
-              decimals: 6,
-              hasFileMetaData: true,
-              createdOn: 'pump.fun',
-              description:
-                (token as any).description || 'No description available',
-              image: token.logoURI || token.image,
-              showName: true,
-              twitter: (token as any).twitter,
-              creation: undefined,
-            },
-            pools: [
-              {
-                liquidity: {
-                  quote: Math.random() * 10000,
-                  usd: token.marketCapUsd || Math.random() * 1000000,
-                },
-                price: {
-                  quote: Math.random() * 0.001,
-                  usd: token.priceUsd || Math.random() * 10,
-                },
-                tokenSupply: Math.floor(Math.random() * 1000000000),
-                lpBurn: Math.floor(Math.random() * 100),
-                tokenAddress: token.mint,
-                marketCap: {
-                  quote: Math.random() * 100000,
-                  usd: token.marketCapUsd || Math.random() * 100000000,
-                },
-                decimals: 6,
-                security: {
-                  freezeAuthority: null,
-                  mintAuthority: null,
-                },
-                quoteToken: 'So11111111111111111111111111111111111111112',
-                market: 'pumpfun-amm',
-                lastUpdated: Date.now(),
-                createdAt: Date.now(),
-                txns: {
-                  buys: Math.floor(Math.random() * 100000),
-                  sells: Math.floor(Math.random() * 90000),
-                  total: Math.floor(Math.random() * 200000),
-                  volume: Math.floor(Math.random() * 1000000),
-                  volume24h: Math.floor(Math.random() * 500000),
-                },
-                deployer: 'Unknown',
-                poolId: 'Unknown',
-              },
-            ],
-            events: {
-              '1m': { priceChangePercentage: (Math.random() - 0.5) * 10 },
-              '5m': { priceChangePercentage: (Math.random() - 0.5) * 15 },
-              '15m': { priceChangePercentage: (Math.random() - 0.5) * 20 },
-              '30m': { priceChangePercentage: (Math.random() - 0.5) * 25 },
-              '1h': { priceChangePercentage: (Math.random() - 0.5) * 30 },
-              '2h': { priceChangePercentage: (Math.random() - 0.5) * 35 },
-              '3h': { priceChangePercentage: (Math.random() - 0.5) * 40 },
-              '4h': { priceChangePercentage: (Math.random() - 0.5) * 45 },
-              '5h': { priceChangePercentage: (Math.random() - 0.5) * 50 },
-              '6h': { priceChangePercentage: (Math.random() - 0.5) * 55 },
-              '12h': { priceChangePercentage: (Math.random() - 0.5) * 60 },
-              '24h': { priceChangePercentage: (Math.random() - 0.5) * 80 },
-            },
-            risk: {
-              snipers: {
-                count: 0,
-                totalBalance: 0,
-                totalPercentage: 0,
-                wallets: [],
-              },
-              insiders: {
-                count: 0,
-                totalBalance: 0,
-                totalPercentage: 0,
-                wallets: [],
-              },
-              rugged: false,
-              risks: [],
-              score: Math.floor(Math.random() * 10),
-              jupiterVerified: token.verified || false,
-            },
-            buysCount: Math.floor(Math.random() * 10000),
-            sellsCount: Math.floor(Math.random() * 8000),
-          };
-
-          setSelectedToken(tokenDetailData);
-          setIsTokenModalOpen(true);
-          setIsOpen(false);
-          setLocalQuery(token.symbol || token.name || '');
+    (result: UnifiedSearchResult, event?: React.MouseEvent) => {
+      try {
+        // Prevent any potential event conflicts
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
         }
-      } else if (result.type === 'address') {
-        const address = result.data as AddressSearchResult;
 
-        if (onAddressSelect) {
-          onAddressSelect(address);
-          setIsOpen(false);
-          setLocalQuery(formatWalletAddress(address.address));
-        } else {
-          // Check if it's a KOL address
-          if (address.isKOL) {
-            // Create a KOL object from the search result data
-            const kolData = {
-              id: address.address, // Use address as ID
-              walletAddress: address.address,
-              name: address.displayName,
-              description: address.description,
-              totalTrades: address.totalTransactions || 0,
-              winRate: 0, // Will be calculated by the modal
-              totalPnL: 0, // Will be calculated by the modal
-              subscriberCount: 0,
-              isActive: address.verified || true,
-              avatar: undefined, // No avatar from search
-            };
-
-            // Show KOL trades modal
-            setSelectedKOLAddress(address.address);
-            setSelectedKOLData(kolData);
-            setIsKOLModalOpen(true);
+        if (result.type === 'token') {
+          const token = result.data as SearchTokenResult;
+          
+          if (onTokenSelect) {
+            // External handler provided - use it
+            onTokenSelect(token);
             setIsOpen(false);
-            setLocalQuery(
-              address.displayName || formatWalletAddress(address.address)
-            );
+            setLocalQuery(token.symbol || token.name || '');
           } else {
-            // Default behavior: open address in explorer
-            window.open(
-              `https://solscan.io/account/${address.address}`,
-              '_blank'
-            );
+            // No external handler - open modal
+            const success = openTokenModal(token);
+            if (success) {
+              setIsOpen(false);
+              setLocalQuery(token.symbol || token.name || '');
+            } else {
+              console.error('Failed to open token modal');
+            }
+          }
+        } else if (result.type === 'address') {
+          const address = result.data as AddressSearchResult;
+
+          if (onAddressSelect) {
+            // External handler provided - use it
+            onAddressSelect(address);
             setIsOpen(false);
             setLocalQuery(formatWalletAddress(address.address));
+          } else {
+            // No external handler - handle based on address type
+            if (address.isKOL) {
+              const success = openKOLModal(address);
+              if (success) {
+                setIsOpen(false);
+                setLocalQuery(
+                  address.displayName || formatWalletAddress(address.address)
+                );
+              }
+            } else {
+              // Default behavior: open address in explorer
+              window.open(
+                `https://solscan.io/account/${address.address}`,
+                '_blank'
+              );
+              setIsOpen(false);
+              setLocalQuery(formatWalletAddress(address.address));
+            }
           }
         }
+      } catch (error) {
+        console.error('Error in handleResultSelect:', error);
+        showError(
+          'Selection Error',
+          error instanceof Error ? error.message : 'Failed to handle selection'
+        );
       }
     },
-    [onTokenSelect, onAddressSelect]
+    [onTokenSelect, onAddressSelect, openTokenModal, openKOLModal, showError]
   );
 
   // Handle instant buy
   const handleInstantBuy = useCallback(
     async (token: SearchTokenResult, e: React.MouseEvent) => {
+      // Prevent event propagation to parent click handlers
+      e.preventDefault();
       e.stopPropagation();
 
       // Check if already buying this token
@@ -347,8 +370,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
         
         if (!configCheck.hasConfig) {
           // Show trade config prompt
-          setPendingBuyToken(token);
-          setShowTradeConfigPrompt(true);
+          openTradeConfigPrompt(token);
           return;
         }
 
@@ -393,14 +415,13 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
         });
       }
     },
-    [buyingTokens, showError, showSuccess]
+    [buyingTokens, showError, showSuccess, openTradeConfigPrompt]
   );
 
   // Handle trade config prompt close
   const handleTradeConfigPromptClose = useCallback(() => {
-    setShowTradeConfigPrompt(false);
-    setPendingBuyToken(null);
-  }, []);
+    closeModal('tradeConfig');
+  }, [closeModal]);
 
   // Render search result item
   const renderResultItem = useCallback(
@@ -414,13 +435,27 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
         return (
           <div
             key={`token-${token.mint}`}
+            role="button"
+            tabIndex={0}
             className={cn(
               'flex items-center justify-between p-3 cursor-pointer transition-colors',
               isSelected
                 ? 'bg-blue-50 dark:bg-blue-900/20'
                 : 'hover:bg-gray-50 dark:hover:bg-gray-700'
             )}
-            onClick={() => handleResultSelect(result)}
+            onClick={(e) => handleResultSelect(result, e)}
+            onTouchEnd={(e) => {
+              // Handle touch devices - prevent double firing with onClick
+              if (e.cancelable) {
+                e.preventDefault();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleResultSelect(result, e as any);
+              }
+            }}
             onMouseEnter={() => setSelectedIndex(index)}
           >
             <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -520,13 +555,27 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
         return (
           <div
             key={`address-${address.address}`}
+            role="button"
+            tabIndex={0}
             className={cn(
               'flex items-center justify-between p-3 cursor-pointer transition-colors',
               isSelected
                 ? 'bg-green-50 dark:bg-green-900/20'
                 : 'hover:bg-gray-50 dark:hover:bg-gray-700'
             )}
-            onClick={() => handleResultSelect(result)}
+            onClick={(e) => handleResultSelect(result, e)}
+            onTouchEnd={(e) => {
+              // Handle touch devices - prevent double firing with onClick
+              if (e.cancelable) {
+                e.preventDefault();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleResultSelect(result, e as any);
+              }
+            }}
             onMouseEnter={() => setSelectedIndex(index)}
           >
             <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -650,34 +699,51 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
                     found.
                   </p>
                 )}
+
             </div>
           )}
       </div>
 
       {/* Token Detail Modal */}
-      {selectedToken && !onTokenSelect && (
-        <TokenDetailModal
-          isOpen={isTokenModalOpen}
-          onClose={() => setIsTokenModalOpen(false)}
-          tokenData={selectedToken}
-        />
-      )}
+      {(() => {
+        const shouldRender = modals.token.data && !onTokenSelect;
+        console.log('🎭 Modal render check:', {
+          hasTokenData: !!modals.token.data,
+          isOpen: modals.token.isOpen,
+          hasOnTokenSelect: !!onTokenSelect,
+          shouldRender,
+          tokenName: modals.token.data?.token?.name || modals.token.data?.token?.symbol
+        });
+        
+        return shouldRender ? (
+          <TokenModalErrorBoundary
+            onClose={() => closeModal('token')}
+            fallbackTitle="Token Details Error"
+          >
+            <TokenDetailModal
+              isOpen={modals.token.isOpen}
+              onClose={() => closeModal('token')}
+              tokenData={modals.token.data}
+            />
+          </TokenModalErrorBoundary>
+        ) : null;
+      })()}
 
       {/* KOL Trades Modal */}
-      {selectedKOLAddress && !onAddressSelect && (
+      {modals.kol.address && !onAddressSelect && (
         <KOLTradesModal
-          isOpen={isKOLModalOpen}
-          onClose={() => setIsKOLModalOpen(false)}
-          walletAddress={selectedKOLAddress}
-          kol={selectedKOLData}
+          isOpen={modals.kol.isOpen}
+          onClose={() => closeModal('kol')}
+          walletAddress={modals.kol.address}
+          kol={modals.kol.data}
         />
       )}
 
       {/* Trade Config Prompt */}
       <TradeConfigPrompt
-        isOpen={showTradeConfigPrompt}
+        isOpen={modals.tradeConfig.isOpen}
         onClose={handleTradeConfigPromptClose}
-        tokenSymbol={pendingBuyToken?.symbol || pendingBuyToken?.name}
+        tokenSymbol={modals.tradeConfig.pendingToken?.symbol || modals.tradeConfig.pendingToken?.name}
       />
     </>
   );
