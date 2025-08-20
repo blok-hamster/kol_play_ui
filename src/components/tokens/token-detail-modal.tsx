@@ -224,13 +224,11 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   
   // Validate essential token data
   if (!token) {
-    console.error('TokenDetailModal: No token data provided');
     return null;
   }
 
   // Ensure we have at least a mint address or symbol
   if (!token.mint && !token.symbol) {
-    console.error('TokenDetailModal: Token must have either mint address or symbol');
     return null;
   }
   
@@ -326,7 +324,6 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
           }));
         }
       } catch (error) {
-        console.warn('Error fetching DexScreener data:', error);
         if (!cancelled) {
           setLocalErrors(prev => ({ 
             ...prev, 
@@ -389,13 +386,12 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
 
         // Optional: Show transaction details
         if (result.result?.transactionId) {
-          console.log('Transaction ID:', result.result.transactionId);
+          // Transaction completed successfully
         }
       } else {
         showError('Buy Order Failed', result.error || 'Failed to execute buy order');
       }
     } catch (error: any) {
-      console.error('Buy order error:', error);
       showError('Buy Order Error', error.message || 'An unexpected error occurred during the trade');
     } finally {
       setIsBuying(false);
@@ -679,7 +675,6 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                   allow="clipboard-write; encrypted-media"
                   aria-label={`Interactive price chart showing trading data for ${token.symbol || token.name || 'token'}`}
                   onError={() => {
-                    console.warn('Chart iframe failed to load');
                     setLocalErrors(prev => ({ 
                       ...prev, 
                       chart: 'Chart failed to load. Please try again.' 

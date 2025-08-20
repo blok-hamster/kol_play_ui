@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Search, ExternalLink, User, Coins, Loader2 } from 'lucide-react';
 import { cn, formatWalletAddress } from '@/lib/utils';
 import { useTokenSearch } from '@/stores/use-token-store';
@@ -71,18 +70,14 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   // Modal opening helper functions
   const openTokenModal = useCallback((token: SearchTokenResult) => {
     try {
-      console.log('🔍 Opening token modal for:', token.symbol || token.name);
-      
       // Validate the search result before transformation
       const validation = validateSearchResult(token);
       
       if (!validation.isValid) {
-        console.warn('Invalid token data:', validation.missingFields);
         showError(
           'Invalid Token Data',
           `Cannot open token details: ${validation.missingFields.join(', ')} missing`
@@ -90,29 +85,17 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
         return false;
       }
 
-      // Log warnings but continue
-      if (validation.warnings.length > 0) {
-        console.warn('Token data warnings:', validation.warnings);
-      }
-
       // Transform search result to modal format
       const tokenDetailData = transformSearchResultToTokenDetail(token);
-      console.log('📊 Transformed token data:', tokenDetailData);
       
       // Update modal state
-      setModals(prev => {
-        const newState = {
-          ...prev,
-          token: { isOpen: true, data: tokenDetailData }
-        };
-        console.log('🎯 Setting modal state:', newState);
-        return newState;
-      });
+      setModals(prev => ({
+        ...prev,
+        token: { isOpen: true, data: tokenDetailData }
+      }));
       
-      console.log('✅ Token modal should now be open');
       return true;
     } catch (error) {
-      console.error('❌ Failed to open token modal:', error);
       showError(
         'Modal Error',
         error instanceof Error ? error.message : 'Failed to open token details'
@@ -148,7 +131,6 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
       
       return true;
     } catch (error) {
-      console.error('Failed to open KOL modal:', error);
       showError(
         'Modal Error',
         error instanceof Error ? error.message : 'Failed to open KOL details'
@@ -226,7 +208,6 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
           setUnifiedResults(unifiedResults);
         }
       } catch (error) {
-        console.error('Search failed:', error);
         setUnifiedResults([]);
       } finally {
         setIsSearching(false);
@@ -332,17 +313,21 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
               }
             } else {
               // Default behavior: open address in explorer
-              window.open(
-                `https://solscan.io/account/${address.address}`,
-                '_blank'
-              );
+              try {
+                window.open(
+                  `https://solscan.io/account/${address.address}`,
+                  '_blank',
+                  'noopener,noreferrer'
+                );
+              } catch (error) {
+                // Fallback if window.open fails
+              }
               setIsOpen(false);
               setLocalQuery(formatWalletAddress(address.address));
             }
           }
         }
       } catch (error) {
-        console.error('Error in handleResultSelect:', error);
         showError(
           'Selection Error',
           error instanceof Error ? error.message : 'Failed to handle selection'
@@ -392,7 +377,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
 
           // Optional: Show transaction details
           if (result.result?.transactionId) {
-            void 0 && ('Transaction ID:', result.result.transactionId);
+            // Transaction completed successfully
           }
         } else {
           showError(
@@ -401,7 +386,6 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
           );
         }
       } catch (error: any) {
-        console.error('Buy order error:', error);
         showError(
           'Buy Order Error',
           error.message || 'An unexpected error occurred'
@@ -443,7 +427,11 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
                 ? 'bg-blue-50 dark:bg-blue-900/20'
                 : 'hover:bg-gray-50 dark:hover:bg-gray-700'
             )}
-            onClick={(e) => handleResultSelect(result, e)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleResultSelect(result, e);
+            }}
             onTouchEnd={(e) => {
               // Handle touch devices - prevent double firing with onClick
               if (e.cancelable) {
@@ -453,6 +441,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                e.stopPropagation();
                 handleResultSelect(result, e as any);
               }
             }}
@@ -563,7 +552,11 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
                 ? 'bg-green-50 dark:bg-green-900/20'
                 : 'hover:bg-gray-50 dark:hover:bg-gray-700'
             )}
-            onClick={(e) => handleResultSelect(result, e)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleResultSelect(result, e);
+            }}
             onTouchEnd={(e) => {
               // Handle touch devices - prevent double firing with onClick
               if (e.cancelable) {
@@ -573,6 +566,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                e.stopPropagation();
                 handleResultSelect(result, e as any);
               }
             }}
@@ -656,6 +650,12 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
             type="text"
             value={localQuery}
             onChange={e => setLocalQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
             placeholder={placeholder}
             className="w-full px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
@@ -705,29 +705,18 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
       </div>
 
       {/* Token Detail Modal */}
-      {(() => {
-        const shouldRender = modals.token.data && !onTokenSelect;
-        console.log('🎭 Modal render check:', {
-          hasTokenData: !!modals.token.data,
-          isOpen: modals.token.isOpen,
-          hasOnTokenSelect: !!onTokenSelect,
-          shouldRender,
-          tokenName: modals.token.data?.token?.name || modals.token.data?.token?.symbol
-        });
-        
-        return shouldRender ? (
-          <TokenModalErrorBoundary
+      {modals.token.data && !onTokenSelect && (
+        <TokenModalErrorBoundary
+          onClose={() => closeModal('token')}
+          fallbackTitle="Token Details Error"
+        >
+          <TokenDetailModal
+            isOpen={modals.token.isOpen}
             onClose={() => closeModal('token')}
-            fallbackTitle="Token Details Error"
-          >
-            <TokenDetailModal
-              isOpen={modals.token.isOpen}
-              onClose={() => closeModal('token')}
-              tokenData={modals.token.data}
-            />
-          </TokenModalErrorBoundary>
-        ) : null;
-      })()}
+            tokenData={modals.token.data}
+          />
+        </TokenModalErrorBoundary>
+      )}
 
       {/* KOL Trades Modal */}
       {modals.kol.address && !onAddressSelect && (
