@@ -192,20 +192,20 @@ export class AuthRedirectManager {
     }
 
     // Open auth modal instead of redirecting to a page
-    if (globalModalOpener) {
-      try {
-        globalModalOpener('auth', { defaultTab: 'signin' });
-        console.log('🔄 AuthRedirect - Opened signin modal');
-      } catch (error) {
-        console.error('🚫 AuthRedirect - Error opening modal:', error);
-        this.clearModalOpeningFlag();
-        this.handleModalOpeningFallback();
-      }
-    } else {
-      console.warn('🚫 AuthRedirect - Modal opener not set, falling back to page redirect');
-      this.clearModalOpeningFlag();
-      this.handleModalOpeningFallback();
-    }
+    // if (globalModalOpener) {
+    //   try {
+    //     globalModalOpener('auth', { defaultTab: 'signin' });
+    //     console.log('🔄 AuthRedirect - Opened signin modal');
+    //   } catch (error) {
+    //     console.error('🚫 AuthRedirect - Error opening modal:', error);
+    //     this.clearModalOpeningFlag();
+    //     this.handleModalOpeningFallback();
+    //   }
+    // } else {
+    //   console.warn('🚫 AuthRedirect - Modal opener not set, falling back to page redirect');
+    //   this.clearModalOpeningFlag();
+    //   this.handleModalOpeningFallback();
+    // }
   }
 
   /**
