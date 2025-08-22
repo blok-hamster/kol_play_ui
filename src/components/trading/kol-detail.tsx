@@ -570,7 +570,19 @@ export default function KOLDetail({
           }),
         };
 
-        const response = await TradingService.getRecentKOLTrades(request);
+        // Check if requests should be blocked due to authentication
+        const { requestManager } = await import('@/lib/request-manager');
+        if (requestManager.shouldBlockRequest()) {
+          console.log('🚫 KOL Detail - Fetch blocked during authentication');
+          return;
+        }
+
+        // Use authenticated request wrapper
+        const { authenticatedRequest } = await import('@/lib/request-manager');
+        const response = await authenticatedRequest(
+          () => TradingService.getRecentKOLTrades(request),
+          { priority: 'medium', timeout: 15000 }
+        );
 
         if (currentFilters.page === 1) {
           setTradeHistory(response.data);

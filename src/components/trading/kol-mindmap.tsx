@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
 import { useResponsiveOptimizedMindmap } from '@/hooks/use-responsive-optimized-mindmap';
 import { UnifiedNode } from '@/lib/mindmap-renderer';
+import { useSubscriptions } from '@/stores/use-trading-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,8 @@ import {
   Smartphone,
   Tablet,
   Monitor,
+  Users,
+  UserCheck,
 } from 'lucide-react';
 
 // Interfaces moved to mindmap-renderer.ts for consistency
@@ -39,17 +42,52 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { allMindmapData, isConnected } = useKOLTradeSocket();
+  const { isSubscribedToKOL, subscriptions } = useSubscriptions();
   const [selectedNode, setSelectedNode] = useState<UnifiedNode | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [showUpdateAlert, setShowUpdateAlert] = useState(false);
   const [previousDataHash, setPreviousDataHash] = useState<string>('');
+  const [showSubscribedOnly, setShowSubscribedOnly] = useState(false);
 
   const data = allMindmapData[tokenMint];
 
-  // Prepare data for responsive renderer
+  // Prepare data for responsive renderer with subscription filtering
   const tokensData = useMemo(() => {
-    return data ? { [tokenMint]: data } : {};
-  }, [data, tokenMint]);
+    if (!data) return {};
+
+    // If showing subscribed only, filter KOL connections
+    if (showSubscribedOnly) {
+      const filteredKolConnections: typeof data.kolConnections = {};
+      
+      // Only include KOLs that the user is subscribed to
+      Object.entries(data.kolConnections || {}).forEach(([kolWallet, kolData]) => {
+        if (isSubscribedToKOL(kolWallet)) {
+          filteredKolConnections[kolWallet] = kolData;
+        }
+      });
+
+      // If no subscribed KOLs found, return empty data
+      if (Object.keys(filteredKolConnections).length === 0) {
+        return {};
+      }
+
+      // Return filtered data
+      return {
+        [tokenMint]: {
+          ...data,
+          kolConnections: filteredKolConnections,
+          networkMetrics: {
+            ...data.networkMetrics,
+            totalTrades: Object.values(filteredKolConnections).reduce(
+              (sum, kol) => sum + kol.tradeCount, 0
+            ),
+          },
+        },
+      };
+    }
+
+    return { [tokenMint]: data };
+  }, [data, tokenMint, showSubscribedOnly, isSubscribedToKOL]);
 
   // Use responsive optimized mindmap hook
   const {
@@ -134,6 +172,10 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
     resetZoom: handleResetZoom,
   } = controls;
 
+  // Check if we have any data to show
+  const hasData = Object.keys(tokensData).length > 0;
+  const subscribedKOLCount = data ? Object.keys(data.kolConnections || {}).filter(kolWallet => isSubscribedToKOL(kolWallet)).length : 0;
+
   if (!data) {
     return (
       <Card className={cn('w-full', className)} ref={containerRef}>
@@ -144,6 +186,56 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
           </p>
           <p className="text-muted-foreground">
             Network data for this token is not available yet
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!hasData && showSubscribedOnly) {
+    return (
+      <Card className={cn('w-full', className)} ref={containerRef}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-accent-gradient rounded-lg">
+                <Network className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Token Network Map</CardTitle>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Button
+                    variant={showSubscribedOnly ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setShowSubscribedOnly(!showSubscribedOnly)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    <UserCheck className="h-3 w-3 mr-1" />
+                    Subscribed ({subscribedKOLCount})
+                  </Button>
+                  <Button
+                    variant={!showSubscribedOnly ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setShowSubscribedOnly(!showSubscribedOnly)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    <Users className="h-3 w-3 mr-1" />
+                    All KOLs
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <UserCheck className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-lg font-medium text-foreground mb-2">
+            No subscribed KOLs
+          </p>
+          <p className="text-muted-foreground text-center">
+            You haven't subscribed to any KOLs trading this token yet.
+            <br />
+            Switch to "All KOLs" to see the full network.
           </p>
         </CardContent>
       </Card>
@@ -175,10 +267,33 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
                   </div>
                 )}
               </div>
+              {/* KOL Filter Toggle */}
+              {!compact && (
+                <div className="flex items-center space-x-2 mt-2">
+                  <Button
+                    variant={showSubscribedOnly ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setShowSubscribedOnly(true)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    <UserCheck className="h-3 w-3 mr-1" />
+                    Subscribed ({subscribedKOLCount})
+                  </Button>
+                  <Button
+                    variant={!showSubscribedOnly ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setShowSubscribedOnly(false)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    <Users className="h-3 w-3 mr-1" />
+                    All KOLs ({Object.keys(data.kolConnections || {}).length})
+                  </Button>
+                </div>
+              )}
               {!compact && (
                 <div className="flex items-center space-x-4 mt-1 text-sm text-muted-foreground">
-                  <span>🔗 {Object.keys(data.kolConnections).length} KOLs</span>
-                  <span>📊 {data.networkMetrics.totalTrades} trades</span>
+                  <span>🔗 {Object.keys(tokensData[tokenMint]?.kolConnections || {}).length} KOLs {showSubscribedOnly ? '(subscribed)' : ''}</span>
+                  <span>📊 {tokensData[tokenMint]?.networkMetrics?.totalTrades || 0} trades</span>
                   <span>
                     📱 {responsiveConfig.dimensions.width}×
                     {responsiveConfig.dimensions.height}

@@ -77,7 +77,19 @@ const TopTraders: React.FC<TopTradersProps> = ({
       setIsLoading(true);
       setError(null);
 
-      const response = await TradingService.getTopTraders();
+      // Check if requests should be blocked due to authentication
+      const { requestManager } = await import('@/lib/request-manager');
+      if (requestManager.shouldBlockRequest()) {
+        console.log('🚫 Top Traders - Fetch blocked during authentication');
+        return;
+      }
+
+      // Use authenticated request wrapper
+      const { authenticatedRequest } = await import('@/lib/request-manager');
+      const response = await authenticatedRequest(
+        () => TradingService.getTopTraders(),
+        { priority: 'low', timeout: 15000 }
+      );
       setTraders(response.data.slice(0, limit));
       hasLoadedInitialData.current = true;
     } catch (err: any) {

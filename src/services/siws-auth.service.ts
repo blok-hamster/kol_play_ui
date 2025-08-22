@@ -24,6 +24,7 @@ export interface WalletSignUpRequest {
   firstName?: string;
   lastName?: string;
   email?: string;
+  inviteCode?: string;
 }
 
 export interface WalletAuthResponse {
@@ -261,23 +262,31 @@ export class SiwsAuthService {
     try {
       void 0 && ('🌐 Making wallet signup request to backend');
 
+      const payload: any = {
+        input: request.input,
+        output: {
+          account: {
+            ...request.output.account,
+            publicKey: Array.from(request.output.account.publicKey),
+          },
+          signature: Array.from(request.output.signature),
+          signedMessage: Array.from(request.output.signedMessage),
+          signatureType: request.output.signatureType,
+        },
+        firstName: request.firstName,
+        lastName: request.lastName,
+        email: request.email,
+      };
+
+      // Add invite code if in alpha/beta stage
+      const stage = process.env.NEXT_PUBLIC_STAGE;
+      if ((stage === 'alpha' || stage === 'beta') && request.inviteCode) {
+        payload.inviteCode = request.inviteCode;
+      }
+
       const response = await apiClient.postRaw<any>(
         API_ENDPOINTS.WALLET.SIGNUP,
-        {
-          input: request.input,
-          output: {
-            account: {
-              ...request.output.account,
-              publicKey: Array.from(request.output.account.publicKey),
-            },
-            signature: Array.from(request.output.signature),
-            signedMessage: Array.from(request.output.signedMessage),
-            signatureType: request.output.signatureType,
-          },
-          firstName: request.firstName,
-          lastName: request.lastName,
-          email: request.email,
-        }
+        payload
       );
 
       void 0 && ('🌐 Signup response:', response);

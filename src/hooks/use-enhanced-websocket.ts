@@ -543,20 +543,29 @@ export const useEnhancedWebSocket = (
         }
 
         // Parallel polling for better performance
+        // Import request manager for authenticated requests
+        const { authenticatedFetch } = await import('@/lib/request-manager');
+
         const [tradesResponse, statsResponse, trendingResponse] =
           await Promise.allSettled([
-            fetch(`${apiUrl}/api/kol-trades/recent?limit=20`, {
+            authenticatedFetch(`${apiUrl}/api/kol-trades/recent?limit=20`, {
               headers,
               signal: AbortSignal.timeout(5000), // 5 second timeout
-            }),
-            fetch(`${apiUrl}/api/kol-trades/stats`, {
+              priority: 'medium'
+            }).then(response => ({ status: 'fulfilled' as const, value: response }))
+             .catch(error => ({ status: 'rejected' as const, reason: error })),
+            authenticatedFetch(`${apiUrl}/api/kol-trades/stats`, {
               headers,
               signal: AbortSignal.timeout(5000),
-            }),
-            fetch(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
+              priority: 'low'
+            }).then(response => ({ status: 'fulfilled' as const, value: response }))
+             .catch(error => ({ status: 'rejected' as const, reason: error })),
+            authenticatedFetch(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
               headers,
               signal: AbortSignal.timeout(5000),
-            }),
+              priority: 'low'
+            }).then(response => ({ status: 'fulfilled' as const, value: response }))
+             .catch(error => ({ status: 'rejected' as const, reason: error })),
           ]);
 
         const syncService = syncServiceRef.current;

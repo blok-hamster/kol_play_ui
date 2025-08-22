@@ -161,7 +161,12 @@ export default function SubscriptionControls({
           }),
       };
 
-      const response = await TradingService.subscribeToKOL(request);
+      // Use authenticated request wrapper
+      const { authenticatedRequest } = await import('@/lib/request-manager');
+      const response = await authenticatedRequest(
+        () => TradingService.subscribeToKOL(request),
+        { priority: 'high', timeout: 10000 }
+      );
 
       // Update local state
       addSubscription(response.data);

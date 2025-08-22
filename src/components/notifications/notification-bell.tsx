@@ -60,12 +60,25 @@ const NotificationBell: React.FC<NotificationBellProps> = ({
     }
   }, [isOpen]);
 
-  // Fetch stats periodically
+  // Fetch stats periodically with authentication state checking
   useEffect(() => {
-    fetchStats();
-    const interval = setInterval(() => {
-      fetchStats();
-    }, 30000); // Poll every 30 seconds
+    const fetchStatsWithAuthCheck = async () => {
+      try {
+        // Dynamic import to avoid circular dependencies
+        const { requestManager } = await import('@/lib/request-manager');
+        
+        if (!requestManager.shouldBlockRequest()) {
+          fetchStats();
+        }
+      } catch (error) {
+        console.error('Failed to check auth state for stats fetch:', error);
+        // Fallback to normal fetch if request manager fails
+        fetchStats();
+      }
+    };
+
+    fetchStatsWithAuthCheck();
+    const interval = setInterval(fetchStatsWithAuthCheck, 30000); // Poll every 30 seconds
     return () => clearInterval(interval);
   }, [fetchStats]);
 

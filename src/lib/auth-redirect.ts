@@ -15,11 +15,18 @@ let globalModalOpener: ((modalId: string, data?: any) => void) | null = null;
 let isModalOpening = false;
 let modalOpeningTimeout: NodeJS.Timeout | null = null;
 
+// Global authentication session state to prevent cascading auth errors
+let authenticationInProgress = false;
+let authSessionTimeout: NodeJS.Timeout | null = null;
+let lastAuthError: number = 0;
+
 export class AuthRedirectManager {
   private static readonly REDIRECT_STATE_KEY = 'authRedirectState';
   private static readonly PRESERVED_URL_KEY = 'redirectUrl';
   private static readonly REDIRECT_TIMEOUT = 5000; // 5 seconds
   private static readonly MODAL_OPENING_TIMEOUT = 2000; // 2 seconds to prevent rapid modal opening
+  private static readonly AUTH_SESSION_TIMEOUT = 30000; // 30 seconds to prevent cascading auth errors
+  private static readonly MIN_AUTH_ERROR_INTERVAL = 5000; // 5 seconds minimum between auth errors
   private static readonly EXCLUDED_PATHS = ['/login', '/signup', '/auth', '/oauth'];
 
   /**
@@ -34,6 +41,21 @@ export class AuthRedirectManager {
    */
   static isModalOpening(): boolean {
     return isModalOpening;
+  }
+
+  /**
+   * Check if authentication is currently in progress (global session state)
+   */
+  static isAuthenticationInProgress(): boolean {
+    return authenticationInProgress;
+  }
+
+  /**
+   * Check if we should throttle auth errors (prevent too frequent auth attempts)
+   */
+  static shouldThrottleAuthError(): boolean {
+    const now = Date.now();
+    return (now - lastAuthError) < this.MIN_AUTH_ERROR_INTERVAL;
   }
 
   /**
@@ -62,6 +84,36 @@ export class AuthRedirectManager {
     if (modalOpeningTimeout) {
       clearTimeout(modalOpeningTimeout);
       modalOpeningTimeout = null;
+    }
+  }
+
+  /**
+   * Set authentication in progress flag with automatic timeout
+   */
+  private static setAuthenticationInProgressFlag(): void {
+    authenticationInProgress = true;
+    lastAuthError = Date.now();
+    
+    // Clear any existing timeout
+    if (authSessionTimeout) {
+      clearTimeout(authSessionTimeout);
+    }
+    
+    // Auto-clear the flag after timeout
+    authSessionTimeout = setTimeout(() => {
+      authenticationInProgress = false;
+      authSessionTimeout = null;
+    }, this.AUTH_SESSION_TIMEOUT);
+  }
+
+  /**
+   * Clear authentication in progress flag
+   */
+  static clearAuthenticationInProgressFlag(): void {
+    authenticationInProgress = false;
+    if (authSessionTimeout) {
+      clearTimeout(authSessionTimeout);
+      authSessionTimeout = null;
     }
   }
 
@@ -180,11 +232,22 @@ export class AuthRedirectManager {
       return;
     }
 
-    // Set redirect flag to prevent multiple redirects
-    this.setRedirectFlag();
+    // Check if authentication is already in progress globally
+    if (this.isAuthenticationInProgress()) {
+      console.log('🚫 AuthRedirect - Authentication session already in progress, preventing cascade');
+      return;
+    }
 
-    // Set modal opening flag to prevent circular API calls
+    // Throttle auth errors to prevent rapid-fire attempts
+    if (this.shouldThrottleAuthError()) {
+      console.log('🚫 AuthRedirect - Auth error throttled, too frequent attempts');
+      return;
+    }
+
+    // Set all protection flags
+    this.setRedirectFlag();
     this.setModalOpeningFlag();
+    this.setAuthenticationInProgressFlag();
 
     // Preserve current URL if requested and not already on auth-related pages
     if (preserveUrl && !this.isAuthRelatedPage()) {
@@ -192,20 +255,22 @@ export class AuthRedirectManager {
     }
 
     // Open auth modal instead of redirecting to a page
-    // if (globalModalOpener) {
-    //   try {
-    //     globalModalOpener('auth', { defaultTab: 'signin' });
-    //     console.log('🔄 AuthRedirect - Opened signin modal');
-    //   } catch (error) {
-    //     console.error('🚫 AuthRedirect - Error opening modal:', error);
-    //     this.clearModalOpeningFlag();
-    //     this.handleModalOpeningFallback();
-    //   }
-    // } else {
-    //   console.warn('🚫 AuthRedirect - Modal opener not set, falling back to page redirect');
-    //   this.clearModalOpeningFlag();
-    //   this.handleModalOpeningFallback();
-    // }
+    if (globalModalOpener) {
+      try {
+        globalModalOpener('auth', { defaultTab: 'signin' });
+        console.log('🔄 AuthRedirect - Opened signin modal');
+      } catch (error) {
+        console.error('🚫 AuthRedirect - Error opening modal:', error);
+        this.clearModalOpeningFlag();
+        this.clearAuthenticationInProgressFlag();
+        this.handleModalOpeningFallback();
+      }
+    } else {
+      console.warn('🚫 AuthRedirect - Modal opener not set, falling back to page redirect');
+      this.clearModalOpeningFlag();
+      this.clearAuthenticationInProgressFlag();
+      this.handleModalOpeningFallback();
+    }
   }
 
   /**
@@ -215,13 +280,9 @@ export class AuthRedirectManager {
     // Clear the redirect flag since we're not actually redirecting
     this.clearRedirectFlag();
     
-    // Fallback to page redirect if modal opener is not available
-    // Use a small delay to prevent immediate API calls
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      }
-    }, 100);
+    // Don't redirect to home page as it causes infinite loops
+    // Instead, just log the issue and let the user manually refresh or navigate
+    console.error('🚫 AuthRedirect - Modal opener failed and no fallback available. User needs to manually authenticate.');
   }
 
   /**
@@ -238,11 +299,13 @@ export class AuthRedirectManager {
    * Handle successful authentication - clear flags and redirect to preserved URL if available
    */
   static handleSuccessfulAuth(): void {
-    // Clear redirect flag when authentication is successful
+    // Clear all authentication flags when authentication is successful
     this.clearRedirectFlag();
-    
-    // Clear modal opening flag when authentication is successful
     this.clearModalOpeningFlag();
+    this.clearAuthenticationInProgressFlag();
+    
+    // Execute any pending requests that were queued during authentication
+    this.executePendingRequests();
     
     // Handle post-login redirect if URL was preserved
     const preservedUrl = this.getPreservedUrl();
@@ -258,12 +321,42 @@ export class AuthRedirectManager {
   }
 
   /**
+   * Execute pending requests after authentication completes
+   */
+  private static async executePendingRequests(): Promise<void> {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const { requestManager } = await import('./request-manager');
+      await requestManager.executePendingRequests();
+    } catch (error) {
+      console.error('Failed to execute pending requests:', error);
+    }
+  }
+
+  /**
    * Clear all redirect-related data (useful for logout)
    */
   static clearAll(): void {
     this.clearRedirectFlag();
     this.clearPreservedUrl();
     this.clearModalOpeningFlag();
+    this.clearAuthenticationInProgressFlag();
+    
+    // Clear any pending requests
+    this.clearPendingRequests('Authentication cleared');
+  }
+
+  /**
+   * Clear pending requests
+   */
+  private static async clearPendingRequests(reason: string): Promise<void> {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const { requestManager } = await import('./request-manager');
+      requestManager.clearPendingRequests(reason);
+    } catch (error) {
+      console.error('Failed to clear pending requests:', error);
+    }
   }
 }
 

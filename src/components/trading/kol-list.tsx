@@ -162,21 +162,40 @@ export default function KOLList({
       return;
     }
 
-    // Only fetch on initial load, page change, search change, or limit change
-    // Don't fetch for sort changes (handled client-side)
-    const shouldFetch = !hasLoadedInitialData.current || 
-                       (filters.page && filters.page > 1) || 
-                       searchQuery !== '';
+    // Check if authentication is in progress and skip fetch
+    const checkAuthAndFetch = async () => {
+      try {
+        const { requestManager } = await import('@/lib/request-manager');
+        if (requestManager.shouldBlockRequest()) {
+          console.log('🚫 KOL List - Effect skipped during authentication');
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to check auth state:', error);
+      }
 
-    if (!shouldFetch) {
-      return;
-    }
+      // Only fetch on initial load, page change, search change, or limit change
+      // Don't fetch for sort changes (handled client-side)
+      const shouldFetch = !hasLoadedInitialData.current || 
+                         (filters.page && filters.page > 1) || 
+                         searchQuery !== '';
+
+      if (!shouldFetch) {
+        return;
+      }
 
     const fetchKOLWallets = async () => {
       isCurrentlyFetching.current = true;
 
       try {
         stableSetLoading('kolList', true);
+
+        // Check if requests should be blocked due to authentication
+        const { requestManager } = await import('@/lib/request-manager');
+        if (requestManager.shouldBlockRequest()) {
+          console.log('🚫 KOL List - Fetch blocked during authentication');
+          return;
+        }
 
         // Build search filters - only include what's necessary
         const searchFilters: Partial<SearchFilters> = {};
@@ -193,7 +212,12 @@ export default function KOLList({
           searchFilters.query = searchQuery.trim();
         }
 
-        const response = await TradingService.getKOLWallets(searchFilters as SearchFilters);
+        // Use authenticated request wrapper
+        const { authenticatedRequest } = await import('@/lib/request-manager');
+        const response = await authenticatedRequest(
+          () => TradingService.getKOLWallets(searchFilters as SearchFilters),
+          { priority: 'medium', timeout: 15000 }
+        );
 
         let newKOLs: KOLWithTrades[];
         if (filters.page === 1) {
@@ -246,7 +270,10 @@ export default function KOLList({
       }
     };
 
-    fetchKOLWallets();
+      fetchKOLWallets();
+    };
+
+    checkAuthAndFetch();
   }, [
     filters.page,
     filters.limit,

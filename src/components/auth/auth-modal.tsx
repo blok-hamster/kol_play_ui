@@ -14,31 +14,56 @@ import OAuthService from '@/services/oauth.service';
 import { SUCCESS_MESSAGES } from '@/lib/constants';
 import AuthService from '@/services/auth.service';
 import { AuthRedirectManager } from '@/lib/auth-redirect';
+import { useInviteCode } from '@/contexts/invite-context';
 
 interface AuthModalProps {
   defaultTab?: 'signin' | 'signup';
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const { isModalOpen, closeModal, modalData } = useModal();
 
-  const { isModalOpen, closeModal } = useModal();
+  // Use modal data to override default tab if provided
+  const initialTab = modalData?.defaultTab || defaultTab;
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { setUser } = useUserStore();
   const { showSuccess, showError } = useNotifications();
+  const { inviteCode } = useInviteCode();
 
   const isOpen = isModalOpen('auth');
 
+  // Reset tab when modal data changes
+  React.useEffect(() => {
+    if (modalData?.defaultTab) {
+      console.log(
+        '🔐 Auth modal setting tab from modal data:',
+        modalData.defaultTab
+      );
+      setActiveTab(modalData.defaultTab);
+    }
+  }, [modalData]);
+
+  React.useEffect(() => {
+    console.log('🔐 Auth modal state:', { isOpen, activeTab, modalData });
+  }, [isOpen, activeTab, modalData]);
+
   const handleAuthSuccess = () => {
-    // Clear modal opening flag when authentication succeeds
+    // Clear all authentication flags when authentication succeeds
     AuthRedirectManager.clearModalOpeningFlag();
+    AuthRedirectManager.clearAuthenticationInProgressFlag();
+
+    // Execute any pending requests
+    AuthRedirectManager.handleSuccessfulAuth();
+
     closeModal();
     // Additional success handling can be added here
   };
 
   const handleModalClose = () => {
-    // Clear modal opening flag when modal is closed
+    // Clear all authentication flags when modal is closed
     AuthRedirectManager.clearModalOpeningFlag();
+    AuthRedirectManager.clearAuthenticationInProgressFlag();
     closeModal();
   };
 
@@ -50,7 +75,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
     setIsGoogleLoading(true);
 
     try {
-      void 0 && ('🔐 Starting Google OAuth from auth modal...');
+      void 0 && '🔐 Starting Google OAuth from auth modal...';
       const response = await OAuthService.googleOAuthPopup();
 
       void 0 && ('🔐 OAuth response received:', response);
@@ -60,7 +85,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
 
         // If user data is not provided, fetch it
         if (!user && response.token) {
-          void 0 && ('🔐 Fetching user data from token...');
+          void 0 && '🔐 Fetching user data from token...';
           try {
             const fetchedUser = await AuthService.getCurrentUser();
             user = fetchedUser || undefined; // Convert null to undefined
@@ -107,7 +132,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
 
   const handleGoogleRedirect = async () => {
     try {
-      void 0 && ('🔐 Starting Google OAuth redirect from auth modal...');
+      void 0 && '🔐 Starting Google OAuth redirect from auth modal...';
       await OAuthService.googleOAuthRedirect();
       // This will redirect the page, so no further code executes
     } catch (error: any) {

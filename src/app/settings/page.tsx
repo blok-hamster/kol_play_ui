@@ -49,6 +49,7 @@ const SettingsPage: React.FC = () => {
       label: 'Security',
       icon: Shield,
       description: '2FA, sessions, and security settings',
+      disabled: process.env.NEXT_PUBLIC_DISABLE_B === 'true', // Disabled when NEXT_PUBLIC_DISABLE_B=true
     },
     {
       id: 'notifications' as SettingsTab,
@@ -94,26 +95,39 @@ const SettingsPage: React.FC = () => {
             {tabs.map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
+              const isDisabled = (tab as any).disabled;
 
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => !isDisabled && setActiveTab(tab.id)}
+                  disabled={isDisabled}
                   className={`w-full p-4 rounded-lg text-left transition-all duration-200 ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                    isDisabled
+                      ? 'bg-muted/30 text-muted-foreground/50 cursor-not-allowed opacity-50'
+                      : isActive
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     <Icon className="h-5 w-5" />
                     <div>
-                      <p className="font-medium">{tab.label}</p>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium">{tab.label}</p>
+                        {isDisabled && (
+                          <span className="text-xs bg-muted-foreground/20 text-muted-foreground px-2 py-0.5 rounded-full">
+                            Coming Soon
+                          </span>
+                        )}
+                      </div>
                       <p
                         className={`text-xs ${
-                          isActive
-                            ? 'text-primary-foreground/80'
-                            : 'text-muted-foreground'
+                          isDisabled
+                            ? 'text-muted-foreground/50'
+                            : isActive
+                              ? 'text-primary-foreground/80'
+                              : 'text-muted-foreground'
                         }`}
                       >
                         {tab.description}

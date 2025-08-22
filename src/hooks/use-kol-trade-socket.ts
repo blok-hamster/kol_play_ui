@@ -559,15 +559,20 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       }
 
       // Call each endpoint only once
+      // Import request manager for authenticated requests
+      const { authenticatedRequest } = await import('@/lib/request-manager');
+
       const promises = [];
 
       if (!cachedTrades) {
         promises.push(
-          axios
-            .get(`${apiUrl}/api/kol-trades/recent?limit=${MAX_TRADES}`, {
+          authenticatedRequest(
+            () => axios.get(`${apiUrl}/api/kol-trades/recent?limit=${MAX_TRADES}`, {
               headers,
               timeout: 30000,
-            })
+            }),
+            { priority: 'high', timeout: 30000 }
+          )
             .then(response => ({ type: 'trades', data: response.data }))
             .catch(error => ({ type: 'trades', error }))
         );
@@ -575,11 +580,13 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
 
       if (!cachedStats) {
         promises.push(
-          axios
-            .get(`${apiUrl}/api/kol-trades/stats`, {
+          authenticatedRequest(
+            () => axios.get(`${apiUrl}/api/kol-trades/stats`, {
               headers,
               timeout: 30000,
-            })
+            }),
+            { priority: 'medium', timeout: 30000 }
+          )
             .then(response => ({ type: 'stats', data: response.data }))
             .catch(error => ({ type: 'stats', error }))
         );
@@ -587,11 +594,13 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
 
       if (!cachedTrending) {
         promises.push(
-          axios
-            .get(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
+          authenticatedRequest(
+            () => axios.get(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
               headers,
               timeout: 30000,
-            })
+            }),
+            { priority: 'medium', timeout: 30000 }
+          )
             .then(response => ({ type: 'trending', data: response.data }))
             .catch(error => ({ type: 'trending', error }))
         );
@@ -646,15 +655,18 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
 
         try {
           // Load mindmap data for trending tokens to ensure it's available with trades
-          const mindmapResponse = await axios.post(
-            `${apiUrl}/api/kol-trades/mindmap/bulk`,
-            {
-              tokenMints: globalState.data.trendingTokens.slice(0, 5), // Increased to 5 for better coverage
-            },
-            {
-              headers,
-              timeout: 30000,
-            }
+          const mindmapResponse = await authenticatedRequest(
+            () => axios.post(
+              `${apiUrl}/api/kol-trades/mindmap/bulk`,
+              {
+                tokenMints: globalState.data.trendingTokens.slice(0, 5), // Increased to 5 for better coverage
+              },
+              {
+                headers,
+                timeout: 30000,
+              }
+            ),
+            { priority: 'low', timeout: 30000 }
           );
 
           if (

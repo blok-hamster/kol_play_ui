@@ -56,11 +56,19 @@ export class OAuthService {
   /**
    * Verify Google ID token and authenticate user
    */
-  static async verifyGoogleToken(idToken: string): Promise<OAuthResponse> {
+  static async verifyGoogleToken(idToken: string, inviteCode?: string): Promise<OAuthResponse> {
     try {
+      const payload: { idToken: string; inviteCode?: string } = { idToken };
+      
+      // Add invite code if in alpha/beta stage
+      const stage = process.env.NEXT_PUBLIC_STAGE;
+      if ((stage === 'alpha' || stage === 'beta') && inviteCode) {
+        payload.inviteCode = inviteCode;
+      }
+      
       const response = await apiClient.post<
         AuthResponse['data'] & { isNewUser: boolean }
-      >(API_ENDPOINTS.OAUTH.VERIFY_TOKEN, { idToken });
+      >(API_ENDPOINTS.OAUTH.VERIFY_TOKEN, payload);
 
       // Set the token for future requests
       if (response.data.token) {

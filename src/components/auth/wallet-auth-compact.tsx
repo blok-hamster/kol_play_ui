@@ -14,6 +14,7 @@ import {
 import { useUserStore } from '@/stores/use-user-store';
 import { useNotifications } from '@/stores/use-ui-store';
 import { AuthRedirectManager } from '@/lib/auth-redirect';
+import { useInviteCode, isAlphaOrBeta } from '@/contexts/invite-context';
 
 interface WalletAuthCompactProps {
   mode: 'signin' | 'signup' | 'link';
@@ -32,6 +33,7 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
     useWallet();
   const { setUser } = useUserStore();
   const { showSuccess, showError, showInfo } = useNotifications();
+  const { inviteCode } = useInviteCode();
   const [isLoading, setIsLoading] = useState(false);
   const [walletDetected, setWalletDetected] = useState(false);
 
@@ -65,9 +67,9 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
       return;
     }
 
-    // Prevent wallet auth during modal opening to avoid infinite loops
-    if (AuthRedirectManager.isModalOpening()) {
-      void 0 && ('🚫 Wallet Auth - Blocked during modal opening to prevent infinite loop');
+    // Prevent wallet auth during authentication session to avoid infinite loops
+    if (AuthRedirectManager.isModalOpening() || AuthRedirectManager.isAuthenticationInProgress()) {
+      void 0 && ('🚫 Wallet Auth - Blocked during authentication session to prevent infinite loop');
       const error = 'Authentication in progress, please wait...';
       onError?.(error);
       showError('Authentication In Progress', error);
@@ -164,6 +166,7 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
             firstName: undefined, // No form data, so pass undefined
             lastName: undefined, // No form data, so pass undefined
             email: undefined, // No form data, so pass undefined
+            ...(isAlphaOrBeta() && inviteCode && { inviteCode }),
           };
           result = await SiwsAuthService.walletSignUp(signUpRequest);
           break;

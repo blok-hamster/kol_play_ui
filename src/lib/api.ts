@@ -23,10 +23,10 @@ class ApiClient {
     // Request interceptor to add JWT token and prevent circular calls
     this.client.interceptors.request.use(
       config => {
-        // Prevent API calls when modal is opening to avoid infinite loops
-        if (AuthRedirectManager.isModalOpening()) {
-          void 0 && ('🚫 API Request - Blocked during modal opening to prevent infinite loop:', config.url);
-          const error = new Error('API call blocked during authentication modal opening') as any;
+        // Prevent API calls when authentication is in progress to avoid infinite loops
+        if (AuthRedirectManager.isModalOpening() || AuthRedirectManager.isAuthenticationInProgress()) {
+          void 0 && ('🚫 API Request - Blocked during authentication to prevent infinite loop:', config.url);
+          const error = new Error('API call blocked during authentication session') as any;
           error.config = config;
           error.isBlocked = true;
           return Promise.reject(error);
@@ -126,9 +126,9 @@ class ApiClient {
   private handleAuthenticationError(): void {
     void 0 && ('🚫 API Client - Authentication error detected, clearing token and redirecting');
     
-    // Check if modal is already opening to prevent infinite loops
-    if (AuthRedirectManager.isModalOpening()) {
-      void 0 && ('🚫 API Client - Modal already opening, skipping redirect to prevent infinite loop');
+    // Check if authentication is already in progress to prevent infinite loops
+    if (AuthRedirectManager.isModalOpening() || AuthRedirectManager.isAuthenticationInProgress()) {
+      void 0 && ('🚫 API Client - Authentication already in progress, skipping redirect to prevent infinite loop');
       return;
     }
     

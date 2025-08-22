@@ -13,6 +13,7 @@ import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { CompactLiveTrades } from '@/components/trading/compact-live-trades';
 import { useNotifications } from '@/stores/use-ui-store';
 import { useSearchParams } from 'next/navigation';
+import { AuthQueueStatus } from '@/components/auth/auth-queue-status';
 
 const HomePage: React.FC = () => {
   const { openModal } = useModal();
@@ -165,6 +166,9 @@ const HomePage: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Auth Queue Status - shows during authentication */}
+      <AuthQueueStatus />
     </AppLayout>
   );
 };

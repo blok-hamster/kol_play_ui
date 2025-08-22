@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
 import { formatDistanceToNow } from 'date-fns';
 import { MindmapUpdate } from '@/hooks/use-kol-trade-socket';
@@ -24,9 +24,11 @@ import {
   BadgeDollarSign,
   Copy,
   ExternalLink,
-  Lightbulb
+  Lightbulb,
+  Users
 } from 'lucide-react';
 import ReactDOM from 'react-dom/client';
+import { useSubscriptions } from '@/stores/use-trading-store';
 
 interface UnifiedNode extends d3.SimulationNodeDatum {
   id: string;
@@ -68,9 +70,11 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const { isSubscribedToKOL, subscriptions } = useSubscriptions();
   const [selectedNode, setSelectedNode] = useState<UnifiedNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<UnifiedNode | null>(null);
   const [highlightMode, setHighlightMode] = useState<'none' | 'trending' | 'high-volume'>('none');
+  const [showSubscribedOnly, setShowSubscribedOnly] = useState(false);
   const [dimensions, setDimensions] = useState({ width, height });
 
   // Update dimensions when container resizes
@@ -119,31 +123,44 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (!svgRef.current || Object.keys(tokensData).length === 0 || dimensions.width === 0 || dimensions.height === 0) {
-      void 0 && ('🔍 UnifiedKOLMindmap skipping render:', {
-        hasSvgRef: !!svgRef.current,
-        tokensDataCount: Object.keys(tokensData).length,
-        dimensions,
-        tokensDataKeys: Object.keys(tokensData).slice(0, 5) // Show first 5 keys
-      });
-      return;
+  // Filter tokens data based on subscription filter
+  const filteredTokensData = useMemo(() => {
+    if (!showSubscribedOnly) {
+      return tokensData;
     }
 
-    void 0 && ('🔍 UnifiedKOLMindmap rendering:', {
-      tokensDataCount: Object.keys(tokensData).length,
-      dimensions,
-      trendingTokensCount: trendingTokens.length
+    const filtered: { [tokenMint: string]: MindmapUpdate } = {};
+
+    Object.entries(tokensData).forEach(([tokenMint, data]) => {
+      const filteredKolConnections: typeof data.kolConnections = {};
+      
+      // Only include KOLs that the user is subscribed to
+      Object.entries(data.kolConnections || {}).forEach(([kolWallet, kolData]) => {
+        if (isSubscribedToKOL(kolWallet)) {
+          filteredKolConnections[kolWallet] = kolData;
+        }
+      });
+
+      // Only include tokens that have subscribed KOLs
+      if (Object.keys(filteredKolConnections).length > 0) {
+        filtered[tokenMint] = {
+          ...data,
+          kolConnections: filteredKolConnections,
+          networkMetrics: {
+            ...data.networkMetrics,
+            totalTrades: Object.values(filteredKolConnections).reduce(
+              (sum, kol) => sum + kol.tradeCount, 0
+            ),
+          },
+        };
+      }
     });
 
-    try {
-      renderUnifiedMindmap();
-    } catch (error) {
-      console.error('Failed to render unified mindmap:', error);
-    }
-  }, [tokensData, trendingTokens, dimensions.width, dimensions.height, highlightMode]);
+    return filtered;
+  }, [tokensData, showSubscribedOnly, isSubscribedToKOL]);
 
-  const renderUnifiedMindmap = () => {
+  // Define the render function first
+  const renderUnifiedMindmap = useCallback(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
@@ -164,6 +181,21 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
 
     // Process data to create unified network
     const { nodes, links } = processUnifiedData();
+
+    // Create enhanced tooltip using React component
+    const tooltipContainer = d3.select("body").append("div")
+      .attr("class", "fixed z-50 opacity-0 pointer-events-none")
+      .style("transition", "opacity 0.2s");
+
+    // Add click handler to SVG background to clear selection
+    svg.on("click", (event) => {
+      // Only clear selection if clicking on the background (not on nodes)
+      if (event.target === event.currentTarget) {
+        setSelectedNode(null);
+        setHoveredNode(null);
+        tooltipContainer.style("opacity", 0);
+      }
+    });
 
     // App's accent gradient colors
     const accentFrom = '#14F195';
@@ -367,11 +399,10 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       .attr("paint-order", "stroke")
       .style("pointer-events", "none");
 
-    // Create enhanced tooltip using React component
-    const tooltipContainer = d3.select("body").append("div")
-      .attr("class", "fixed z-50 opacity-0 pointer-events-none")
-      .style("transition", "opacity 0.2s");
-
+    // Enhanced drag behavior with click detection
+    let isDragging = false;
+    let dragStartTime = 0;
+    
     // Enhanced interactions
     nodeSelection
       .on("mouseover", (event, d) => {
@@ -429,6 +460,14 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
         }
       })
       .on("click", (event, d) => {
+        // Ignore click if we were dragging
+        if (isDragging) {
+          return;
+        }
+        
+        event.preventDefault();
+        event.stopPropagation();
+        
         // Hide tooltip when clicking
         tooltipContainer.style("opacity", 0);
         setHoveredNode(null);
@@ -437,27 +476,43 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
         nodeSelection.style("opacity", 1);
         link.style("opacity", d => Math.min(0.7, Math.log(d.tradeCount + 1) * 0.15));
         
-        setSelectedNode(selectedNode?.id === d.id ? null : d);
-        event.stopPropagation();
-      });
-
-    // Enhanced drag behavior
-    nodeSelection.call(d3.drag<SVGGElement, UnifiedNode>()
-      .on("start", (event, d) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
+        // Use a more stable selection logic
+        setSelectedNode(prevSelected => {
+          if (prevSelected?.id === d.id) {
+            return null; // Deselect if clicking the same node
+          }
+          return d; // Select the new node
+        });
       })
-      .on("drag", (event, d) => {
-        d.fx = event.x;
-        d.fy = event.y;
-      })
-      .on("end", (event, d) => {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      })
-    );
+      .call(d3.drag<SVGGElement, UnifiedNode>()
+        .on("start", (event, d) => {
+          isDragging = false;
+          dragStartTime = Date.now();
+          
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on("drag", (event, d) => {
+          // Mark as dragging if moved more than a few pixels or dragging for more than 100ms
+          if (!isDragging && (Math.abs(event.dx) > 3 || Math.abs(event.dy) > 3 || Date.now() - dragStartTime > 100)) {
+            isDragging = true;
+          }
+          
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on("end", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+          
+          // Reset dragging flag after a short delay to prevent click interference
+          setTimeout(() => {
+            isDragging = false;
+          }, 50);
+        })
+      );
 
     // Update positions on simulation tick
     simulation.on("tick", () => {
@@ -479,7 +534,27 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     return () => {
       tooltipContainer.remove();
     };
-  };
+  }, [filteredTokensData, trendingTokens, dimensions, highlightMode, selectedNode, setSelectedNode, setHoveredNode]);
+
+  // Now add the useEffect that uses the render function
+  useEffect(() => {
+    if (!svgRef.current || Object.keys(filteredTokensData).length === 0 || dimensions.width === 0 || dimensions.height === 0) {
+      return;
+    }
+
+    // Add a small delay to prevent rapid re-renders during state changes
+    const renderTimeout = setTimeout(() => {
+      try {
+        renderUnifiedMindmap();
+      } catch (error) {
+        console.error('Failed to render unified mindmap:', error);
+      }
+    }, 50);
+
+    return () => {
+      clearTimeout(renderTimeout);
+    };
+  }, [filteredTokensData, trendingTokens, dimensions.width, dimensions.height, highlightMode, showSubscribedOnly, renderUnifiedMindmap]);
 
   const processUnifiedData = () => {
     const nodes: UnifiedNode[] = [];
@@ -487,9 +562,10 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     const kolMap = new Map<string, UnifiedNode>();
 
     console.log('🗺️ Processing unified mindmap data:', {
-      tokensCount: Object.keys(tokensData).length,
-      tokensData: Object.keys(tokensData),
-      sampleData: Object.entries(tokensData).slice(0, 2).map(([mint, data]) => ({
+      tokensCount: Object.keys(filteredTokensData).length,
+      tokensData: Object.keys(filteredTokensData),
+      showSubscribedOnly,
+      sampleData: Object.entries(filteredTokensData).slice(0, 2).map(([mint, data]) => ({
         mint,
         kolConnectionsCount: Object.keys(data.kolConnections || {}).length,
         networkMetrics: data.networkMetrics
@@ -497,7 +573,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     });
 
     // Process each token and its KOL connections
-    Object.entries(tokensData).forEach(([tokenMint, data]) => {
+    Object.entries(filteredTokensData).forEach(([tokenMint, data]) => {
       const kolConnections = Object.keys(data.kolConnections || {});
       const totalTrades = data.networkMetrics?.totalTrades || 0;
       const totalVolume = Object.values(data.kolConnections || {})
@@ -612,12 +688,94 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     }
   };
 
-  const tokenCount = Object.keys(tokensData).length;
+  const tokenCount = Object.keys(filteredTokensData).length;
   const totalKOLs = new Set(
+    Object.values(filteredTokensData).flatMap(data => 
+      Object.keys(data.kolConnections || {})
+    )
+  ).size;
+  
+  // Calculate subscription stats
+  const allKOLs = new Set(
     Object.values(tokensData).flatMap(data => 
       Object.keys(data.kolConnections || {})
     )
   ).size;
+  const subscribedKOLs = new Set(
+    Object.values(tokensData).flatMap(data => 
+      Object.keys(data.kolConnections || {}).filter(kolWallet => isSubscribedToKOL(kolWallet))
+    )
+  ).size;
+
+  // Show empty state if no data after filtering
+  if (showSubscribedOnly && Object.keys(filteredTokensData).length === 0) {
+    return (
+      <div ref={containerRef} className={cn('w-full h-full flex flex-col min-h-[300px] max-h-[600px]', className)}>
+        {/* Mobile-Responsive Controls Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-2 bg-muted/20 border-b border-border/50 flex-shrink-0">
+          <div className="flex items-center justify-center sm:justify-start space-x-2 sm:space-x-4 text-xs sm:text-sm text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <CircleDollarSign className="h-3 w-3" />
+              <span className="font-medium">0</span>
+              <span className="hidden xs:inline">tokens</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <UserCheck className="h-3 w-3" />
+              <span className="font-medium">0</span>
+              <span className="hidden xs:inline">KOLs</span>
+            </span>
+          </div>
+
+          <div className="flex items-center justify-center gap-1 overflow-x-auto pb-1">
+            {/* KOL Filter Toggle */}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setShowSubscribedOnly(true)}
+              className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
+            >
+              <UserCheck className="h-3 w-3 mr-1" />
+              <span className="hidden xs:inline">Subscribed</span> ({subscribedKOLs})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSubscribedOnly(false)}
+              className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
+            >
+              <Users className="h-3 w-3 mr-1" />
+              <span className="hidden xs:inline">All</span> ({allKOLs})
+            </Button>
+          </div>
+        </div>
+
+        {/* Empty State */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4 p-8">
+            <UserCheck className="h-16 w-16 text-muted-foreground mx-auto" />
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                No Subscribed KOLs Found
+              </h3>
+              <p className="text-muted-foreground max-w-md">
+                You haven't subscribed to any KOLs yet, or none of your subscribed KOLs are trading the available tokens.
+                <br />
+                Switch to "All KOLs" to see the full network.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowSubscribedOnly(false)}
+              className="mt-4"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              View All KOLs
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className={cn('w-full h-full flex flex-col min-h-[300px] max-h-[600px]', className)}>
@@ -628,15 +786,40 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
             <CircleDollarSign className="h-3 w-3" />
             <span className="font-medium">{tokenCount}</span>
             <span className="hidden xs:inline">tokens</span>
+            {showSubscribedOnly && <span className="text-xs">(filtered)</span>}
           </span>
           <span className="flex items-center gap-1">
             <UserCheck className="h-3 w-3" />
             <span className="font-medium">{totalKOLs}</span>
             <span className="hidden xs:inline">KOLs</span>
+            {showSubscribedOnly && <span className="text-xs">(subscribed)</span>}
           </span>
         </div>
 
         <div className="flex items-center justify-center gap-1 overflow-x-auto pb-1">
+          {/* KOL Filter Toggle */}
+          <Button
+            variant={showSubscribedOnly ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowSubscribedOnly(true)}
+            className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
+          >
+            <UserCheck className="h-3 w-3 mr-1" />
+            <span className="hidden xs:inline">Subscribed</span> ({subscribedKOLs})
+          </Button>
+          <Button
+            variant={!showSubscribedOnly ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowSubscribedOnly(false)}
+            className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
+          >
+            <Users className="h-3 w-3 mr-1" />
+            <span className="hidden xs:inline">All</span> ({allKOLs})
+          </Button>
+
+          {/* Divider */}
+          <div className="w-px h-4 bg-border mx-1" />
+
           {/* Highlight Mode Toggle */}
           <Button
             variant={highlightMode === 'none' ? 'default' : 'outline'}
@@ -742,7 +925,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       </div>
     </div>
   );
-}; 
+}
 
 // Unified NodeInfoPanel component for both hover and click states
 const NodeInfoPanel: React.FC<{
@@ -869,3 +1052,5 @@ const NodeInfoPanel: React.FC<{
     </div>
   );
 }; 
+
+export default UnifiedKOLMindmap;

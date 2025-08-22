@@ -58,6 +58,7 @@ export interface SignUpRequest {
   password: string;
   firstName: string;
   lastName: string;
+  inviteCode?: string;
 }
 
 export interface SignInRequest {

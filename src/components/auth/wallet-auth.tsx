@@ -21,6 +21,7 @@ import {
 import { useUserStore } from '@/stores/use-user-store';
 import { useNotifications } from '@/stores/use-ui-store';
 import { User } from '@/types';
+import { useInviteCode, isAlphaOrBeta } from '@/contexts/invite-context';
 
 interface WalletAuthProps {
   mode: 'signin' | 'signup' | 'link';
@@ -39,6 +40,7 @@ export const WalletAuth: React.FC<WalletAuthProps> = ({
     useWallet();
   const { setUser, user } = useUserStore();
   const { showSuccess, showError, showInfo } = useNotifications();
+  const { inviteCode } = useInviteCode();
   const [isLoading, setIsLoading] = useState(false);
   const [walletDetected, setWalletDetected] = useState(false);
   const [formData, setFormData] = useState({

@@ -7,6 +7,7 @@ import { useUserStore } from '@/stores/use-user-store';
 import { useNotifications } from '@/stores/use-ui-store';
 import AuthService from '@/services/auth.service';
 import { SUCCESS_MESSAGES } from '@/lib/constants';
+import { useInviteCode, isAlphaOrBeta } from '@/contexts/invite-context';
 
 interface SignUpFormProps {
   onSuccess?: () => void;
@@ -53,6 +54,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
 
   const { signUp } = useUserStore(); // Removed verifyOTP from here
   const { showSuccess, showError, showInfo } = useNotifications();
+  const { inviteCode } = useInviteCode();
 
   const validateSignUpForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -157,12 +159,15 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
     setErrors({});
 
     try {
-      await signUp({
+      const signUpData = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
         password: formData.password,
-      });
+        ...(isAlphaOrBeta() && inviteCode && { inviteCode }),
+      };
+      
+      await signUp(signUpData);
 
       setStep('otp');
       showInfo(

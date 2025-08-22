@@ -67,7 +67,7 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
   const effectiveSubscription: UserSubscription | null = subscription || (selectedKolWallet ? getSubscription?.(selectedKolWallet) || null : null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    type: 'trade',
+    type: process.env.NEXT_PUBLIC_DISABLE_B === 'true' ? 'watch' : 'trade',
     minAmount: 0.01,
     maxAmount: 1.0,
     copyPercentage: 100,
@@ -100,8 +100,10 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
   useEffect(() => {
     if (!isOpen || !effectiveSubscription) return;
     const latest = getSubscription?.(effectiveSubscription.kolWallet) || effectiveSubscription;
+    const isTradeDisabled = process.env.NEXT_PUBLIC_DISABLE_B === 'true';
+    const defaultType = isTradeDisabled ? 'watch' : (latest.type ?? 'trade');
       setFormData({
-        type: latest.type ?? 'trade',
+        type: defaultType,
         minAmount: latest.minAmount ?? 0.01,
         maxAmount: latest.maxAmount ?? 1.0,
         copyPercentage: latest.copyPercentage ?? 100,
@@ -130,6 +132,13 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
         },
       });
   }, [isOpen, effectiveSubscription, getSubscription]);
+
+  // Force type to 'watch' if 'trade' is disabled
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DISABLE_B === 'true' && formData.type === 'trade') {
+      updateFormData('type', 'watch');
+    }
+  }, [formData.type]);
 
   const prettyJson = (obj: unknown) => {
     try {
@@ -269,16 +278,38 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
                 <Label htmlFor="type">Subscription Type</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value: 'trade' | 'watch') => updateFormData('type', value)}
+                  onValueChange={(value: 'trade' | 'watch') => {
+                    // Prevent selecting 'trade' when disabled
+                    if (value === 'trade' && process.env.NEXT_PUBLIC_DISABLE_B === 'true') {
+                      return;
+                    }
+                    updateFormData('type', value);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="trade">Copy Trading</SelectItem>
+                    {process.env.NEXT_PUBLIC_DISABLE_B === 'true' ? (
+                      <SelectItem value="trade" disabled className="opacity-50 cursor-not-allowed pointer-events-none">
+                        <div className="flex items-center justify-between w-full">
+                          <span>Copy Trading</span>
+                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full ml-2">
+                            Coming Soon
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ) : (
+                      <SelectItem value="trade">Copy Trading</SelectItem>
+                    )}
                     <SelectItem value="watch">Watch Only</SelectItem>
                   </SelectContent>
                 </Select>
+                {process.env.NEXT_PUBLIC_DISABLE_B === 'true' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Copy Trading is currently under development. Use Watch Only mode to track KOL trades.
+                  </p>
+                )}
               </div>
  
               <div className="grid grid-cols-2 gap-4">
