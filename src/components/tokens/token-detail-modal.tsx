@@ -203,6 +203,28 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  // Handle all early returns BEFORE any hooks
+  if (!isOpen) {
+    return null;
+  }
+
+  if (!tokenData) {
+    return null;
+  }
+
+  const { token, pools = [], events = {}, risk, isLoading = {}, errors = {} } = tokenData;
+  
+  // Validate essential token data BEFORE any hooks
+  if (!token) {
+    return null;
+  }
+
+  // Ensure we have at least a mint address or symbol BEFORE any hooks
+  if (!token.mint && !token.symbol) {
+    return null;
+  }
+
+  // Now it's safe to call hooks since we've validated the data
   const { showError, showSuccess } = useNotifications();
   const [dexPair, setDexPair] = React.useState<string | null>(null);
   const [themeMode, setThemeMode] = React.useState<'dark' | 'light'>('dark');
@@ -214,23 +236,6 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   // Focus management refs
   const modalRef = React.useRef<HTMLDivElement>(null);
   const previousFocusRef = React.useRef<HTMLElement | null>(null);
-
-  // Handle null tokenData
-  if (!tokenData) {
-    return null;
-  }
-
-  const { token, pools = [], events = {}, risk, isLoading = {}, errors = {} } = tokenData;
-  
-  // Validate essential token data
-  if (!token) {
-    return null;
-  }
-
-  // Ensure we have at least a mint address or symbol
-  if (!token.mint && !token.symbol) {
-    return null;
-  }
   
   // Safe fallbacks for all data
   const safeRisk = risk || { 
@@ -254,6 +259,9 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
 
   // Determine theme for embedded widget
   React.useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     try {
       const isDark = document.documentElement.classList.contains('dark');
       setThemeMode(isDark ? 'dark' : 'light');
@@ -453,6 +461,9 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
 
   // Handle focus management and keyboard navigation
   React.useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     if (isOpen) {
       // Store the previously focused element
       previousFocusRef.current = document.activeElement as HTMLElement;
@@ -1234,7 +1245,12 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   );
 
   // Use portal to render modal at document body level
-  return typeof document !== 'undefined' ? createPortal(renderModalContent(), document.body) : null;
+  // Only render on client side to avoid SSR issues
+  if (typeof window === 'undefined' || !isOpen) {
+    return null;
+  }
+
+  return createPortal(renderModalContent(), document.body);
 };
 
 export default TokenDetailModal;

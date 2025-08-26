@@ -550,20 +550,20 @@ export const useEnhancedWebSocket = (
           await Promise.allSettled([
             authenticatedFetch(`${apiUrl}/api/kol-trades/recent?limit=20`, {
               headers,
-              signal: AbortSignal.timeout(5000), // 5 second timeout
-              priority: 'medium'
+              //signal: AbortSignal.timeout(5000), // 5 second timeout
+              //priority: 'low'
             }).then(response => ({ status: 'fulfilled' as const, value: response }))
              .catch(error => ({ status: 'rejected' as const, reason: error })),
             authenticatedFetch(`${apiUrl}/api/kol-trades/stats`, {
               headers,
-              signal: AbortSignal.timeout(5000),
-              priority: 'low'
+              //signal: AbortSignal.timeout(5000),
+              //priority: 'low'
             }).then(response => ({ status: 'fulfilled' as const, value: response }))
              .catch(error => ({ status: 'rejected' as const, reason: error })),
             authenticatedFetch(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
               headers,
-              signal: AbortSignal.timeout(5000),
-              priority: 'low'
+              //signal: AbortSignal.timeout(5000),
+              //priority: 'low'
             }).then(response => ({ status: 'fulfilled' as const, value: response }))
              .catch(error => ({ status: 'rejected' as const, reason: error })),
           ]);

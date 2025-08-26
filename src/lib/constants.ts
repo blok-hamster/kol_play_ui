@@ -210,3 +210,25 @@ export const STORAGE_KEYS = {
   TOKEN_DATA: 'tokenData',
   SWAP_SETTINGS: 'swapSettings',
 } as const;
+
+// Mindmap filtering constants
+export const MINDMAP_FILTER_CONFIG = {
+  // Solana base token mint address to exclude from mindmap visualization
+  SOLANA_BASE_TOKEN_MINT: 'So11111111111111111111111111111111111111112',
+  
+  // Minimum thresholds for meaningful connections
+  MIN_TRADE_COUNT: 1,
+  MIN_VOLUME_THRESHOLD: 0.001, // Minimum SOL volume to consider
+  MIN_INFLUENCE_SCORE: 0,
+  
+  // Cache configuration for metadata
+  METADATA_CACHE_TTL: 5 * 60 * 1000, // 5 minutes in milliseconds
+  METADATA_CACHE_MAX_SIZE: 1000, // Maximum number of cached items
+  FALLBACK_CACHE_TTL: 2 * 60 * 1000, // 2 minutes for fallback data
+  
+  // Performance optimization thresholds
+  MAX_NODES_MOBILE: 50,
+  MAX_NODES_DESKTOP: 200,
+  MAX_LINKS_MOBILE: 100,
+  MAX_LINKS_DESKTOP: 500,
+} as const;

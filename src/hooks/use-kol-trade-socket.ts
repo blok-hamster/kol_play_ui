@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 import { useNotifications } from '@/stores/use-ui-store';
-import { PredictionResult } from '@/types';
+import { PredictionResult, KOLWallet, UserSubscription } from '@/types';
 import { cacheManager } from '@/lib/cache-manager';
+import { TradingService } from '@/services/trading.service';
 
 export interface KOLTrade {
   id: string;
@@ -82,6 +83,15 @@ interface UseKOLTradeSocketReturn {
     uniqueTokens: number;
     totalVolume: number;
   };
+  // Enhanced subscription management
+  featuredKOLs: string[];
+  subscribedKOLs: string[];
+  relevantKOLs: string[];
+  subscriptionManager: {
+    subscribeToKOL: (kolWallet: string) => void;
+    unsubscribeFromKOL: (kolWallet: string) => void;
+    refreshSubscriptions: () => Promise<void>;
+  };
 }
 
 // Global state to ensure single requests across all hook instances
@@ -104,6 +114,16 @@ const globalState = {
   },
   loadingPhase: 'idle' as LoadingPhase,
   isLoadingInitialData: true,
+  // Enhanced subscription management
+  subscriptions: {
+    featuredKOLs: [] as string[],
+    subscribedKOLs: [] as string[],
+    relevantKOLs: [] as string[],
+    subscribedTokens: new Set<string>(), // Track which tokens we're subscribed to for mindmap
+    subscribedKOLs_mindmap: new Set<string>(), // Track which KOLs we're subscribed to for mindmap
+    pendingSubscriptions: new Set<string>(), // Track pending subscription requests to prevent duplicates
+    subscriptionTimestamps: new Map<string, number>(), // Track when subscriptions were made
+  },
 };
 
 // Memory optimization: Limit data sizes
@@ -153,7 +173,153 @@ function cleanupOldData() {
   }
 }
 
-// Function to ensure mindmap subscription for active tokens
+// Smart subscription management functions
+async function fetchFeaturedKOLs(): Promise<string[]> {
+  try {
+    // Fetch featured KOLs from the backend
+    const response = await TradingService.getKOLWallets({
+      limit: 20, // Get top 20 featured KOLs
+      sortBy: 'subscriberCount',
+      sortOrder: 'desc',
+    });
+
+    if (response.data) {
+      return response.data.map((kol: KOLWallet) => kol.walletAddress);
+    }
+    return [];
+  } catch (error) {
+    console.warn('Failed to fetch featured KOLs:', error);
+    return [];
+  }
+}
+
+async function fetchUserSubscribedKOLs(): Promise<string[]> {
+  try {
+    const response = await TradingService.getUserSubscriptions();
+    if (response.data) {
+      return response.data
+        .filter((sub: UserSubscription) => sub.isActive)
+        .map((sub: UserSubscription) => sub.kolWallet);
+    }
+    return [];
+  } catch (error) {
+    console.warn('Failed to fetch user subscriptions:', error);
+    return [];
+  }
+}
+
+function mergeKOLLists(featured: string[], subscribed: string[]): string[] {
+  // Merge and deduplicate KOL lists
+  const uniqueKOLs = new Set([...featured, ...subscribed]);
+  return Array.from(uniqueKOLs);
+}
+
+function subscribeToRelevantKOLs() {
+  if (!globalState.socket || !globalState.isConnected) return;
+
+  const { relevantKOLs } = globalState.subscriptions;
+
+  // Subscribe to mindmap updates for each relevant KOL
+  relevantKOLs.forEach(kolWallet => {
+    globalState.socket!.emit('subscribe_kol_mindmap', { kolWallet });
+  });
+
+  console.log(
+    `📡 Subscribed to mindmap updates for ${relevantKOLs.length} relevant KOLs`
+  );
+}
+
+function subscribeToKOLMindmap(kolWallet: string) {
+  if (!globalState.socket || !globalState.isConnected) return;
+
+  // Prevent redundant subscriptions
+  if (globalState.subscriptions.subscribedKOLs_mindmap.has(kolWallet)) {
+    console.log(
+      `📡 Already subscribed to mindmap updates for KOL: ${kolWallet}`
+    );
+    return;
+  }
+
+  // Prevent duplicate pending requests
+  if (globalState.subscriptions.pendingSubscriptions.has(`kol_${kolWallet}`)) {
+    console.log(
+      `📡 Subscription request already pending for KOL: ${kolWallet}`
+    );
+    return;
+  }
+
+  globalState.subscriptions.pendingSubscriptions.add(`kol_${kolWallet}`);
+  globalState.socket.emit('subscribe_kol_mindmap', { kolWallet });
+
+  // Track successful subscription
+  globalState.subscriptions.subscribedKOLs_mindmap.add(kolWallet);
+  globalState.subscriptions.subscriptionTimestamps.set(
+    `kol_${kolWallet}`,
+    Date.now()
+  );
+
+  // Remove from pending after a short delay
+  setTimeout(() => {
+    globalState.subscriptions.pendingSubscriptions.delete(`kol_${kolWallet}`);
+  }, 1000);
+
+  console.log(`📡 Subscribed to mindmap updates for KOL: ${kolWallet}`);
+}
+
+function unsubscribeFromKOLMindmap(kolWallet: string) {
+  if (!globalState.socket || !globalState.isConnected) return;
+
+  // Only unsubscribe if we're actually subscribed
+  if (!globalState.subscriptions.subscribedKOLs_mindmap.has(kolWallet)) {
+    console.log(`📡 Not subscribed to mindmap updates for KOL: ${kolWallet}`);
+    return;
+  }
+
+  globalState.socket.emit('unsubscribe_kol_mindmap', { kolWallet });
+
+  // Track unsubscription
+  globalState.subscriptions.subscribedKOLs_mindmap.delete(kolWallet);
+  globalState.subscriptions.subscriptionTimestamps.delete(`kol_${kolWallet}`);
+
+  console.log(`📡 Unsubscribed from mindmap updates for KOL: ${kolWallet}`);
+}
+
+function optimizeSubscriptions() {
+  // Clean up stale subscriptions (older than 1 hour)
+  const now = Date.now();
+  const staleThreshold = 60 * 60 * 1000; // 1 hour
+
+  globalState.subscriptions.subscriptionTimestamps.forEach((timestamp, key) => {
+    if (now - timestamp > staleThreshold) {
+      if (key.startsWith('kol_')) {
+        const kolWallet = key.substring(4);
+        // Only clean up if not in relevant KOLs
+        if (!globalState.subscriptions.relevantKOLs.includes(kolWallet)) {
+          unsubscribeFromKOLMindmap(kolWallet);
+        }
+      } else if (key.startsWith('token_')) {
+        const tokenMint = key.substring(6);
+        globalState.subscriptions.subscribedTokens.delete(tokenMint);
+        globalState.subscriptions.subscriptionTimestamps.delete(key);
+      }
+    }
+  });
+
+  // Ensure all relevant KOLs are subscribed
+  globalState.subscriptions.relevantKOLs.forEach(kolWallet => {
+    if (!globalState.subscriptions.subscribedKOLs_mindmap.has(kolWallet)) {
+      subscribeToKOLMindmap(kolWallet);
+    }
+  });
+
+  console.log('🔧 Subscription optimization completed', {
+    subscribedKOLs: globalState.subscriptions.subscribedKOLs_mindmap.size,
+    subscribedTokens: globalState.subscriptions.subscribedTokens.size,
+    relevantKOLs: globalState.subscriptions.relevantKOLs.length,
+  });
+}
+
+// Function to ensure mindmap subscription for active tokens (legacy support)
 function ensureMindmapSubscriptions() {
   if (!globalState.socket || !globalState.isConnected) return;
 
@@ -167,8 +333,33 @@ function ensureMindmapSubscriptions() {
 
   // Subscribe to mindmap updates for active tokens that we don't have data for
   activeTokens.forEach(tokenMint => {
-    if (!globalState.data.mindmapData[tokenMint]) {
-      globalState.socket!.emit('subscribe_mindmap', { tokenMint });
+    if (
+      !globalState.data.mindmapData[tokenMint] &&
+      !globalState.subscriptions.subscribedTokens.has(tokenMint)
+    ) {
+      // Prevent duplicate pending requests
+      if (
+        !globalState.subscriptions.pendingSubscriptions.has(
+          `token_${tokenMint}`
+        )
+      ) {
+        globalState.subscriptions.pendingSubscriptions.add(
+          `token_${tokenMint}`
+        );
+        globalState.socket!.emit('subscribe_mindmap', { tokenMint });
+        globalState.subscriptions.subscribedTokens.add(tokenMint);
+        globalState.subscriptions.subscriptionTimestamps.set(
+          `token_${tokenMint}`,
+          Date.now()
+        );
+
+        // Remove from pending after a short delay
+        setTimeout(() => {
+          globalState.subscriptions.pendingSubscriptions.delete(
+            `token_${tokenMint}`
+          );
+        }, 1000);
+      }
     }
   });
 }
@@ -187,6 +378,90 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       listeners.delete(rerender);
     };
   }, [rerender]);
+
+  // Dynamic subscription management functions
+  const handleSubscribeToKOL = useCallback((kolWallet: string) => {
+    // Add to subscribed KOLs if not already present
+    if (!globalState.subscriptions.subscribedKOLs.includes(kolWallet)) {
+      globalState.subscriptions.subscribedKOLs.push(kolWallet);
+      globalState.subscriptions.relevantKOLs = mergeKOLLists(
+        globalState.subscriptions.featuredKOLs,
+        globalState.subscriptions.subscribedKOLs
+      );
+
+      // Subscribe to mindmap updates for this KOL (with optimization)
+      subscribeToKOLMindmap(kolWallet);
+
+      // Trigger subscription optimization to ensure consistency
+      setTimeout(optimizeSubscriptions, 100);
+
+      notifyListeners();
+    }
+  }, []);
+
+  const handleUnsubscribeFromKOL = useCallback((kolWallet: string) => {
+    // Remove from subscribed KOLs
+    globalState.subscriptions.subscribedKOLs =
+      globalState.subscriptions.subscribedKOLs.filter(kol => kol !== kolWallet);
+    globalState.subscriptions.relevantKOLs = mergeKOLLists(
+      globalState.subscriptions.featuredKOLs,
+      globalState.subscriptions.subscribedKOLs
+    );
+
+    // Unsubscribe from mindmap updates for this KOL (only if not featured)
+    if (!globalState.subscriptions.featuredKOLs.includes(kolWallet)) {
+      unsubscribeFromKOLMindmap(kolWallet);
+    }
+
+    // Trigger subscription optimization to clean up
+    setTimeout(optimizeSubscriptions, 100);
+
+    notifyListeners();
+  }, []);
+
+  const refreshSubscriptions = useCallback(async () => {
+    try {
+      const [featuredKOLs, subscribedKOLs] = await Promise.all([
+        fetchFeaturedKOLs(),
+        fetchUserSubscribedKOLs(),
+      ]);
+
+      const previousRelevantKOLs = [...globalState.subscriptions.relevantKOLs];
+
+      globalState.subscriptions.featuredKOLs = featuredKOLs;
+      globalState.subscriptions.subscribedKOLs = subscribedKOLs;
+      globalState.subscriptions.relevantKOLs = mergeKOLLists(
+        featuredKOLs,
+        subscribedKOLs
+      );
+
+      // Update WebSocket subscriptions based on changes
+      const newRelevantKOLs = globalState.subscriptions.relevantKOLs;
+      const addedKOLs = newRelevantKOLs.filter(
+        kol => !previousRelevantKOLs.includes(kol)
+      );
+      const removedKOLs = previousRelevantKOLs.filter(
+        kol => !newRelevantKOLs.includes(kol)
+      );
+
+      // Subscribe to new KOLs (with optimization)
+      addedKOLs.forEach(kolWallet => {
+        subscribeToKOLMindmap(kolWallet);
+      });
+
+      // Unsubscribe from removed KOLs (with optimization)
+      removedKOLs.forEach(kolWallet => {
+        unsubscribeFromKOLMindmap(kolWallet);
+      });
+
+      // Run full optimization to ensure consistency
+      setTimeout(optimizeSubscriptions, 100);
+
+      notifyListeners();
+    } catch (error) {
+      console.error('Failed to refresh subscriptions:', error);
+    }
+  }, []);
 
   // Mock data for fallback
   const getMockData = useCallback(() => {
@@ -284,19 +559,21 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         socket.emit('subscribe_kol_trades');
         socket.emit('subscribe_all_token_activity');
 
-        // Subscribe to mindmap updates for all available trending tokens immediately
-        // This ensures mindmap data is available when trades start coming in
+        // Smart subscription: Subscribe to mindmap updates for relevant KOLs only
+        subscribeToRelevantKOLs();
+
+        // Legacy support: Subscribe to mindmap updates for trending tokens
         const tokensToSubscribe =
           globalState.data.trendingTokens.length > 0
             ? globalState.data.trendingTokens.slice(0, 5)
-            : ['default']; // Subscribe to a default channel if no trending tokens yet
+            : [];
 
         tokensToSubscribe.forEach(tokenMint => {
-          socket.emit('subscribe_mindmap', { tokenMint });
+          if (!globalState.subscriptions.subscribedTokens.has(tokenMint)) {
+            socket.emit('subscribe_mindmap', { tokenMint });
+            globalState.subscriptions.subscribedTokens.add(tokenMint);
+          }
         });
-
-        // Also subscribe to general mindmap updates
-        socket.emit('subscribe_all_mindmap_updates');
 
         notifyListeners();
       });
@@ -329,11 +606,20 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
           ...globalState.data.trades.slice(0, MAX_TRADES - 1),
         ];
 
-        // Auto-subscribe to mindmap updates for the token in this trade
-        if (trade.tradeData?.mint && globalState.socket) {
+        // Auto-subscribe to mindmap updates for the token in this trade (only if from relevant KOL)
+        if (trade.tradeData?.mint && globalState.socket && trade.kolWallet) {
           const tokenMint = trade.tradeData.mint;
-          if (!globalState.data.mindmapData[tokenMint]) {
+          const isRelevantKOL = globalState.subscriptions.relevantKOLs.includes(
+            trade.kolWallet
+          );
+
+          if (
+            isRelevantKOL &&
+            !globalState.data.mindmapData[tokenMint] &&
+            !globalState.subscriptions.subscribedTokens.has(tokenMint)
+          ) {
             globalState.socket.emit('subscribe_mindmap', { tokenMint });
+            globalState.subscriptions.subscribedTokens.add(tokenMint);
           }
         }
 
@@ -367,11 +653,20 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
           ...globalState.data.trades.slice(0, MAX_TRADES - 1),
         ];
 
-        // Auto-subscribe to mindmap updates for the token in this trade
-        if (trade.tradeData?.mint && globalState.socket) {
+        // Auto-subscribe to mindmap updates for the token in this trade (only if from relevant KOL)
+        if (trade.tradeData?.mint && globalState.socket && trade.kolWallet) {
           const tokenMint = trade.tradeData.mint;
-          if (!globalState.data.mindmapData[tokenMint]) {
+          const isRelevantKOL = globalState.subscriptions.relevantKOLs.includes(
+            trade.kolWallet
+          );
+
+          if (
+            isRelevantKOL &&
+            !globalState.data.mindmapData[tokenMint] &&
+            !globalState.subscriptions.subscribedTokens.has(tokenMint)
+          ) {
             globalState.socket.emit('subscribe_mindmap', { tokenMint });
+            globalState.subscriptions.subscribedTokens.add(tokenMint);
           }
         }
 
@@ -469,6 +764,85 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         notifyListeners();
       });
 
+      // Handle subscription change events
+      socket.on('subscription_updated', (eventData: any) => {
+        console.log('📡 Subscription updated:', eventData);
+
+        // Refresh subscriptions when user subscription status changes
+        if (eventData.kolWallet) {
+          const { kolWallet, isActive } = eventData;
+
+          if (isActive) {
+            // User subscribed to a KOL
+            if (!globalState.subscriptions.subscribedKOLs.includes(kolWallet)) {
+              globalState.subscriptions.subscribedKOLs.push(kolWallet);
+              globalState.subscriptions.relevantKOLs = mergeKOLLists(
+                globalState.subscriptions.featuredKOLs,
+                globalState.subscriptions.subscribedKOLs
+              );
+
+              // Subscribe to mindmap updates for this KOL
+              subscribeToKOLMindmap(kolWallet);
+            }
+          } else {
+            // User unsubscribed from a KOL
+            globalState.subscriptions.subscribedKOLs =
+              globalState.subscriptions.subscribedKOLs.filter(
+                kol => kol !== kolWallet
+              );
+            globalState.subscriptions.relevantKOLs = mergeKOLLists(
+              globalState.subscriptions.featuredKOLs,
+              globalState.subscriptions.subscribedKOLs
+            );
+
+            // Unsubscribe from mindmap updates for this KOL (only if not featured)
+            if (!globalState.subscriptions.featuredKOLs.includes(kolWallet)) {
+              unsubscribeFromKOLMindmap(kolWallet);
+            }
+          }
+
+          notifyListeners();
+        }
+      });
+
+      // Handle featured KOLs updates
+      socket.on('featured_kols_updated', (eventData: any) => {
+        console.log('🌟 Featured KOLs updated:', eventData);
+
+        if (eventData.featuredKOLs) {
+          const previousFeaturedKOLs = [
+            ...globalState.subscriptions.featuredKOLs,
+          ];
+          globalState.subscriptions.featuredKOLs = eventData.featuredKOLs;
+          globalState.subscriptions.relevantKOLs = mergeKOLLists(
+            globalState.subscriptions.featuredKOLs,
+            globalState.subscriptions.subscribedKOLs
+          );
+
+          // Handle subscription changes for featured KOLs
+          const newFeaturedKOLs = globalState.subscriptions.featuredKOLs.filter(
+            kol => !previousFeaturedKOLs.includes(kol)
+          );
+          const removedFeaturedKOLs = previousFeaturedKOLs.filter(
+            kol => !globalState.subscriptions.featuredKOLs.includes(kol)
+          );
+
+          // Subscribe to new featured KOLs
+          newFeaturedKOLs.forEach(kolWallet => {
+            subscribeToKOLMindmap(kolWallet);
+          });
+
+          // Unsubscribe from removed featured KOLs (only if not subscribed by user)
+          removedFeaturedKOLs.forEach(kolWallet => {
+            if (!globalState.subscriptions.subscribedKOLs.includes(kolWallet)) {
+              unsubscribeFromKOLMindmap(kolWallet);
+            }
+          });
+
+          notifyListeners();
+        }
+      });
+
       // Generic event handler to catch mindmap-related events
       socket.onAny((eventName: string, ...args: any[]) => {
         if (eventName.includes('mindmap') || eventName.includes('network')) {
@@ -490,15 +864,19 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         globalState.data.trendingTokens = tokens.slice(0, 10);
         cacheManager.setTrendingTokens(globalState.data.trendingTokens, 900000);
 
-        // Subscribe to mindmap updates for new trending tokens immediately
-        globalState.data.trendingTokens.slice(0, 5).forEach(tokenMint => {
-          if (
-            !previousTokens.includes(tokenMint) &&
-            !globalState.data.mindmapData[tokenMint]
-          ) {
-            socket.emit('subscribe_mindmap', { tokenMint });
-          }
-        });
+        // Subscribe to mindmap updates for new trending tokens immediately (only if we have relevant KOLs)
+        if (globalState.subscriptions.relevantKOLs.length > 0) {
+          globalState.data.trendingTokens.slice(0, 5).forEach(tokenMint => {
+            if (
+              !previousTokens.includes(tokenMint) &&
+              !globalState.data.mindmapData[tokenMint] &&
+              !globalState.subscriptions.subscribedTokens.has(tokenMint)
+            ) {
+              socket.emit('subscribe_mindmap', { tokenMint });
+              globalState.subscriptions.subscribedTokens.add(tokenMint);
+            }
+          });
+        }
 
         notifyListeners();
       });
@@ -532,6 +910,25 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
+
+      // Fetch featured and subscribed KOLs for smart subscription management
+      const [featuredKOLs, subscribedKOLs] = await Promise.all([
+        fetchFeaturedKOLs(),
+        fetchUserSubscribedKOLs(),
+      ]);
+
+      globalState.subscriptions.featuredKOLs = featuredKOLs;
+      globalState.subscriptions.subscribedKOLs = subscribedKOLs;
+      globalState.subscriptions.relevantKOLs = mergeKOLLists(
+        featuredKOLs,
+        subscribedKOLs
+      );
+
+      console.log('🎯 Smart KOL subscription initialized:', {
+        featured: featuredKOLs.length,
+        subscribed: subscribedKOLs.length,
+        relevant: globalState.subscriptions.relevantKOLs.length,
+      });
 
       // Check cache first
       const cachedTrades = cacheManager.getTradeData('recent');
@@ -567,10 +964,11 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       if (!cachedTrades) {
         promises.push(
           authenticatedRequest(
-            () => axios.get(`${apiUrl}/api/kol-trades/recent?limit=${MAX_TRADES}`, {
-              headers,
-              timeout: 30000,
-            }),
+            () =>
+              axios.get(`${apiUrl}/api/kol-trades/recent?limit=${MAX_TRADES}`, {
+                headers,
+                timeout: 30000,
+              }),
             { priority: 'high', timeout: 30000 }
           )
             .then(response => ({ type: 'trades', data: response.data }))
@@ -581,10 +979,11 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       if (!cachedStats) {
         promises.push(
           authenticatedRequest(
-            () => axios.get(`${apiUrl}/api/kol-trades/stats`, {
-              headers,
-              timeout: 30000,
-            }),
+            () =>
+              axios.get(`${apiUrl}/api/kol-trades/stats`, {
+                headers,
+                timeout: 30000,
+              }),
             { priority: 'medium', timeout: 30000 }
           )
             .then(response => ({ type: 'stats', data: response.data }))
@@ -595,10 +994,11 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       if (!cachedTrending) {
         promises.push(
           authenticatedRequest(
-            () => axios.get(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
-              headers,
-              timeout: 30000,
-            }),
+            () =>
+              axios.get(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
+                headers,
+                timeout: 30000,
+              }),
             { priority: 'medium', timeout: 30000 }
           )
             .then(response => ({ type: 'trending', data: response.data }))
@@ -656,16 +1056,17 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         try {
           // Load mindmap data for trending tokens to ensure it's available with trades
           const mindmapResponse = await authenticatedRequest(
-            () => axios.post(
-              `${apiUrl}/api/kol-trades/mindmap/bulk`,
-              {
-                tokenMints: globalState.data.trendingTokens.slice(0, 5), // Increased to 5 for better coverage
-              },
-              {
-                headers,
-                timeout: 30000,
-              }
-            ),
+            () =>
+              axios.post(
+                `${apiUrl}/api/kol-trades/mindmap/bulk`,
+                {
+                  tokenMints: globalState.data.trendingTokens.slice(0, 5), // Increased to 5 for better coverage
+                },
+                {
+                  headers,
+                  timeout: 30000,
+                }
+              ),
             { priority: 'low', timeout: 30000 }
           );
 
@@ -717,11 +1118,16 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
   useEffect(() => {
     initializeOnce();
 
-    // Set up periodic cleanup
+    // Set up periodic cleanup and subscription optimization
     const cleanupInterval = setInterval(cleanupOldData, CLEANUP_INTERVAL);
+    const optimizationInterval = setInterval(
+      optimizeSubscriptions,
+      CLEANUP_INTERVAL * 2
+    ); // Every 10 minutes
 
     return () => {
       clearInterval(cleanupInterval);
+      clearInterval(optimizationInterval);
     };
   }, [initializeOnce]);
 
@@ -741,5 +1147,14 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       connectionHealth: globalState.isConnected ? 'healthy' : 'unstable',
     },
     stats: globalState.data.stats,
+    // Enhanced subscription management
+    featuredKOLs: globalState.subscriptions.featuredKOLs,
+    subscribedKOLs: globalState.subscriptions.subscribedKOLs,
+    relevantKOLs: globalState.subscriptions.relevantKOLs,
+    subscriptionManager: {
+      subscribeToKOL: handleSubscribeToKOL,
+      unsubscribeFromKOL: handleUnsubscribeFromKOL,
+      refreshSubscriptions,
+    },
   };
 };

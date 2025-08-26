@@ -249,7 +249,7 @@ export class SolanaService {
    * @param mintAddresses - Array of mint addresses
    * @returns Promise<Map<string, SolanaTokenMetadata>> - Map of mint address to metadata
    */
-  private static async fetchTokenMetadataBatch(mintAddresses: string[]): Promise<Map<string, SolanaTokenMetadata>> {
+  static async fetchTokenMetadataBatch(mintAddresses: string[]): Promise<Map<string, SolanaTokenMetadata>> {
     const metadataMap = new Map<string, SolanaTokenMetadata>();
     
     // Check cache first

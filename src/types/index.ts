@@ -609,6 +609,145 @@ export interface MindmapUpdate {
   lastUpdate: Date;
 }
 
+// Enhanced Mindmap Types for unified enhancement
+export interface EnhancedMindmapUpdate extends MindmapUpdate {
+  // Enhanced metadata
+  tokenMetadata?: TokenMetadata;
+  kolMetadata: { [kolWallet: string]: KOLMetadata };
+  
+  // Filtering flags
+  isFeaturedToken: boolean;
+  hasSubscribedKOLs: boolean;
+}
+
+export interface TokenMetadata {
+  name?: string;
+  symbol?: string;
+  image?: string;
+  fallbackImage?: string;
+  lastUpdated: number;
+  // Additional metadata from token store
+  decimals?: number;
+  holders?: number;
+  verified?: boolean;
+  jupiter?: boolean;
+  liquidityUsd?: number;
+  marketCapUsd?: number;
+  priceUsd?: number;
+}
+
+export interface KOLMetadata {
+  name?: string;
+  avatar?: string;
+  socialLinks?: SocialLinks;
+  fallbackAvatar?: string;
+  lastUpdated: number;
+  // Additional KOL metadata
+  displayName?: string;
+  description?: string;
+  totalTrades?: number;
+  winRate?: number;
+  totalPnL?: number;
+  subscriberCount?: number;
+  isActive?: boolean;
+}
+
+export interface SocialLinks {
+  twitter?: string;
+  telegram?: string;
+  discord?: string;
+  website?: string;
+}
+
+export interface FilteredNetworkData {
+  nodes: EnhancedUnifiedNode[];
+  links: EnhancedUnifiedLink[];
+  metadata: NetworkMetadata;
+}
+
+export interface NetworkMetadata {
+  totalTokens: number;
+  totalKOLs: number;
+  featuredKOLs: number;
+  subscribedKOLs: number;
+  filteredTokens: number;
+  filteredKOLs: number;
+  lastUpdate: Date;
+}
+
+export interface EnhancedUnifiedNode {
+  id: string;
+  type: 'token' | 'kol';
+  label: string;
+  name?: string; // Display name for tokens/KOLs
+  image?: string; // Image URL for tokens/KOLs
+  value: number; // For sizing
+  connections: number; // Number of connections
+  totalVolume?: number;
+  tradeCount?: number;
+  influenceScore?: number;
+  isTrending?: boolean;
+  tokenMint?: string; // For KOL nodes, which token they're connected to
+  relatedTokens?: string[]; // For KOL nodes, all tokens they trade
+  
+  // Enhanced metadata
+  metadata?: TokenMetadata | KOLMetadata;
+  displayName: string;
+  displayImage?: string;
+  
+  // D3 simulation properties
+  x?: number;
+  y?: number;
+  fx?: number | null;
+  fy?: number | null;
+  vx?: number;
+  vy?: number;
+}
+
+export interface EnhancedUnifiedLink {
+  source: string | EnhancedUnifiedNode;
+  target: string | EnhancedUnifiedNode;
+  value: number; // Link strength
+  tradeCount: number;
+  volume: number;
+  
+  // Enhanced metadata
+  lastTradeTime?: Date;
+  tradeTypes?: string[];
+  averageTradeSize?: number;
+}
+
+// Cache management types
+export interface CacheStats {
+  size: number;
+  maxSize: number;
+  hitRate: number;
+  missRate: number;
+  evictionCount: number;
+  lastCleanup: Date;
+}
+
+export interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+  accessCount: number;
+  lastAccessed: number;
+}
+
+// Store integration types
+export interface TokenStoreIntegration {
+  getTokenFromStore(mint: string): SearchTokenResult | null;
+  cacheTokenInStore(token: SearchTokenResult): void;
+  enrichTokenWithStoreData(tokenData: any): TokenMetadata;
+}
+
+export interface KOLStoreIntegration {
+  getKOLFromStore(walletAddress: string): KOLWallet | null;
+  cacheKOLInStore(kol: KOLWallet): void;
+  enrichKOLWithStoreData(kolData: any): KOLMetadata;
+}
+
 // Top Trader Types
 export interface TopTrader {
   wallet: string;

@@ -17,9 +17,11 @@ import {
   List,
   RefreshCw,
   Users,
+  UserCheck,
   CircleDollarSign
 } from 'lucide-react';
 import { useKOLStore } from '@/stores';
+import { useSubscriptions } from '@/stores/use-trading-store';
 
 interface KOLRealtimeTradesProps {
   maxTrades?: number;
@@ -47,7 +49,9 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
   const [showNewTradeAlert, setShowNewTradeAlert] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
+  const [activeTab, setActiveTab] = useState<'featured' | 'subscribed'>('featured');
   const { getKOL, ensureKOL } = useKOLStore();
+  const { isSubscribedToKOL, subscriptions } = useSubscriptions();
 
   // Force update mechanism for when React doesn't detect changes
   const forceUpdate = useCallback(() => {
@@ -78,6 +82,12 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
   const filteredTrades = useMemo(() => {
     return recentTrades
       .filter(trade => {
+        // Tab-based filtering
+        if (activeTab === 'subscribed' && !isSubscribedToKOL(trade.kolWallet)) {
+          return false;
+        }
+        
+        // Regular filters
         if (filters.tradeType !== 'all' && (trade.tradeData.tradeType ?? 'sell') !== filters.tradeType) return false;
         if (filters.selectedKOL && !trade.kolWallet.toLowerCase().includes(filters.selectedKOL.toLowerCase())) return false;
         if (filters.minAmount) {
@@ -88,7 +98,7 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
         return true;
       })
       .slice(0, maxTrades);
-  }, [recentTrades, filters, maxTrades]);
+  }, [recentTrades, filters, maxTrades, activeTab, isSubscribedToKOL]);
 
   // Prefetch KOL details for displayed wallets to avoid repeated endpoint calls
   const displayedWallets = useMemo(() => {
@@ -148,6 +158,38 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
                 <Activity className="h-5 w-5" />
                 <span>Live KOL Trades</span>
               </CardTitle>
+              
+              {/* Tab Toggle */}
+              <div className="flex items-center bg-muted rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab('featured')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center space-x-1',
+                    activeTab === 'featured'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <Users className="w-4 h-4" />
+                  <span className="hidden sm:inline">Featured</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('subscribed')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center space-x-1',
+                    activeTab === 'subscribed'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span className="hidden sm:inline">Subscribed</span>
+                  <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full ml-1">
+                    {Object.keys(subscriptions).length}
+                  </span>
+                </button>
+              </div>
+              
               <div className="flex items-center space-x-2">
                 <div className={cn(
                   'w-2 h-2 rounded-full',
@@ -155,6 +197,7 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
                 )} />
                 <span className="text-sm text-muted-foreground">
                   {isConnected ? `${filteredTrades.length} live trades` : 'Disconnected'}
+                  {activeTab === 'subscribed' && ' (subscribed)'}
                 </span>
               </div>
               {showNewTradeAlert && (
@@ -164,24 +207,40 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
               )}
             </div>
 
-            {/* Comprehensive Statistics Display */}
+            {/* Tab-specific Statistics Display */}
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <div className="flex items-center space-x-1">
-                <Users className="h-3 w-3" />
-                <span className="font-medium">{stats.uniqueKOLs}</span>
-                <span className="hidden sm:inline">KOLs</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <CircleDollarSign className="h-3 w-3" />
-                <span className="font-medium">{stats.uniqueTokens}</span>
-                <span className="hidden sm:inline">tokens</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Activity className="h-3 w-3" />
-                <span className="font-medium">{stats.totalTrades}</span>
-                <span className="hidden sm:inline">total trades</span>
-              </div>
-              {/* Removed inaccurate SOL volume display */}
+              {activeTab === 'featured' ? (
+                <>
+                  <div className="flex items-center space-x-1">
+                    <Users className="h-3 w-3" />
+                    <span className="font-medium">{stats.uniqueKOLs}</span>
+                    <span className="hidden sm:inline">KOLs</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <CircleDollarSign className="h-3 w-3" />
+                    <span className="font-medium">{stats.uniqueTokens}</span>
+                    <span className="hidden sm:inline">tokens</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Activity className="h-3 w-3" />
+                    <span className="font-medium">{stats.totalTrades}</span>
+                    <span className="hidden sm:inline">total trades</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-1">
+                    <UserCheck className="h-3 w-3" />
+                    <span className="font-medium">{Object.keys(subscriptions).length}</span>
+                    <span className="hidden sm:inline">subscribed KOLs</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Activity className="h-3 w-3" />
+                    <span className="font-medium">{filteredTrades.length}</span>
+                    <span className="hidden sm:inline">subscribed trades</span>
+                  </div>
+                </>
+              )}
               {/* Debug info */}
               <div className="flex items-center space-x-1 text-blue-500">
                 <RefreshCw className="h-3 w-3" />
@@ -301,11 +360,36 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
         {filteredTrades.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Activity className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No trades available</h3>
-              <p className="text-muted-foreground">
-                {!isConnected ? 'Connecting to live feed...' : 'No trades match your current filters'}
-              </p>
+              {activeTab === 'subscribed' ? (
+                <>
+                  <UserCheck className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No subscribed KOL trades</h3>
+                  <p className="text-muted-foreground text-center">
+                    {Object.keys(subscriptions).length === 0 
+                      ? 'You haven\'t subscribed to any KOLs yet. Switch to Featured to see all trades.'
+                      : 'None of your subscribed KOLs have made trades recently.'
+                    }
+                  </p>
+                  {Object.keys(subscriptions).length === 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab('featured')}
+                      className="mt-4"
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      View Featured Trades
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No trades available</h3>
+                  <p className="text-muted-foreground">
+                    {!isConnected ? 'Connecting to live feed...' : 'No trades match your current filters'}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         ) : (
