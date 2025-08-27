@@ -173,70 +173,97 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
     (typeof link.target === 'object' ? link.target.id : link.target) === node.id
   );
 
+  // Detect mobile screen
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   return (
     <Card className={cn(
-      "w-96 max-h-[80vh] overflow-hidden bg-card/95 backdrop-blur-sm border-2",
-      "animate-in slide-in-from-right-5 duration-300",
+      // Mobile: Fixed overlay centered with proper width, Desktop: Positioned panel
+      isMobile 
+        ? "fixed top-4 left-4 right-4 w-auto max-w-sm mx-auto max-h-[calc(100vh-2rem)]"
+        : "w-80 lg:w-96 max-h-[75vh]",
+      "overflow-hidden bg-card/95 backdrop-blur-sm border-2",
+      // Mobile-specific animations
+      isMobile 
+        ? "animate-in slide-in-from-bottom-5 duration-300" 
+        : "animate-in slide-in-from-right-5 duration-300",
       className
     )}>
-      <CardHeader className="pb-3">
+      <CardHeader className={cn(
+        // Reduced padding for more compact layout
+        "pb-1.5 sm:pb-2 px-2.5 sm:px-4 pt-2.5 sm:pt-4"
+      )}>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle className={cn(
+            "flex items-center gap-1.5 sm:gap-2",
+            // Mobile-optimized text size
+            "text-base sm:text-lg"
+          )}>
             {node.type === 'token' ? (
-              <CircleDollarSign className="h-5 w-5 text-primary" />
+              <CircleDollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
             ) : (
-              <UserCheck className="h-5 w-5 text-blue-500" />
+              <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 flex-shrink-0" />
             )}
-            <span>{node.type === 'token' ? 'Token Details' : 'KOL Profile'}</span>
+            <span className="truncate">
+              {node.type === 'token' ? 'Token Details' : 'KOL Profile'}
+            </span>
             {node.isTrending && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-500 rounded-full">
-                <TrendingUp className="h-3 w-3" />
-                <span className="text-xs">Trending</span>
+              <div className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-500/10 text-green-500 rounded-full flex-shrink-0">
+                <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                <span className="text-xs hidden sm:inline">Trending</span>
               </div>
             )}
           </CardTitle>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            {/* Hide expand button on mobile to save space */}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="h-8 w-8 p-0"
+              className={cn(
+                "h-7 w-7 sm:h-8 sm:w-8 p-0",
+                "hidden sm:flex" // Hide on mobile
+              )}
             >
-              {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {isExpanded ? <EyeOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="h-8 w-8 p-0"
+              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 overflow-y-auto">
-        {/* Node Identity */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
+      <CardContent className={cn(
+        // Reduced spacing and padding for more compact layout
+        "space-y-2 sm:space-y-3 overflow-y-auto",
+        "px-2.5 sm:px-4 pb-2.5 sm:pb-4"
+      )}>
+        {/* Node Identity - Mobile Optimized */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             {node.image ? (
               <img 
                 src={node.image} 
                 alt={node.name || node.symbol || node.type} 
-                className="w-12 h-12 rounded-full border-2 border-primary/20"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-primary/20 flex-shrink-0"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
             ) : (
               <div className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center",
+                "w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0",
                 node.type === 'token' 
                   ? "bg-gradient-to-br from-primary to-secondary" 
                   : "bg-gradient-to-br from-blue-500 to-purple-500"
               )}>
-                <span className="text-white font-bold text-sm">
+                <span className="text-white font-bold text-xs sm:text-sm">
                   {node.type === 'token' 
                     ? (node.symbol || node.name || 'T').slice(0, 2).toUpperCase()
                     : (node.name || 'KOL').slice(0, 2).toUpperCase()
@@ -244,102 +271,108 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
                 </span>
               </div>
             )}
-            <div className="flex-1">
-              <div className="font-semibold text-lg">
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm sm:text-base truncate">
                 {node.type === 'token' 
                   ? (node.name && node.symbol ? `${node.name} (${node.symbol})` : (node.name || node.symbol || 'Token'))
                   : (node.name || 'KOL Trader')
                 }
               </div>
-              <div className="font-mono text-sm text-muted-foreground">
-                {node.id.slice(0, 12)}...{node.id.slice(-8)}
+              <div className="font-mono text-xs sm:text-sm text-muted-foreground truncate">
+                {/* Show more characters on mobile for better context */}
+                <span className="sm:hidden">{node.id.slice(0, 16)}...{node.id.slice(-6)}</span>
+                <span className="hidden sm:inline">{node.id.slice(0, 12)}...{node.id.slice(-8)}</span>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          {/* Action Buttons - Mobile Optimized */}
+          <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
               onClick={handleCopy}
-              className="flex-1"
+              className="flex-1 text-xs sm:text-sm px-2 sm:px-3"
             >
               {copyStatus === 'copied' ? (
-                <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-green-500" />
               ) : copyStatus === 'error' ? (
-                <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
+                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-red-500" />
               ) : (
-                <Copy className="h-4 w-4 mr-2" />
+                <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               )}
-              {copyStatus === 'copied' ? 'Copied!' : 'Copy'}
+              <span className="hidden sm:inline">{copyStatus === 'copied' ? 'Copied!' : 'Copy'}</span>
+              <span className="sm:hidden">{copyStatus === 'copied' ? '✓' : 'Copy'}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={handleExternalLink}
-              className="flex-1"
+              className="flex-1 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              DexScreener
+              <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">DexScreener</span>
+              <span className="sm:hidden">Dex</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={handleShare}
+              className="px-2 sm:px-3"
             >
-              <Share2 className="h-4 w-4" />
+              <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setBookmarked(!bookmarked)}
+              className="px-2 sm:px-3"
             >
-              <Bookmark className={cn("h-4 w-4", bookmarked && "fill-current text-yellow-500")} />
+              <Bookmark className={cn("h-3 w-3 sm:h-4 sm:w-4", bookmarked && "fill-current text-yellow-500")} />
             </Button>
           </div>
         </div>
 
-        {/* Core Metrics */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Core Metrics - Mobile Optimized */}
+        <div className="grid grid-cols-2 gap-1.5 sm:gap-3">
           {node.type === 'token' ? (
             <>
-              <div className="space-y-1">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4" />
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Users className="h-3 w-3" />
                   <span>Connected KOLs</span>
                 </div>
-                <div className="text-2xl font-bold text-primary">
+                <div className="text-base sm:text-xl font-bold text-primary">
                   {formatNumber(node.connections)}
                 </div>
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Activity className="h-4 w-4" />
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Activity className="h-3 w-3" />
                   <span>Total Trades</span>
                 </div>
-                <div className="text-2xl font-bold">
+                <div className="text-base sm:text-xl font-bold">
                   {formatNumber(node.tradeCount || 0)}
                 </div>
               </div>
             </>
           ) : (
             <>
-              <div className="space-y-1">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Zap className="h-4 w-4" />
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Zap className="h-3 w-3" />
                   <span>Influence</span>
                 </div>
-                <div className="text-2xl font-bold text-primary">
+                <div className="text-base sm:text-xl font-bold text-primary">
                   {Math.round(node.influenceScore || 0)}
                 </div>
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <CircleDollarSign className="h-4 w-4" />
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <CircleDollarSign className="h-3 w-3" />
                   <span>Tokens Traded</span>
                 </div>
-                <div className="text-2xl font-bold">
+                <div className="text-base sm:text-xl font-bold">
                   {node.relatedTokens?.length || 0}
                 </div>
               </div>
@@ -347,21 +380,21 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
           )}
         </div>
 
-        {/* Volume Display */}
-        <div className="p-4 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-            <BadgeDollarSign className="h-4 w-4" />
+        {/* Volume Display - Mobile Optimized */}
+        <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+            <BadgeDollarSign className="h-3 w-3" />
             <span>Trading Volume</span>
           </div>
-          <div className="text-3xl font-bold text-accent-from">
+          <div className="text-lg sm:text-2xl font-bold text-accent-from">
             {formatVolume(node.totalVolume || 0)} SOL
           </div>
         </div>
 
-        {/* Extended Metrics (when expanded) */}
-        {isExpanded && (
-          <div className="space-y-4 pt-4 border-t border-border/50">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+        {/* Extended Metrics (always visible on mobile, expandable on desktop) */}
+        {(isExpanded || isMobile) && (
+          <div className="space-y-2 sm:space-y-3 pt-2 sm:pt-3 border-t border-border/50">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-3 text-xs">
               {node.avgTradeSize && (
                 <div>
                   <div className="text-muted-foreground">Avg Trade Size</div>
@@ -390,14 +423,14 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
               )}
             </div>
 
-            {/* Connection Analysis */}
+            {/* Connection Analysis - Mobile Optimized */}
             {relatedConnections.length > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <BarChart3 className="h-4 w-4" />
+                <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold">
+                  <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span>Top Connections ({relatedConnections.length})</span>
                 </div>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
+                <div className="space-y-1.5 sm:space-y-2 max-h-28 sm:max-h-32 overflow-y-auto">
                   {relatedConnections
                     .sort((a, b) => b.volume - a.volume)
                     .slice(0, 5)
@@ -408,17 +441,19 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
                       const otherNodeId = typeof otherNode === 'object' ? otherNode.id : otherNode;
                       
                       return (
-                        <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                          <div className="flex-1">
-                            <div className="font-mono text-xs">
-                              {otherNodeId.slice(0, 8)}...{otherNodeId.slice(-6)}
+                        <div key={index} className="flex items-center justify-between p-1.5 sm:p-2 bg-muted/30 rounded">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-mono text-xs truncate">
+                              {/* Show more characters on mobile for better context */}
+                              <span className="sm:hidden">{otherNodeId.slice(0, 12)}...{otherNodeId.slice(-4)}</span>
+                              <span className="hidden sm:inline">{otherNodeId.slice(0, 8)}...{otherNodeId.slice(-6)}</span>
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {connection.tradeCount} trades
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="font-semibold text-sm">
+                          <div className="text-right flex-shrink-0">
+                            <div className="font-semibold text-xs sm:text-sm">
                               {formatVolume(connection.volume)} SOL
                             </div>
                           </div>

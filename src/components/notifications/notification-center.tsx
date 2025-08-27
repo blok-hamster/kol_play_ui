@@ -391,7 +391,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
       />
 
       {/* Notification Panel */}
-      <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-background border-l border-border shadow-xl z-[70] flex flex-col max-h-screen animate-in slide-in-from-right duration-300">
+      <div className={cn(
+        // Mobile: Fixed overlay with safe margins
+        'fixed inset-4 sm:inset-y-0 sm:right-0 sm:inset-x-auto',
+        'w-auto sm:w-96 bg-background border border-border sm:border-l rounded-lg sm:rounded-none sm:rounded-l-lg shadow-xl z-[70]',
+        'flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-screen',
+        'animate-in slide-in-from-bottom-5 sm:slide-in-from-right duration-300'
+      )}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border bg-muted/30 flex-shrink-0">
           <div className="flex items-center space-x-3">

@@ -143,7 +143,9 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
         <div
           className={cn(
             'absolute top-full mt-2 w-48 py-2 bg-popover border border-border rounded-lg shadow-lg z-[60]',
-            align === 'left' ? 'left-0' : 'right-0'
+            // Mobile: centered, Desktop: respect align prop
+            'left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0',
+            align === 'left' ? 'sm:left-0' : 'sm:right-0'
           )}
           role="menu"
           aria-labelledby="theme-toggle-button"

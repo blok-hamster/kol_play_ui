@@ -1336,7 +1336,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
             connections={processedData.links}
             onClose={() => setSelectedNode(null)}
             onError={handleInteractionError}
-            className="absolute top-1 sm:top-2 right-1 sm:right-2 z-10"
+            className="sm:absolute sm:top-2 sm:right-2 z-50"
           />
         )}
 
