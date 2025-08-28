@@ -321,7 +321,7 @@ export function WalletDropdown() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 ml-4 w-80 bg-popover border border-border rounded-lg shadow-lg z-[60] translate-x-4 sm:translate-x-0">
+        <div className="fixed left-1/2 -translate-x-1/2 top-16 sm:absolute sm:left-auto sm:right-0 sm:translate-x-0 sm:top-auto mt-2 w-80 max-w-[calc(100vw-2rem)] bg-popover border border-border rounded-lg shadow-lg z-[60]">
           {/* Header */}
           <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center justify-between">

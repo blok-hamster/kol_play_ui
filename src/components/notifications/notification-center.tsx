@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Bell,
@@ -381,23 +382,32 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
     );
   }
 
-  // Dropdown mode (default)
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] animate-in fade-in-0 duration-200"
-        onClick={onClose}
-      />
+  // Check if we're on mobile (client-side only)
+  const [isMobile, setIsMobile] = useState(false);
 
-      {/* Notification Panel */}
-      <div className={cn(
-        // Mobile: Fixed overlay with safe margins
-        'fixed inset-4 sm:inset-y-0 sm:right-0 sm:inset-x-auto',
-        'w-auto sm:w-96 bg-background border border-border sm:border-l rounded-lg sm:rounded-none sm:rounded-l-lg shadow-xl z-[70]',
-        'flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-screen',
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // sm breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Notification panel content
+  const notificationPanel = (
+    <div 
+      className={cn(
+        // Base styles
+        'fixed bg-background border border-border rounded-lg shadow-xl z-[9999] flex flex-col',
+        // Mobile: centered on viewport
+        'left-1/2 -translate-x-1/2 top-4 bottom-4 w-[calc(100vw-2rem)] max-w-md max-h-[calc(100vh-2rem)]',
+        // Desktop: right panel
+        'sm:left-auto sm:right-0 sm:top-0 sm:bottom-0 sm:translate-x-0 sm:w-96 sm:max-h-screen sm:border-l sm:rounded-none sm:rounded-l-lg',
         'animate-in slide-in-from-bottom-5 sm:slide-in-from-right duration-300'
-      )}>
+      )}
+    >
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border bg-muted/30 flex-shrink-0">
           <div className="flex items-center space-x-3">
@@ -628,6 +638,22 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
           notification={selectedNotification}
         />
       </div>
+  );
+
+  // Dropdown mode (default)
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] animate-in fade-in-0 duration-200"
+        onClick={onClose}
+      />
+
+      {/* Render notification panel - use portal on mobile for proper viewport positioning */}
+      {isMobile && typeof window !== 'undefined' 
+        ? createPortal(notificationPanel, document.body)
+        : notificationPanel
+      }
     </>
   );
 };
