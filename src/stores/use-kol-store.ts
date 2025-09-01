@@ -4,8 +4,8 @@ import { cacheManager } from '@/lib/cache-manager';
 import type { KOLWallet } from '@/types';
 
 // KOL cache TTL - 24 hours for full data, 7 days for metadata only
-const KOL_DATA_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const KOL_METADATA_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const KOL_DATA_TTL = 5 * 60 * 1000; // 1 hour(s)
+const KOL_METADATA_TTL = 1 * 24 * 60 * 60 * 1000; // 1 day(s)
 
 // Helper functions for Twitter avatar extraction (same as in kol-list.tsx)
 function extractTwitterUsername(profileUrl?: string): string | null {

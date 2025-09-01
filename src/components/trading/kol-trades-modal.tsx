@@ -8,7 +8,6 @@ import {
   TrendingDown,
   DollarSign,
   Calendar,
-  Eye,
   Copy,
   ExternalLink,
   ArrowUpRight,
@@ -25,12 +24,13 @@ import {
   GetAddressTransactionsRequest,
 } from '@/services/trading.service';
 import { useNotifications, useLoading } from '@/stores/use-ui-store';
-import { formatCurrency, formatNumber, copyToClipboard } from '@/lib/utils';
+import { formatNumber, copyToClipboard } from '@/lib/utils';
 import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
 import { KOLTradeCard } from './kol-trade-card';
 import SubscriptionControls from './subscription-controls';
 import type { KOLWallet, TopTrader } from '@/types';
 import { useKOLStore } from '@/stores';
+import { SolanaService } from '@/services/solana.service';
 
 // Helpers to unify avatar resolution similar to other KOL components
 function extractTwitterUsername(profileUrl?: string): string | null {
@@ -102,6 +102,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
   walletAddress,
 }) => {
   const [trades, setTrades] = useState<ParsedSwap[]>([]);
+  const [enrichedTrades, setEnrichedTrades] = useState<ParsedSwap[]>([]);
   const [timeframe, setTimeframe] = useState<'24h' | '7d' | '30d'>('7d');
   const [viewMode, setViewMode] = useState<ViewMode>('realtime');
   const [realtimeView, setRealtimeView] = useState<RealtimeView>('list');
@@ -138,7 +139,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
   }, [walletAddress, ensureKOL, getKOL]);
 
   // Real-time trade data
-  const { recentTrades, isConnected: isTradeSocketConnected, stats: realtimeStats } = useKOLTradeSocket();
+  const { recentTrades, isConnected: isTradeSocketConnected } = useKOLTradeSocket();
 
   // Filter real-time trades for this specific KOL
   const kolRealtimeTrades = useMemo(() => {
@@ -147,9 +148,11 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
     );
   }, [recentTrades, walletAddress]);
 
-  // Calculate stats from trades
+  // Calculate stats from trades (use enriched trades for display)
   const stats: TradeStats = useMemo(() => {
-    if (!trades.length) {
+    const tradesData = enrichedTrades.length > 0 ? enrichedTrades : trades;
+    
+    if (!tradesData.length) {
       return {
         totalTrades: 0,
         totalVolume: 0,
@@ -161,13 +164,13 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
       };
     }
 
-    const buyTrades = trades.filter(t => t.side === 'buy').length;
-    const sellTrades = trades.filter(t => t.side === 'sell').length;
-    const totalVolume = trades.reduce((sum, t) => sum + t.solAmount, 0);
-    const avgTradeSize = totalVolume / trades.length;
+    const buyTrades = tradesData.filter(t => t.side === 'buy').length;
+    const sellTrades = tradesData.filter(t => t.side === 'sell').length;
+    const totalVolume = tradesData.reduce((sum, t) => sum + t.solAmount, 0);
+    const avgTradeSize = totalVolume / tradesData.length;
 
     // Simple PnL calculation (this would be more complex in real scenarios)
-    const totalPnL = trades.reduce((sum, t) => {
+    const totalPnL = tradesData.reduce((sum, t) => {
       return sum + (t.side === 'sell' ? t.solAmount : -t.solAmount);
     }, 0);
 
@@ -175,7 +178,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
       sellTrades > 0 ? (sellTrades / (buyTrades + sellTrades)) * 100 : 0;
 
     return {
-      totalTrades: trades.length,
+      totalTrades: tradesData.length,
       totalVolume,
       winRate,
       totalPnL,
@@ -183,7 +186,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
       buyTrades,
       sellTrades,
     };
-  }, [trades]);
+  }, [trades, enrichedTrades]);
 
   // Real-time stats for this specific KOL
   const kolRealtimeStats = useMemo(() => {
@@ -220,6 +223,57 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
     };
   }, [kolRealtimeTrades]);
 
+  // Enrich trades with token metadata using SolanaService
+  const enrichTradesWithMetadata = async (tradesData: ParsedSwap[]) => {
+    if (!tradesData.length) {
+      setEnrichedTrades([]);
+      return;
+    }
+
+    try {
+      // Extract unique token mint addresses
+      const uniqueMints = Array.from(new Set(tradesData.map(trade => trade.tokenMint).filter(Boolean)));
+      
+      if (uniqueMints.length === 0) {
+        setEnrichedTrades(tradesData);
+        return;
+      }
+
+      console.log('Fetching metadata for', uniqueMints.length, 'tokens:', uniqueMints);
+
+      // Use SolanaService to fetch token metadata in batch
+      const metadataMap = await SolanaService.fetchTokenMetadataBatch(uniqueMints);
+
+      console.log('Received metadata for', metadataMap.size, 'tokens:', metadataMap);
+
+      // Enrich trades with metadata
+      const enriched = tradesData.map(trade => {
+        const metadata = metadataMap.get(trade.tokenMint);
+        const enrichedTrade = {
+          ...trade,
+          name: metadata?.name || trade.name || 'Unknown Token',
+          symbol: metadata?.symbol || trade.symbol,
+          logoURI: metadata?.logoURI || trade.logoURI,
+        };
+        
+        console.log(`Enriching trade for ${trade.tokenMint}:`, {
+          original: trade.name,
+          metadata: metadata?.name,
+          final: enrichedTrade.name
+        });
+        
+        return enrichedTrade;
+      });
+
+      console.log('Enriched trades:', enriched);
+      setEnrichedTrades(enriched);
+    } catch (error) {
+      console.warn('Failed to enrich trades with metadata:', error);
+      // Fallback to original trades if enrichment fails
+      setEnrichedTrades(tradesData);
+    }
+  };
+
   // Fetch trades based on timeframe
   const fetchTrades = async (timeframeParam: string = timeframe) => {
     try {
@@ -247,8 +301,15 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
       };
 
       const response = await TradingService.getAddressTransactions(request);
-      setTrades(response.data.transactions || []);
+      const tradesData = response.data.transactions || [];
+      
+      console.log('Fetched', tradesData.length, 'trades:', tradesData);
+      
+      setTrades(tradesData);
       setPagination(response.data.pagination || { hasMore: false });
+
+      // Enrich trades with token metadata
+      await enrichTradesWithMetadata(tradesData);
     } catch (error: any) {
       showError('Load Error', error.message || 'Failed to load trades');
       console.error('Failed to fetch trades:', error);
@@ -661,21 +722,48 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {trades.map((trade, index) => (
+                    {(enrichedTrades.length > 0 ? enrichedTrades : trades).map((trade, index) => (
                       <div
                         key={`${trade.tokenMint}-${index}`}
                         className="bg-muted/20 rounded-lg p-4 hover:bg-muted/30 transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                              {getTradeIcon(trade.side)}
+                            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center overflow-hidden relative">
+                              {trade.logoURI ? (
+                                <>
+                                  <img
+                                    src={trade.logoURI}
+                                    alt={trade.name || 'Token'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      // Hide the image and show the fallback icon
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const fallback = target.nextElementSibling as HTMLElement;
+                                      if (fallback) {
+                                        fallback.style.display = 'flex';
+                                      }
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center" style={{ display: 'none' }}>
+                                    {getTradeIcon(trade.side)}
+                                  </div>
+                                </>
+                              ) : (
+                                getTradeIcon(trade.side)
+                              )}
                             </div>
                             <div>
                               <div className="flex items-center space-x-2">
                                 <span className="font-medium text-foreground">
                                   {trade.name || 'Unknown Token'}
                                 </span>
+                                {trade.symbol && (
+                                  <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                    {trade.symbol}
+                                  </span>
+                                )}
                                 <span
                                   className={`text-sm font-medium ${getTradeColor(trade.side)}`}
                                 >
@@ -684,9 +772,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                               </div>
                               <div className="text-sm text-muted-foreground">
                                 {formatNumber(trade.tokenAmount)} tokens •{' '}
-                                {new Date(
-                                  trade.timestamp
-                                ).toDateString()}
+                                {(trade as any).timestamp ? new Date((trade as any).timestamp).toDateString() : 'Unknown date'}
                               </div>
                             </div>
                           </div>
@@ -695,9 +781,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                               {formatNumber(trade.solAmount, 4)} SOL
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {new Date(
-                                //trade.timestamp
-                              ).toDateString()}
+                              {(trade as any).timestamp ? new Date((trade as any).timestamp).toLocaleTimeString() : 'Unknown time'}
                             </div>
                           </div>
                         </div>
