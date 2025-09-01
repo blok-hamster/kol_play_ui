@@ -52,6 +52,7 @@ import {
   DetailedInfoPanel,
 } from './mindmap-interactions';
 import { SolanaService } from '@/services/solana.service';
+import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
 
 interface UnifiedNode extends d3.SimulationNodeDatum {
   id: string;
@@ -61,6 +62,7 @@ interface UnifiedNode extends d3.SimulationNodeDatum {
   image?: string; // Image URL for tokens/KOLs
   symbol?: string; // Token symbol
   decimals?: number; // Token decimals
+  metadataUri?: string; // Token metadata URI
   value: number; // For sizing
   connections: number; // Number of connections
   totalVolume?: number;
@@ -98,8 +100,9 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const { isSubscribedToKOL, subscriptions } = useSubscriptions();
-  const { getKOL } = useKOLStore();
+  const { getKOL, loadAllKOLs } = useKOLStore();
   const { getTokenByMint } = useTokenStore();
+  const { recentTrades } = useKOLTradeSocket();
 
   // Track subscription changes for real-time updates
   const previousSubscriptionsRef = useRef<typeof subscriptions>([]);
@@ -108,6 +111,18 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     batchSize: 6,
     maxConcurrentRequests: 2,
   });
+
+  // Load all KOLs once on component mount
+  useEffect(() => {
+    // Use a timeout to prevent blocking the main thread
+    const timeoutId = setTimeout(() => {
+      loadAllKOLs().catch(error => {
+        console.warn('Failed to load KOLs for mindmap:', error);
+      });
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [loadAllKOLs]);
   const [selectedNode, setSelectedNode] = useState<UnifiedNode | null>(null);
   const [highlightMode, setHighlightMode] = useState<
     'none' | 'trending' | 'high-volume'
@@ -126,6 +141,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     nodes: UnifiedNode[];
     links: UnifiedLink[];
   }>({ nodes: [], links: [] });
+
 
   // Handle real-time subscription changes
   useEffect(() => {
@@ -247,28 +263,42 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     const metadataStats =
       dataFilterManager.getMetadataStats(filteredTokensData);
 
-    const currentNetworkStats = {
-      totalTokens: Object.keys(filteredTokensData).length,
-      totalKOLs: new Set(
-        Object.values(filteredTokensData).flatMap(data =>
-          Object.keys(data.kolConnections || {})
+    const newTotalTokens = Object.keys(filteredTokensData).length;
+    const newTotalKOLs = new Set(
+      Object.values(filteredTokensData).flatMap(data =>
+        Object.keys(data.kolConnections || {})
+      )
+    ).size;
+    const newSubscribedKOLs = new Set(
+      Object.values(filteredTokensData).flatMap(data =>
+        Object.keys(data.kolConnections || {}).filter(kolWallet =>
+          isSubscribedToKOL(kolWallet)
         )
-      ).size,
-      subscribedKOLs: new Set(
-        Object.values(filteredTokensData).flatMap(data =>
-          Object.keys(data.kolConnections || {}).filter(kolWallet =>
-            isSubscribedToKOL(kolWallet)
-          )
-        )
-      ).size,
-      filteredTokens: stats.tokensFiltered,
-      lastUpdate: new Date(),
-    };
+      )
+    ).size;
+    const newFilteredTokens = stats.tokensFiltered;
 
-    setNetworkStats(currentNetworkStats);
+    // Only update state if the values have actually changed
+    setNetworkStats(prevStats => {
+      if (
+        prevStats.totalTokens !== newTotalTokens ||
+        prevStats.totalKOLs !== newTotalKOLs ||
+        prevStats.subscribedKOLs !== newSubscribedKOLs ||
+        prevStats.filteredTokens !== newFilteredTokens
+      ) {
+        return {
+          totalTokens: newTotalTokens,
+          totalKOLs: newTotalKOLs,
+          subscribedKOLs: newSubscribedKOLs,
+          filteredTokens: newFilteredTokens,
+          lastUpdate: new Date(),
+        };
+      }
+      return prevStats; // No change, return previous state
+    });
 
     // Network stats updated - reduced logging for performance
-  }, [filteredTokensData, tokensData]);
+  }, [filteredTokensData, isSubscribedToKOL, tokensData]);
 
   // Handle interaction errors
   const handleInteractionError = useCallback((error: Error) => {
@@ -506,23 +536,14 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     // Declare labelGroup in outer scope for simulation access
     let labelGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
 
-    // Use enhanced node renderer for both tokens and KOLs with metadata
+    // Enhanced rendering with proper token image and name display
     try {
-      enhancedNodeRenderer.renderEnhancedNodes(
-        nodeSelection,
-        nodes
-        // Removed callback to prevent re-render loops that cause bouncing
-      );
+      console.log('Using enhanced rendering with token images and names');
 
-      // Create empty label group for enhanced rendering (labels are handled by renderer)
-      labelGroup = container.append('g').attr('class', 'enhanced-labels');
-    } catch (error) {
-      console.error(
-        'Enhanced node rendering failed, falling back to basic rendering:',
-        error
-      );
-
-      // Fallback to basic rendering if enhanced rendering fails
+      // Add circular clipping path for avatars and token images
+      const defs = svg.select('defs').empty() ? svg.append('defs') : svg.select('defs');
+      
+      // Create background circles for all nodes first
       nodeSelection
         .append('circle')
         .attr('r', d => {
@@ -539,6 +560,15 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
           }
         })
         .attr('fill', d => {
+          // For KOL nodes with images, make background transparent
+          if (d.type === 'kol' && d.image) {
+            return 'transparent';
+          }
+          // For token nodes with images, use a subtle background
+          if (d.type === 'token' && d.image) {
+            return '#ffffff20'; // Very subtle white background for tokens
+          }
+          
           if (highlightMode === 'trending' && d.isTrending) {
             return accentFrom;
           }
@@ -552,7 +582,15 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
             return kolColorScale(d.influenceScore || 0);
           }
         })
-        .attr('fill-opacity', 0.7)
+        .attr('fill-opacity', d => d.image ? (d.type === 'kol' ? 0 : 0.3) : 0.7)
+        .attr('stroke', d => {
+          if (d.type === 'kol') {
+            // Use a subtle border for KOL nodes, more visible for those with images
+            return d.image ? '#ffffff80' : '#ffffff';
+          }
+          return 'none';
+        })
+        .attr('stroke-width', d => d.type === 'kol' ? (d.image ? 1.5 : 2) : 0)
         .style('filter', d => {
           if (d.type === 'token' && d.connections > 5) {
             return `drop-shadow(0 0 12px ${accentTo}40)`;
@@ -563,9 +601,77 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
           return 'none';
         });
 
-      // Add distinctive inner pattern for KOL nodes (fallback)
+      // Add token images for token nodes that have them
       nodeSelection
-        .filter(d => d.type === 'kol')
+        .filter(d => d.type === 'token' && d.image)
+        .each(function(d, i) {
+          const node = d3.select(this);
+          const baseSize = 20;
+          const connectionBonus = Math.sqrt(d.connections) * 7;
+          const volumeBonus = Math.log(d.totalVolume || 1) * 2.5;
+          const radius = Math.min(55, baseSize + connectionBonus + volumeBonus);
+          const imageSize = radius * 1.8; // Slightly larger to fill the circle better
+          
+          // Create unique clip path for this token node
+          const clipId = `token-clip-${i}`;
+          defs.append('clipPath')
+            .attr('id', clipId)
+            .append('circle')
+            .attr('r', radius - 2); // Slightly smaller than the background circle
+          
+          // Add the token image with circular clipping
+          node.append('image')
+            .attr('href', d.image!)
+            .attr('x', -imageSize / 2)
+            .attr('y', -imageSize / 2)
+            .attr('width', imageSize)
+            .attr('height', imageSize)
+            .attr('clip-path', `url(#${clipId})`)
+            .style('pointer-events', 'none')
+            .on('error', function() {
+              // Hide the image if it fails to load and show fallback
+              d3.select(this).style('display', 'none');
+              console.warn('Failed to load token image:', d.image);
+            });
+        });
+
+      // Add avatar images for KOL nodes that have them
+      nodeSelection
+        .filter(d => d.type === 'kol' && d.image)
+        .each(function(d, i) {
+          const node = d3.select(this);
+          const baseSize = 14;
+          const influenceBonus = Math.sqrt(d.influenceScore || 0) * 2.2;
+          const tradeBonus = Math.sqrt(d.tradeCount || 0) * 1.5;
+          const radius = Math.min(40, baseSize + influenceBonus + tradeBonus);
+          const imageSize = radius * 1.8; // Slightly larger to fill the circle better
+          
+          // Create unique clip path for this KOL node
+          const clipId = `kol-clip-${i}`;
+          defs.append('clipPath')
+            .attr('id', clipId)
+            .append('circle')
+            .attr('r', radius - 2); // Slightly smaller than the background circle
+          
+          // Add the KOL image with circular clipping
+          node.append('image')
+            .attr('href', d.image!)
+            .attr('x', -imageSize / 2)
+            .attr('y', -imageSize / 2)
+            .attr('width', imageSize)
+            .attr('height', imageSize)
+            .attr('clip-path', `url(#${clipId})`)
+            .style('pointer-events', 'none')
+            .on('error', function() {
+              // Hide the image if it fails to load
+              d3.select(this).style('display', 'none');
+              console.warn('Failed to load KOL image:', d.image);
+            });
+        });
+
+      // Add distinctive inner pattern for KOL nodes without images
+      nodeSelection
+        .filter(d => d.type === 'kol' && !d.image)
         .append('circle')
         .attr('r', d => {
           const baseSize = 14;
@@ -579,49 +685,113 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
         .attr('stroke-dasharray', '4,2')
         .attr('opacity', 0.8);
 
-      // Add inner circles for tokens (fallback)
+      // Add inner circles for tokens without images
       nodeSelection
-        .filter(d => d.type === 'token')
+        .filter(d => d.type === 'token' && !d.image)
         .append('circle')
         .attr('r', d => Math.max(8, Math.sqrt(d.connections) * 3))
         .attr('fill', '#ffffff')
         .attr('fill-opacity', 0.25)
         .attr('stroke', 'none');
 
-      // Add fallback labels for significant nodes
-      labelGroup = container.append('g').attr('class', 'fallback-labels');
+      // Add enhanced labels for all nodes with names/symbols
+      labelGroup = container.append('g').attr('class', 'enhanced-labels');
       labelGroup
         .selectAll('text')
-        .data(
-          nodes.filter(
-            d =>
-              (d.type === 'token' && d.connections > 3) ||
-              (d.type === 'kol' && (d.influenceScore || 0) > 70)
-          )
-        )
+        .data(nodes.filter(d => 
+          // Show labels for tokens with symbol/name or KOLs with names
+          (d.type === 'token' && (d.symbol || d.name)) ||
+          (d.type === 'kol' && d.name)
+        ))
         .enter()
         .append('text')
         .text(d => {
           if (d.type === 'token') {
-            return `${d.id.slice(0, 6)}... (${d.connections} KOLs)`;
+            // For tokens, prioritize symbol over name for display
+            if (d.symbol && d.symbol.length <= 8) {
+              return d.symbol;
+            } else if (d.symbol) {
+              return d.symbol.substring(0, 6) + '...';
+            } else if (d.name && d.name.length <= 10) {
+              return d.name;
+            } else if (d.name) {
+              return d.name.substring(0, 8) + '...';
+            } else {
+              return `${d.id.slice(0, 6)}...`;
+            }
           } else {
-            return `KOL: ${d.id.slice(0, 6)}... (${d.influenceScore?.toFixed(0)})`;
+            // For KOLs, show name if available and short enough
+            if (d.name && d.name.length <= 12) {
+              return d.name;
+            } else if (d.name) {
+              return d.name.substring(0, 10) + '...';
+            } else {
+              return `${d.id.slice(0, 6)}...`;
+            }
           }
         })
-        .attr('font-size', '13px')
+        .attr('font-size', d => {
+          // Responsive font sizing based on node importance
+          if (d.type === 'token' && d.connections > 5) {
+            return '13px';
+          } else if (d.type === 'kol' && (d.influenceScore || 0) > 70) {
+            return '12px';
+          }
+          return '11px';
+        })
         .attr('font-family', 'Darker Grotesque, sans-serif')
-        .attr('font-weight', '600')
+        .attr('font-weight', '700')
         .attr('text-anchor', 'middle')
         .attr('dy', d => {
-          const radius =
-            d.type === 'token'
-              ? Math.min(55, 20 + Math.sqrt(d.connections) * 7)
-              : Math.min(40, 14 + Math.sqrt(d.influenceScore || 0) * 2.2);
-          return radius + 15;
+          const radius = d.type === 'token'
+            ? Math.min(55, 20 + Math.sqrt(d.connections) * 7 + Math.log(d.totalVolume || 1) * 2.5)
+            : Math.min(40, 14 + Math.sqrt(d.influenceScore || 0) * 2.2 + Math.sqrt(d.tradeCount || 0) * 1.5);
+          return radius + 16; // Optimal spacing for readability
         })
         .attr('fill', '#ffffff')
         .attr('stroke', '#000000')
-        .attr('stroke-width', '2px')
+        .attr('stroke-width', '3px')
+        .attr('stroke-linejoin', 'round')
+        .attr('paint-order', 'stroke')
+        .style('pointer-events', 'none')
+        .style('user-select', 'none');
+    } catch (error) {
+      console.error('Failed to render nodes with enhanced rendering:', error);
+      // Fallback to basic rendering with token names
+      nodeSelection
+        .append('circle')
+        .attr('r', d => d.type === 'token' ? 20 : 14)
+        .attr('fill', d => d.type === 'token' ? accentFrom : kolColorScale(d.influenceScore || 0))
+        .attr('fill-opacity', 0.7);
+      
+      // Add basic labels even in fallback mode
+      labelGroup = container.append('g').attr('class', 'basic-fallback-labels');
+      labelGroup
+        .selectAll('text')
+        .data(nodes.filter(d => 
+          // Only show labels for nodes with meaningful names/symbols
+          (d.type === 'token' && (d.symbol || d.name)) ||
+          (d.type === 'kol' && d.name)
+        ))
+        .enter()
+        .append('text')
+        .text(d => {
+          if (d.type === 'token') {
+            // Prioritize symbol for tokens
+            return d.symbol || d.name || `${d.id.slice(0, 6)}...`;
+          } else {
+            return d.name || `${d.id.slice(0, 6)}...`;
+          }
+        })
+        .attr('font-size', '11px')
+        .attr('font-family', 'Darker Grotesque, sans-serif')
+        .attr('font-weight', '700')
+        .attr('text-anchor', 'middle')
+        .attr('dy', d => (d.type === 'token' ? 20 : 14) + 16)
+        .attr('fill', '#ffffff')
+        .attr('stroke', '#000000')
+        .attr('stroke-width', '3px')
+        .attr('stroke-linejoin', 'round')
         .attr('paint-order', 'stroke')
         .style('pointer-events', 'none');
     }
@@ -816,12 +986,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     return () => {
       tooltipContainer.remove();
     };
-  }, [
-    dimensions,
-    processedData,
-    highlightMode,
-    selectedNode,
-  ]);
+  }, [dimensions, processedData, handleInteractionError, highlightMode, selectedNode]);
 
   // Now add the useEffect that uses the render function
   useEffect(() => {
@@ -864,13 +1029,13 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     return () => {
       clearTimeout(renderTimeout);
     };
-  }, [
-    processedData,
-    dimensions.width,
-    dimensions.height,
-    highlightMode,
-    showSubscribedOnly,
-  ]);
+  }, [processedData, dimensions.width, dimensions.height, highlightMode, showSubscribedOnly]);
+
+  // Handle recent trades updates with debouncing to prevent infinite loops
+  const recentTradesRef = useRef(recentTrades);
+  useEffect(() => {
+    recentTradesRef.current = recentTrades;
+  }, [recentTrades]);
 
   // Process unified data and update state
   useEffect(() => {
@@ -889,9 +1054,171 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
         deviceLimits
       );
 
-      // Convert enhanced nodes to the format expected by the visualization
-      const nodes: UnifiedNode[] = networkData.nodes.map(node => {
-        const baseNode = {
+      // Process nodes with enhanced metadata fetching
+      const processNodesWithMetadata = async () => {
+        // Extract token mint addresses for batch metadata fetching
+        const tokenMints = networkData.nodes
+          .filter(node => node.type === 'token')
+          .map(node => node.id);
+
+        // First, collect token metadata from recent trades (real-time data)
+        const tradeMetadataMap = new Map();
+        recentTradesRef.current.forEach(trade => {
+          if (trade.tradeData && trade.tradeData.mint) {
+            const { mint, name, symbol, image, metadataUri } = trade.tradeData;
+            
+            // Only store if we have meaningful metadata
+            if (name || symbol || image) {
+              tradeMetadataMap.set(mint, {
+                name: name || undefined,
+                symbol: symbol || undefined,
+                logoURI: image || undefined,
+                metadataUri: metadataUri || undefined,
+                decimals: undefined, // This will be filled by SolanaService
+              });
+            }
+          }
+        });
+
+        // Fetch token metadata in batch using SolanaService
+        let tokenMetadataMap = new Map();
+        if (tokenMints.length > 0) {
+          try {
+            tokenMetadataMap = await SolanaService.fetchTokenMetadataBatch(tokenMints);
+          } catch (error) {
+            console.warn('Failed to fetch token metadata batch:', error);
+          }
+        }
+
+        const nodes: UnifiedNode[] = networkData.nodes.map(node => {
+          const baseNode = {
+            id: node.id,
+            type: node.type,
+            label: node.label,
+            name: node.name,
+            image: node.image,
+            value: node.value,
+            connections: node.connections,
+            totalVolume: node.totalVolume,
+            tradeCount: node.tradeCount,
+            influenceScore: node.influenceScore,
+            isTrending: node.isTrending,
+            tokenMint: node.tokenMint,
+            relatedTokens: node.relatedTokens,
+          };
+
+          // Enhance token nodes with metadata from multiple sources
+          if (node.type === 'token') {
+            // Priority order: Recent trades > SolanaService (Jupiter) > Token store > Base node
+            const tradeMetadata = tradeMetadataMap.get(node.id);
+            const solanaMetadata = tokenMetadataMap.get(node.id);
+            const tokenData = getTokenByMint(node.id);
+            
+            // Combine metadata with priority: TradeData > SolanaService > TokenStore > BaseNode
+            const enhancedNode = {
+              ...baseNode,
+              name: tradeMetadata?.name || solanaMetadata?.name || tokenData?.name || baseNode.name,
+              image: tradeMetadata?.logoURI || solanaMetadata?.logoURI || tokenData?.logoURI || baseNode.image,
+              symbol: tradeMetadata?.symbol || solanaMetadata?.symbol || tokenData?.symbol || baseNode.symbol,
+              decimals: solanaMetadata?.decimals || tokenData?.decimals || baseNode.decimals, // Decimals from blockchain data
+              metadataUri: tradeMetadata?.metadataUri || baseNode.metadataUri,
+            };
+
+            // Update label to use the enhanced name or symbol if available
+            if (enhancedNode.symbol && enhancedNode.symbol !== baseNode.label) {
+              enhancedNode.label = enhancedNode.symbol;
+            } else if (enhancedNode.name && enhancedNode.name !== baseNode.name) {
+              enhancedNode.label = enhancedNode.name;
+            }
+
+            return enhancedNode;
+          }
+
+          // For KOL nodes, try to get enhanced data from store synchronously
+          if (node.type === 'kol') {
+            const kolDetails = getKOL(node.id);
+            if (kolDetails) {
+              // Apply the same Twitter avatar logic as kol-list.tsx
+              const displayName = kolDetails.name || `${node.id.slice(0, 6)}...${node.id.slice(-4)}`;
+              
+              // Helper function to find Twitter URL from KOL
+              const findTwitterUrlFromKOL = (kol: any) => {
+                return kol.socialLinks?.twitter || (kol.description?.match(/https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+/i)?.[0]);
+              };
+              
+              // Helper function to get Twitter avatar URL
+              const getTwitterAvatarUrl = (twitterUrl?: string, fallbackSeed?: string) => {
+                if (!twitterUrl) return undefined;
+                try {
+                  const url = new URL(twitterUrl);
+                  const hostname = url.hostname.toLowerCase();
+                  const isTwitter = hostname === 'twitter.com' || hostname === 'www.twitter.com';
+                  const isX = hostname === 'x.com' || hostname === 'www.x.com';
+                  if (!isTwitter && !isX) return undefined;
+                  const pathParts = url.pathname.split('/').filter(Boolean);
+                  if (pathParts.length === 0) return undefined;
+                  const username = pathParts[0]?.replace(/\.json$/i, '');
+                  if (!username) return undefined;
+                  const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
+                  if (fallbackSeed && fallbackSeed.trim().length > 0) {
+                    const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
+                    return `${base}?fallback=${encodeURIComponent(fallback)}`;
+                  }
+                  return base;
+                } catch {
+                  return undefined;
+                }
+              };
+              
+              const twitterUrl = findTwitterUrlFromKOL(kolDetails);
+              const twitterAvatar = getTwitterAvatarUrl(twitterUrl, displayName);
+              
+              // Prioritize Twitter avatar over store avatar (same as kol-list.tsx)
+              const preferredAvatar = twitterAvatar ?? kolDetails.avatar;
+              
+              // Final fallback to initials avatar if no preferred avatar
+              const avatarUrl = preferredAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}`;
+              
+              return {
+                ...baseNode,
+                label: displayName,
+                name: kolDetails.name,
+                image: avatarUrl,
+              };
+            }
+          }
+
+          return baseNode;
+        });
+
+        // Convert enhanced links to the format expected by the visualization
+        const links: UnifiedLink[] = networkData.links.map(link => ({
+          source: link.source,
+          target: link.target,
+          value: link.value,
+          tradeCount: link.tradeCount,
+          volume: link.volume,
+        }));
+
+        // Debug: Log token and KOL nodes with images
+        const tokenNodesWithImages = nodes.filter(n => n.type === 'token' && n.image);
+        const tokenNodesWithoutImages = nodes.filter(n => n.type === 'token' && !n.image);
+        const kolNodesWithImages = nodes.filter(n => n.type === 'kol' && n.image);
+        const kolNodesWithoutImages = nodes.filter(n => n.type === 'kol' && !n.image);
+        
+        console.log(`Token nodes with images: ${tokenNodesWithImages.length}`, tokenNodesWithImages.map(n => ({ name: n.name, symbol: n.symbol, image: n.image?.substring(0, 50) + '...' })));
+        console.log(`Token nodes without images: ${tokenNodesWithoutImages.length}`, tokenNodesWithoutImages.map(n => ({ name: n.name, id: n.id.substring(0, 8) })));
+        console.log(`KOL nodes with images: ${kolNodesWithImages.length}`, kolNodesWithImages.map(n => ({ name: n.name, image: n.image?.substring(0, 50) + '...' })));
+        console.log(`KOL nodes without images: ${kolNodesWithoutImages.length}`, kolNodesWithoutImages.map(n => ({ name: n.name, id: n.id.substring(0, 8) })));
+
+        setProcessedData({ nodes, links });
+      };
+
+      // Execute the async metadata processing
+      processNodesWithMetadata().catch(error => {
+        console.error('Failed to process nodes with metadata:', error);
+        // Fallback to basic processing without metadata
+        const nodes: UnifiedNode[] = networkData.nodes.map(node => ({
           id: node.id,
           type: node.type,
           label: node.label,
@@ -905,40 +1232,23 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
           isTrending: node.isTrending,
           tokenMint: node.tokenMint,
           relatedTokens: node.relatedTokens,
-        };
+        }));
 
-        // Enhance token nodes with metadata from token store
-        if (node.type === 'token') {
-          const tokenData = getTokenByMint(node.id);
-          if (tokenData) {
-            return {
-              ...baseNode,
-              name: tokenData.name || baseNode.name,
-              image: tokenData.logoURI || baseNode.image,
-              symbol: tokenData.symbol,
-              decimals: tokenData.decimals,
-            };
-          }
-        }
+        const links: UnifiedLink[] = networkData.links.map(link => ({
+          source: link.source,
+          target: link.target,
+          value: link.value,
+          tradeCount: link.tradeCount,
+          volume: link.volume,
+        }));
 
-        return baseNode;
+        setProcessedData({ nodes, links });
       });
-
-      // Convert enhanced links to the format expected by the visualization
-      const links: UnifiedLink[] = networkData.links.map(link => ({
-        source: link.source,
-        target: link.target,
-        value: link.value,
-        tradeCount: link.tradeCount,
-        volume: link.volume,
-      }));
-
-      setProcessedData({ nodes, links });
     } else {
       // Clear processed data when no filtered data is available
       setProcessedData({ nodes: [], links: [] });
     }
-  }, [filteredTokensData, trendingTokens, dimensions.width, dimensions.height, showSubscribedOnly]);
+  }, [filteredTokensData, trendingTokens, dimensions.width, dimensions.height, showSubscribedOnly, getTokenByMint, getKOL]);
 
   const isConnected = (
     nodeA: UnifiedNode,
@@ -1424,6 +1734,34 @@ const NodeInfoPanel: React.FC<{
       </div>
 
       <div className="p-1.5 sm:p-2 space-y-1.5 sm:space-y-2">
+        {/* Token/KOL Name and Symbol with Image */}
+        {(node.name || node.symbol || node.image) && (
+          <div className="text-xs">
+            <div className="text-muted-foreground mb-0.5 sm:mb-1">
+              {node.type === 'token' ? 'Token' : 'KOL'}
+            </div>
+            <div className="flex items-center gap-2">
+              {node.image && (
+                <img 
+                  src={node.image} 
+                  alt={node.symbol || node.name || 'Token'} 
+                  className="w-4 h-4 rounded"
+                  onError={(e) => {
+                    // Hide image if it fails to load
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              )}
+              <div className="font-semibold">
+                {node.type === 'token' 
+                  ? `${node.name || 'Unknown Token'}${node.symbol ? ` (${node.symbol})` : ''}`
+                  : node.name
+                }
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="text-xs">
           <div className="text-muted-foreground mb-0.5 sm:mb-1">
             {node.type === 'token' ? 'Address' : 'Wallet'}

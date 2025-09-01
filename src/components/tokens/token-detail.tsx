@@ -7,8 +7,9 @@ import { formatNumber, formatRelativeTime, copyToClipboard } from '@/lib/utils';
 import { ExternalLink, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/stores';
-import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
+import { executeInstantBuy, executeBuyWithAmount, checkTradeConfig, getBuyAmountLimits } from '@/lib/trade-utils';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
+import BuyAmountPrompt from '@/components/ui/buy-amount-prompt';
 
 interface TokenDetailProps {
   token: SearchTokenResult;
@@ -18,9 +19,20 @@ const TokenDetail: React.FC<TokenDetailProps> = ({ token }) => {
   const router = useRouter();
   const { showSuccess, showError } = useNotifications();
 
-  // Trade config prompt state
+  // Trade state
   const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
+  const [showBuyAmountPrompt, setShowBuyAmountPrompt] = useState(false);
   const [isBuying, setIsBuying] = useState(false);
+  const [buyAmountLimits, setBuyAmountLimits] = useState<{
+    hasConfig: boolean;
+    minAmount: number;
+    maxAmount: number;
+    defaultAmount?: number;
+  }>({
+    hasConfig: false,
+    minAmount: 0.01,
+    maxAmount: 100,
+  });
 
   const handleCopyAddress = async () => {
     const success = await copyToClipboard(token.mint);
@@ -35,29 +47,63 @@ const TokenDetail: React.FC<TokenDetailProps> = ({ token }) => {
     if (isBuying) return;
 
     try {
-      // First check if user has trade config
-      const configCheck = await checkTradeConfig();
-      
-      if (!configCheck.hasConfig) {
-        // Show trade config prompt
-        setShowTradeConfigPrompt(true);
+      // Get current buy amount limits
+      const limits = await getBuyAmountLimits();
+      setBuyAmountLimits(limits);
+
+      if (!limits.hasConfig) {
+        // No trade config - show buy amount prompt to let user specify amount or go to settings
+        setShowBuyAmountPrompt(true);
         return;
       }
 
+      // Has config - use instant buy with default amount
       setIsBuying(true);
-
-      // Execute instant buy
       const result = await executeInstantBuy(token.mint, token.symbol);
 
       if (result.success) {
         showSuccess(
           'Buy Order Executed',
-          `Successfully bought ${token.symbol || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
+          `Successfully bought ${token.symbol || 'token'} for ${limits.defaultAmount || 'N/A'} SOL`
         );
 
-        // Optional: Show transaction details
         if (result.result?.transactionId) {
-          void 0 && ('Transaction ID:', result.result.transactionId);
+          console.log('Transaction ID:', result.result.transactionId);
+        }
+      } else {
+        showError(
+          'Buy Order Failed',
+          result.error || 'Failed to execute buy order'
+        );
+      }
+    } catch (error: any) {
+      console.error('Buy order error:', error);
+      showError(
+        'Buy Order Error',
+        error.message || 'An unexpected error occurred'
+      );
+    } finally {
+      setIsBuying(false);
+    }
+  };
+
+  const handleBuyWithAmount = async (amount: number) => {
+    if (isBuying) return;
+
+    try {
+      setIsBuying(true);
+
+      // Execute buy with custom amount
+      const result = await executeBuyWithAmount(token.mint, amount, token.symbol);
+
+      if (result.success) {
+        showSuccess(
+          'Buy Order Executed',
+          `Successfully bought ${token.symbol || 'token'} for ${amount} SOL`
+        );
+
+        if (result.result?.transactionId) {
+          console.log('Transaction ID:', result.result.transactionId);
         }
       } else {
         showError(
@@ -78,6 +124,10 @@ const TokenDetail: React.FC<TokenDetailProps> = ({ token }) => {
 
   const handleTradeConfigPromptClose = () => {
     setShowTradeConfigPrompt(false);
+  };
+
+  const handleBuyAmountPromptClose = () => {
+    setShowBuyAmountPrompt(false);
   };
 
   return (
@@ -185,6 +235,19 @@ const TokenDetail: React.FC<TokenDetailProps> = ({ token }) => {
         isOpen={showTradeConfigPrompt}
         onClose={handleTradeConfigPromptClose}
         tokenSymbol={token.symbol || token.name}
+      />
+
+      {/* Buy Amount Prompt */}
+      <BuyAmountPrompt
+        isOpen={showBuyAmountPrompt}
+        onClose={handleBuyAmountPromptClose}
+        onConfirm={handleBuyWithAmount}
+        tokenSymbol={token.symbol}
+        tokenName={token.name}
+        hasTradeConfig={buyAmountLimits.hasConfig}
+        defaultAmount={buyAmountLimits.defaultAmount}
+        minAmount={buyAmountLimits.minAmount}
+        maxAmount={buyAmountLimits.maxAmount}
       />
     </>
   );

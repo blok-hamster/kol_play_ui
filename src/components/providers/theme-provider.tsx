@@ -21,11 +21,11 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   children,
-  defaultTheme = 'system',
+  defaultTheme = 'dark',
   storageKey = STORAGE_KEYS.THEME,
 }) => {
   const [theme, setThemeState] = useState<Theme>(defaultTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
   const [mounted, setMounted] = useState(false);
 
   // Get initial theme from localStorage or default
@@ -149,7 +149,7 @@ export const ThemeScript = () => {
   const script = `
     (function() {
       try {
-        const theme = localStorage.getItem('${STORAGE_KEYS.THEME}') || 'system';
+        const theme = localStorage.getItem('${STORAGE_KEYS.THEME}') || 'dark';
         const isDark = theme === 'dark' || 
           (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         

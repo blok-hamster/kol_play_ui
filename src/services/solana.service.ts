@@ -5,6 +5,7 @@ import {
   ParsedAccountData,
 } from '@solana/web3.js';
 import { getMint } from '@solana/spl-token';
+import { TokenListProvider } from "@solana/spl-token-registry";
 import {
   SolanaWalletBalance,
   SolanaTokenInfo,
@@ -217,7 +218,7 @@ async function fetchCoinGeckoPrices(mintAddresses: string[]): Promise<Map<string
  */
 export class SolanaService {
   private static connection: Connection;
-  private static defaultRpcUrl = 'https://solana-mainnet.g.alchemy.com/v2/XtQLzQGpbTeGh_UhaGg6c';
+  private static defaultRpcUrl = process.env.NEXT_RPC_URL || 'https://solana-mainnet.g.alchemy.com/v2/XtQLzQGpbTeGh_UhaGg6c';
   
   // Well-known SPL Token Program ID
   private static readonly TOKEN_PROGRAM_ID = new PublicKey(
@@ -245,7 +246,7 @@ export class SolanaService {
   }
 
   /**
-   * Fetch token metadata from Jupiter Token List API (batch)
+   * Fetch token metadata using comprehensive token info lookup (batch)
    * @param mintAddresses - Array of mint addresses
    * @returns Promise<Map<string, SolanaTokenMetadata>> - Map of mint address to metadata
    */
@@ -267,37 +268,25 @@ export class SolanaService {
     }
 
     try {
-      // Get Jupiter token list (cached)
-      const jupiterTokenMap = await fetchJupiterTokenList();
-
-      // Separate tokens found in Jupiter vs those needing mint account data
-      const tokensNotInJupiter: string[] = [];
-      
-      // Process uncached mints
-      for (const mint of uncachedMints) {
-        if (jupiterTokenMap.has(mint)) {
-          const jupiterToken = jupiterTokenMap.get(mint);
+      // Use the comprehensive getTokenInfo function for each uncached mint
+      const tokenInfoPromises = uncachedMints.map(async (mint) => {
+        try {
+          const tokenInfo = await getTokenInfo(mint, this.getRpcEndpoint());
+          
           const metadata: SolanaTokenMetadata = {
-            name: jupiterToken.name,
-            symbol: jupiterToken.symbol,
-            logoURI: jupiterToken.logoURI,
-            decimals: jupiterToken.decimals
+            name: tokenInfo.name,
+            symbol: tokenInfo.symbol,
+            logoURI: tokenInfo.logoURI,
+            decimals: tokenInfo.decimals
           };
-          // Cache and add to result
-          tokenMetadataCache.set(mint, metadata);
-          metadataMap.set(mint, metadata);
-        } else {
-          tokensNotInJupiter.push(mint);
-        }
-      }
-
-      // Batch fetch mint account data for tokens not in Jupiter (if any)
-      if (tokensNotInJupiter.length > 0) {
-        const connection = this.getConnection();
-        
-        // Batch fetch all mint accounts in parallel
-        const mintInfoPromises = tokensNotInJupiter.map(async (mint) => {
+          
+          return { mint, metadata };
+        } catch (error) {
+          console.warn(`Failed to fetch token info for ${mint}:`, error);
+          
+          // Fallback to basic mint account data
           try {
+            const connection = this.getConnection();
             const mintInfo = await getMint(connection, new PublicKey(mint));
             return {
               mint,
@@ -308,8 +297,8 @@ export class SolanaService {
                 decimals: mintInfo.decimals
               } as SolanaTokenMetadata
             };
-          } catch (error) {
-            console.warn(`Failed to fetch mint info for ${mint}:`, error);
+          } catch (mintError) {
+            console.warn(`Failed to fetch mint account for ${mint}:`, mintError);
             return {
               mint,
               metadata: {
@@ -320,22 +309,22 @@ export class SolanaService {
               } as SolanaTokenMetadata
             };
           }
-        });
-
-        // Execute all mint requests in parallel
-        const mintResults = await Promise.all(mintInfoPromises);
-        
-        // Cache and add results
-        for (const { mint, metadata } of mintResults) {
-          tokenMetadataCache.set(mint, metadata);
-          metadataMap.set(mint, metadata);
         }
+      });
+
+      // Execute all token info requests in parallel
+      const tokenResults = await Promise.all(tokenInfoPromises);
+      
+      // Cache and add results
+      for (const { mint, metadata } of tokenResults) {
+        tokenMetadataCache.set(mint, metadata);
+        metadataMap.set(mint, metadata);
       }
 
     } catch (error) {
-      console.warn('Failed to fetch token metadata:', error);
+      console.warn('Failed to fetch token metadata batch:', error);
       
-      // Fallback: batch fetch all mint accounts for uncached mints
+      // Final fallback: batch fetch all mint accounts for uncached mints
       const connection = this.getConnection();
       const mintPromises = uncachedMints.map(async (mint) => {
         try {
@@ -801,7 +790,7 @@ export class SolanaService {
       const connection = this.getConnection();
       // Returns array of { slot, priorityFeeEstimate } in micro-lamports per CU
       // Typing as any to support multiple RPC versions
-      // @ts-ignore
+      // @ts-expect-error
       const fees: Array<{ slot: number; priorityFeeEstimate: number }> = await (connection as any).getRecentPrioritizationFees();
       if (!Array.isArray(fees) || fees.length === 0) {
         return 0;
@@ -967,3 +956,157 @@ export class SolanaService {
 }
 
 export default SolanaService; 
+
+
+const extractHttpsUrl = (s: string): string | null => {
+  const match = s.match(/https?:\/\/[^\s'",)\]}]+/);
+  return match ? match[0] : null;
+};
+
+// 1. Solana RPC endpoint (gRPC or HTTP)
+const RPC_URL = process.env.NEXT_RPC_URL! || 'https://solana-mainnet.g.alchemy.com/v2/XtQLzQGpbTeGh_UhaGg6c';
+
+// If you need fetch in Node < 18 uncomment this:
+// import fetch from "node-fetch";
+
+type LookupResult = {
+  source: "token-registry" | "metaplex-on-chain" | "mint-account" | "unknown";
+  name?: string;
+  symbol?: string;
+  logoURI?: string;
+  uri?: string; // metadata URI if present
+  decimals?: number;
+  supply?: string;
+  raw?: any;
+};
+
+const METADATA_PROGRAM_ID = new PublicKey(
+  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+);
+
+/**
+ * Try Token Registry -> on-chain Metaplex metadata -> mint account
+ */
+export async function getTokenInfo(
+  mintAddress: string,
+  rpcUrl = RPC_URL
+): Promise<LookupResult> {
+  const connection = new Connection(rpcUrl, "confirmed");
+  const mintPub = new PublicKey(mintAddress);
+  const mintBase58 = mintPub.toBase58();
+
+  // 1) Token Registry (fast, includes logos, symbols, common names)
+  try {
+    const tokenListContainer = await new TokenListProvider().resolve();
+    const tokenList = tokenListContainer
+      .filterByClusterSlug("mainnet-beta")
+      .getList();
+
+    const token = tokenList.find((t:any) => t.address === mintBase58);
+    if (token) {
+      return {
+        source: "token-registry",
+        name: token.name,
+        symbol: token.symbol,
+        logoURI: extractHttpsUrl(token.logoURI!) || "",
+        uri: extractHttpsUrl((token as any).extensions?.coingeckoId!) || "",
+        raw: token,
+      };
+    }
+  } catch (err) {
+    // registry failed — continue to next step
+    console.warn("Token registry lookup failed:", (err as Error).message);
+  }
+
+  // 2) Try on-chain Metaplex Metadata account (many fungible tokens use it)
+  try {
+    const [metadataPDA] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from("metadata"),
+        METADATA_PROGRAM_ID.toBuffer(),
+        mintPub.toBuffer(),
+      ],
+      METADATA_PROGRAM_ID
+    );
+
+    const acctInfo = await connection.getAccountInfo(metadataPDA);
+    if (acctInfo && acctInfo.data) {
+      const parsed = decodeMetaplexMetadataSimple(acctInfo.data);
+      // parsed: { name, symbol, uri }
+      return {
+        source: "metaplex-on-chain",
+        name: parsed.name,
+        symbol: parsed.symbol,
+        uri: extractHttpsUrl(parsed.uri) || "",
+        raw: parsed,
+      };
+    }
+  } catch (err) {
+    console.warn("On-chain Metaplex metadata lookup failed:", (err as Error).message);
+  }
+
+  // 3) Fallback: read mint account (no name, but decimals/supply)
+  try {
+    const parsed = await connection.getParsedAccountInfo(mintPub);
+    if (parsed.value && parsed.value.data) {
+      // structure of parsed value from getParsedAccountInfo:
+      // parsed.value.data.parsed.info.decimals / supply
+      // But be defensive in typing:
+      const maybe = (parsed.value.data as any).parsed ?? (parsed.value.data as any);
+      const info = maybe?.info ?? maybe;
+      const decimals = info?.decimals ?? undefined;
+      const supply = info?.supply ?? undefined;
+      return {
+        source: "mint-account",
+        decimals,
+        supply,
+        raw: parsed.value,
+      };
+    }
+  } catch (err) {
+    console.warn("Mint account lookup failed:", (err as Error).message);
+  }
+
+  // Nothing found
+  return { source: "unknown" };
+}
+
+/**
+ * Lightweight parser for Metaplex metadata account using the common fixed-length layout.
+ * NOTE: This simple parser assumes the legacy fixed-length fields:
+ *   name: 32 bytes, symbol: 10 bytes, uri: 200 bytes
+ * This works for most tokens that use the v1 metadata layout.
+ *
+ * If you need full support for newer metadata structures, use
+ * @metaplex-foundation/mpl-token-metadata's deserializer.
+ */
+function decodeMetaplexMetadataSimple(data: Buffer | Uint8Array) {
+  const buf = Buffer.from(data);
+  // Skips: key (1) + updateAuthority (32) + mint (32) = 65 bytes
+  let offset = 1 + 32 + 32;
+  const NAME_LEN = 32;
+  const SYMBOL_LEN = 10;
+  const URI_LEN = 200;
+
+  const name = buf
+    .slice(offset, offset + NAME_LEN)
+    .toString("utf8")
+    .replace(/\0/g, "")
+    .trim();
+  offset += NAME_LEN;
+
+  const symbol = buf
+    .slice(offset, offset + SYMBOL_LEN)
+    .toString("utf8")
+    .replace(/\0/g, "")
+    .trim();
+  offset += SYMBOL_LEN;
+
+  const uri = buf
+    .slice(offset, offset + URI_LEN)
+    .toString("utf8")
+    .replace(/\0/g, "")
+    .trim();
+
+  return { name, symbol, uri };
+}

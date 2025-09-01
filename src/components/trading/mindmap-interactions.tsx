@@ -29,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
+import TokenDetailModal from '@/components/modals/token-detail-modal';
 
 interface UnifiedNode {
   id: string;
@@ -113,6 +114,7 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [bookmarked, setBookmarked] = useState(false);
+  const [showTokenModal, setShowTokenModal] = useState(false);
 
   const formatVolume = (volume: number) => {
     if (volume >= 1000000) return `${(volume / 1000000).toFixed(1)}M`;
@@ -138,12 +140,15 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
     }
   }, [node.id, onError]);
 
-  const handleExternalLink = useCallback(() => {
+  const handleTokenDetailOpen = useCallback(() => {
     try {
-      const url = node.type === 'token' 
-        ? `https://dexscreener.com/solana/${node.id}`
-        : `https://dexscreener.com/solana?q=${node.id}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
+      if (node.type === 'token') {
+        setShowTokenModal(true);
+      } else {
+        // For KOL nodes, still open DexScreener in new tab as fallback
+        const url = `https://dexscreener.com/solana?q=${node.id}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
     } catch (error) {
       onError && onError(error as Error);
     }
@@ -307,12 +312,12 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleExternalLink}
+              onClick={handleTokenDetailOpen}
               className="flex-1 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">DexScreener</span>
-              <span className="sm:hidden">Dex</span>
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{node.type === 'token' ? 'Trade & Chart' : 'DexScreener'}</span>
+              <span className="sm:hidden">{node.type === 'token' ? 'Trade' : 'Dex'}</span>
             </Button>
             <Button
               variant="outline"
@@ -466,6 +471,20 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
           </div>
         )}
       </CardContent>
+
+      {/* Token Detail Modal */}
+      {node.type === 'token' && (
+        <TokenDetailModal
+          isOpen={showTokenModal}
+          onClose={() => setShowTokenModal(false)}
+          mint={node.tokenMint || node.id}
+          name={node.name}
+          symbol={node.symbol}
+          title={`${node.name || node.symbol || 'Token'} Details`}
+          size="xl"
+          chartHeight={400}
+        />
+      )}
     </Card>
   );
 };

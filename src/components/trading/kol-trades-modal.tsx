@@ -685,8 +685,8 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                               <div className="text-sm text-muted-foreground">
                                 {formatNumber(trade.tokenAmount)} tokens •{' '}
                                 {new Date(
-                                  trade.transactionTimestamp
-                                ).toLocaleString()}
+                                  trade.timestamp
+                                ).toDateString()}
                               </div>
                             </div>
                           </div>
@@ -696,8 +696,8 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                             </div>
                             <div className="text-sm text-muted-foreground">
                               {new Date(
-                                trade.transactionTimestamp
-                              ).toLocaleDateString()}
+                                //trade.timestamp
+                              ).toDateString()}
                             </div>
                           </div>
                         </div>

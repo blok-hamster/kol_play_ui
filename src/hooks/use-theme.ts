@@ -13,8 +13,8 @@ export const useTheme = () => {
     // Fallback for cases where provider might not be available
     console.warn('useTheme called outside of ThemeProvider, using fallback');
     return {
-      theme: 'system' as const,
-      resolvedTheme: 'light' as const,
+      theme: 'dark' as const,
+      resolvedTheme: 'dark' as const,
       setTheme: () => {
         console.warn('setTheme called outside of ThemeProvider');
       },

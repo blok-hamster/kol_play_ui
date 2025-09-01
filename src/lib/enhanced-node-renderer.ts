@@ -38,11 +38,34 @@ export class EnhancedNodeRenderer {
   ): Promise<EnhancedUnifiedNode> {
     const walletAddress = kolData.kolWallet || kolData.walletAddress || kolData.id;
     
-    // Step 1: Create base node structure
+    // Get KOL details from store first
+    let kolDetails;
+    try {
+      kolDetails = kolStore ? await kolStore.ensureKOL(walletAddress) : undefined;
+    } catch (error) {
+      console.warn(`Failed to get KOL details for ${walletAddress}:`, error);
+    }
+    
+    // Create display name
+    const displayName = kolDetails?.name || this.createFallbackKOLLabel(walletAddress);
+    
+    // Get avatar URL using the same logic as kol-list.tsx (prioritize Twitter avatar)
+    const twitterUrl = this.findTwitterUrlFromKOL(kolDetails);
+    const twitterAvatar = this.getTwitterAvatarUrl(twitterUrl, displayName || walletAddress);
+    
+    // Prioritize Twitter avatar over store avatar (same as kol-list.tsx)
+    const preferredAvatar = twitterAvatar ?? kolDetails?.avatar;
+    
+    // Final fallback to initials avatar if no preferred avatar
+    const avatarUrl = preferredAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName || walletAddress || 'KOL')}`;
+    
+    // Step 1: Create base node structure with enhanced avatar
     const baseNode: EnhancedUnifiedNode = {
       id: walletAddress,
       type: 'kol',
-      label: this.createFallbackKOLLabel(walletAddress),
+      label: displayName,
+      name: kolDetails?.name,
+      image: avatarUrl,
       value: this.calculateKOLNodeValue(kolData),
       connections: 1, // Will be updated by caller based on token connections
       totalVolume: kolData.totalVolume || 0,
@@ -50,21 +73,24 @@ export class EnhancedNodeRenderer {
       influenceScore: kolData.influenceScore || 0,
       isTrending: false,
       
-      // Initialize display properties with fallbacks
-      displayName: this.createFallbackKOLLabel(walletAddress),
-      displayImage: undefined
+      // Initialize display properties with enhanced data
+      displayName: displayName,
+      displayImage: avatarUrl,
+      metadata: kolDetails ? {
+        name: kolDetails.name,
+        avatar: avatarUrl,
+        socialLinks: kolDetails.socialLinks,
+        fallbackAvatar: avatarUrl,
+        lastUpdated: Date.now(),
+        displayName: displayName,
+        description: kolDetails.description,
+        totalTrades: kolDetails.totalTrades,
+        winRate: kolDetails.winRate,
+        totalPnL: kolDetails.totalPnL,
+        subscriberCount: kolDetails.subscriberCount,
+        isActive: kolDetails.isActive
+      } : undefined
     };
-
-    // Step 2: Try to enrich with metadata (non-blocking)
-    try {
-      const metadata = await kolStoreIntegrationManager.fetchKOLMetadata(walletAddress, kolStore);
-      if (metadata) {
-        this.enrichKOLNodeWithMetadata(baseNode, metadata);
-      }
-    } catch (error) {
-      console.warn(`Failed to enrich KOL node ${walletAddress}:`, error);
-      // Continue with fallback data
-    }
 
     return baseNode;
   }
@@ -861,6 +887,49 @@ export class EnhancedNodeRenderer {
     const trades = kolData.tradeCount || 0;
     const volume = kolData.totalVolume || 0;
     return Math.max(8, influence * 0.5 + Math.sqrt(trades) * 3 + Math.log(volume + 1) * 2);
+  }
+
+  /**
+   * Twitter avatar helper methods (same as in kol-trade-card.tsx)
+   */
+  private extractTwitterUsername(profileUrl?: string): string | null {
+    if (!profileUrl) return null;
+    try {
+      const url = new URL(profileUrl);
+      const hostname = url.hostname.toLowerCase();
+      const isTwitter = hostname === 'twitter.com' || hostname === 'www.twitter.com';
+      const isX = hostname === 'x.com' || hostname === 'www.x.com';
+      if (!isTwitter && !isX) return null;
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      if (pathParts.length === 0) return null;
+      const username = pathParts[0];
+      if (!username) return null;
+      return username.replace(/\.json$/i, '');
+    } catch {
+      return null;
+    }
+  }
+
+  private getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
+    const username = this.extractTwitterUsername(twitterUrl);
+    if (!username) return undefined;
+    const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
+    if (fallbackSeed && fallbackSeed.trim().length > 0) {
+      const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
+      return `${base}?fallback=${encodeURIComponent(fallback)}`;
+    }
+    return base;
+  }
+
+  private findTwitterUrlFromText(text?: string): string | undefined {
+    if (!text) return undefined;
+    const match = text.match(/https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+/i);
+    return match ? match[0] : undefined;
+  }
+
+  private findTwitterUrlFromKOL(kol?: { socialLinks?: { twitter?: string }; description?: string }): string | undefined {
+    if (!kol) return undefined;
+    return kol.socialLinks?.twitter || this.findTwitterUrlFromText(kol.description);
   }
 
   /**

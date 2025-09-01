@@ -38,6 +38,7 @@ import {
   safeFormatAmount,
 } from '@/lib/utils';
 import { executeInstantSell, checkTradeConfig } from '@/lib/trade-utils';
+import { transferService } from '@/services/transfer.service';
 import QRCode from 'react-qr-code';
 
 interface TokenBalance {
@@ -75,6 +76,7 @@ export function WalletDropdown() {
   const [transferAsset, setTransferAsset] = useState<{ type: 'SOL' | 'SPL'; mint?: string }>({ type: 'SOL' });
   const [transferAmount, setTransferAmount] = useState('');
   const [transferRecipient, setTransferRecipient] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Initialize token lazy loading
@@ -304,6 +306,85 @@ export function WalletDropdown() {
     setPendingSellToken(null);
   };
 
+  // Handle transfer execution
+  const handleTransfer = async () => {
+    if (!transferRecipient.trim() || !transferAmount || parseFloat(transferAmount) <= 0) {
+      showError('Invalid Input', 'Please enter a valid recipient address and amount');
+      return;
+    }
+
+    if (!tradingWallet) {
+      showError('Wallet Error', 'Trading wallet data is not available');
+      return;
+    }
+
+    const amount = parseFloat(transferAmount);
+
+    // Check sufficient balance
+    if (transferAsset.type === 'SOL') {
+      if (amount > (tradingWallet.solBalance || 0)) {
+        showError('Insufficient Balance', `You only have ${(tradingWallet.solBalance || 0).toFixed(4)} SOL available`);
+        return;
+      }
+    } else {
+      const token = tradingWallet.tokens.find(t => t.mint === transferAsset.mint);
+      if (!token || amount > (token.balance || 0)) {
+        showError('Insufficient Balance', `You don't have enough ${token?.symbol || 'tokens'} available`);
+        return;
+      }
+    }
+
+    setIsTransferring(true);
+
+    try {
+      let result;
+      
+      if (transferAsset.type === 'SOL') {
+        result = await transferService.transferSol({
+          to: transferRecipient.trim(),
+          amount: amount,
+        });
+      } else {
+        if (!transferAsset.mint) {
+          showError('Invalid Token', 'Token mint address is required');
+          setIsTransferring(false);
+          return;
+        }
+        
+        result = await transferService.transferToken({
+          to: transferRecipient.trim(),
+          amount: amount,
+          mint: transferAsset.mint,
+        });
+      }
+
+      if (result.success) {
+        const assetSymbol = transferAsset.type === 'SOL' ? 'SOL' : 
+          tradingWallet.tokens.find(t => t.mint === transferAsset.mint)?.symbol || 'tokens';
+        
+        showSuccess(
+          'Transfer Successful',
+          `Successfully transferred ${transferAmount} ${assetSymbol}${result.transactionId ? ` (TX: ${result.transactionId.slice(0, 8)}...)` : ''}`
+        );
+
+        // Reset form
+        setTransferAmount('');
+        setTransferRecipient('');
+        setShowTransfer(false);
+
+        // Refresh account details to update balances
+        await refreshAccountDetails();
+      } else {
+        showError('Transfer Failed', result.error || 'Failed to execute transfer');
+      }
+    } catch (error: any) {
+      console.error('Transfer error:', error);
+      showError('Transfer Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Wallet Button */}
@@ -479,16 +560,22 @@ export function WalletDropdown() {
                         />
                       </div>
 
-                      <div className="text-[10px] text-muted-foreground">
-                        Transfers are not yet enabled. This UI is a preview; backend integration is coming soon.
-                      </div>
-
                       <Button
                         className="w-full"
-                        disabled
+                        onClick={handleTransfer}
+                        disabled={isTransferring || !transferRecipient.trim() || !transferAmount || parseFloat(transferAmount) <= 0}
                       >
-                        <Send className="h-4 w-4 mr-2" />
-                        Send (Coming Soon)
+                        {isTransferring ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-2" />
+                            Send
+                          </>
+                        )}
                       </Button>
                     </div>
                   )}
@@ -725,16 +812,22 @@ export function WalletDropdown() {
                       />
                     </div>
 
-                    <div className="text-[10px] text-muted-foreground">
-                      Transfers are not yet enabled. This UI is a preview; backend integration is coming soon.
-                    </div>
-
                     <Button
                       className="w-full"
-                      disabled
+                      onClick={handleTransfer}
+                      disabled={isTransferring || !transferRecipient.trim() || !transferAmount || parseFloat(transferAmount) <= 0}
                     >
-                      <Send className="h-4 w-4 mr-2" />
-                      Send (Coming Soon)
+                      {isTransferring ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send
+                        </>
+                      )}
                     </Button>
                   </div>
                 )}

@@ -12,6 +12,7 @@ import NotificationProvider from '@/components/providers/notification-provider';
 import AuthInitProvider from '@/components/providers/auth-init-provider';
 import { InviteProvider } from '@/contexts/invite-context';
 import InviteGateWrapper from '@/components/auth/invite-gate-wrapper';
+import CountdownGateWrapper from '@/components/launch/countdown-gate-wrapper';
 
 const darkerGrotesque = Darker_Grotesque({ subsets: ['latin'], weight: ['300','400','500','600','700','800','900'] });
 
@@ -66,14 +67,16 @@ export default function RootLayout({
           <WalletAdapterProvider>
             <NotificationProvider>
               <InviteProvider>
-                <InviteGateWrapper>
-                  <AuthInitProvider>
-                    {children}
-                    <OnboardingWrapper />
-                  </AuthInitProvider>
-                </InviteGateWrapper>
-                {/* Auth modal should be available even when invite gate is active */}
-                <AuthModalWrapper />
+                <CountdownGateWrapper>
+                  <InviteGateWrapper>
+                    <AuthInitProvider>
+                      {children}
+                      <OnboardingWrapper />
+                    </AuthInitProvider>
+                  </InviteGateWrapper>
+                  {/* Auth modal should be available even when invite gate is active */}
+                  <AuthModalWrapper />
+                </CountdownGateWrapper>
               </InviteProvider>
             </NotificationProvider>
           </WalletAdapterProvider>

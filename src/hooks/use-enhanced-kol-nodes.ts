@@ -9,6 +9,47 @@ import { enhancedNodeRenderer } from '../lib/enhanced-node-renderer';
 import { useKOLStore } from '../stores/use-kol-store';
 import { kolStoreIntegrationManager } from '../lib/kol-store-integration';
 
+// Twitter avatar helper functions (same as in kol-trade-card.tsx)
+function extractTwitterUsername(profileUrl?: string): string | null {
+  if (!profileUrl) return null;
+  try {
+    const url = new URL(profileUrl);
+    const hostname = url.hostname.toLowerCase();
+    const isTwitter = hostname === 'twitter.com' || hostname === 'www.twitter.com';
+    const isX = hostname === 'x.com' || hostname === 'www.x.com';
+    if (!isTwitter && !isX) return null;
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    if (pathParts.length === 0) return null;
+    const username = pathParts[0];
+    if (!username) return null;
+    return username.replace(/\.json$/i, '');
+  } catch {
+    return null;
+  }
+}
+
+function getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
+  const username = extractTwitterUsername(twitterUrl);
+  if (!username) return undefined;
+  const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
+  if (fallbackSeed && fallbackSeed.trim().length > 0) {
+    const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
+    return `${base}?fallback=${encodeURIComponent(fallback)}`;
+  }
+  return base;
+}
+
+function findTwitterUrlFromText(text?: string): string | undefined {
+  if (!text) return undefined;
+  const match = text.match(/https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[A-Za-z0-9_]+/i);
+  return match ? match[0] : undefined;
+}
+
+function findTwitterUrlFromKOL(kol?: { socialLinks?: { twitter?: string }; description?: string }): string | undefined {
+  if (!kol) return undefined;
+  return kol.socialLinks?.twitter || findTwitterUrlFromText(kol.description);
+}
+
 interface UseEnhancedKOLNodesOptions {
   enableProgressiveLoading?: boolean;
   batchSize?: number;
@@ -49,17 +90,89 @@ export const useEnhancedKOLNodes = (
   const createEnhancedKOLNode = useCallback(async (kolData: any): Promise<EnhancedUnifiedNode> => {
     try {
       activeRequests.current++;
-      const node = await enhancedNodeRenderer.createEnhancedKOLNode(kolData, kolStore);
+      const walletAddress = kolData.kolWallet || kolData.walletAddress || kolData.id;
+      
+      // First try to get full KOL details from store
+      let kolDetails = await kolStore.ensureKOL(walletAddress);
+      
+      // If no full details, try to get cached metadata (faster lookup with longer TTL)
+      let kolMetadata = kolDetails ? undefined : kolStore.getKOLMetadata(walletAddress);
+      
+      // Create enhanced node with proper display name and avatar
+      const displayName = kolDetails?.name || kolMetadata?.name || `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+      
+      // Get avatar URL - use cached metadata if available
+      let avatarUrl: string;
+      
+      if (kolDetails?.avatar || kolMetadata?.avatar) {
+        avatarUrl = kolDetails?.avatar || kolMetadata?.avatar || '';
+      } else {
+        // Generate Twitter avatar if we have social links
+        const socialLinks = kolDetails?.socialLinks || kolMetadata?.socialLinks;
+        const twitterUrl = socialLinks?.twitter || findTwitterUrlFromText(kolDetails?.description);
+        const twitterAvatar = getTwitterAvatarUrl(twitterUrl, displayName || walletAddress);
+        
+        avatarUrl = twitterAvatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName || walletAddress || 'KOL')}`;
+      }
+      
+      const node: EnhancedUnifiedNode = {
+        id: walletAddress,
+        type: 'kol',
+        label: displayName,
+        displayName: displayName,
+        name: kolDetails?.name || kolMetadata?.name,
+        image: avatarUrl,
+        displayImage: avatarUrl,
+        value: kolData.tradeCount || 10,
+        connections: 1,
+        totalVolume: kolData.totalVolume || 0,
+        tradeCount: kolData.tradeCount || 0,
+        influenceScore: kolData.influenceScore || 0,
+        isTrending: false,
+        metadata: kolDetails ? {
+          name: kolDetails.name,
+          avatar: avatarUrl,
+          socialLinks: kolDetails.socialLinks,
+          fallbackAvatar: avatarUrl,
+          lastUpdated: Date.now(),
+          displayName: displayName,
+          description: kolDetails.description,
+          totalTrades: kolDetails.totalTrades,
+          winRate: kolDetails.winRate,
+          totalPnL: kolDetails.totalPnL,
+          subscriberCount: kolDetails.subscriberCount,
+          isActive: kolDetails.isActive
+        } : kolMetadata ? {
+          name: kolMetadata.name,
+          avatar: avatarUrl,
+          socialLinks: kolMetadata.socialLinks,
+          fallbackAvatar: avatarUrl,
+          lastUpdated: Date.now(),
+          displayName: displayName,
+          description: undefined,
+          totalTrades: undefined,
+          winRate: undefined,
+          totalPnL: undefined,
+          subscriberCount: undefined,
+          isActive: true
+        } : undefined
+      };
+      
       return node;
     } catch (error) {
       console.error('Failed to create enhanced KOL node:', error);
-      // Return fallback node
+      // Return fallback node with generated avatar
       const walletAddress = kolData.kolWallet || kolData.walletAddress || kolData.id;
+      const fallbackDisplayName = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+      const fallbackAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackDisplayName)}`;
+      
       return {
         id: walletAddress,
         type: 'kol',
-        label: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
-        displayName: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+        label: fallbackDisplayName,
+        displayName: fallbackDisplayName,
+        image: fallbackAvatar,
+        displayImage: fallbackAvatar,
         value: kolData.tradeCount || 10,
         connections: 1,
         totalVolume: kolData.totalVolume || 0,
@@ -104,13 +217,18 @@ export const useEnhancedKOLNodes = (
             return await createEnhancedKOLNode(kolData);
           } catch (error) {
             console.error(`Failed to create KOL node for ${kolData.kolWallet || kolData.id}:`, error);
-            // Return fallback node
+            // Return fallback node with generated avatar
             const walletAddress = kolData.kolWallet || kolData.walletAddress || kolData.id;
+            const fallbackDisplayName = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+            const fallbackAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackDisplayName)}`;
+            
             return {
               id: walletAddress,
               type: 'kol' as const,
-              label: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
-              displayName: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+              label: fallbackDisplayName,
+              displayName: fallbackDisplayName,
+              image: fallbackAvatar,
+              displayImage: fallbackAvatar,
               value: kolData.tradeCount || 10,
               connections: 1,
               totalVolume: kolData.totalVolume || 0,
@@ -136,14 +254,19 @@ export const useEnhancedKOLNodes = (
       return results;
     } catch (error) {
       console.error('Failed to batch create enhanced KOL nodes:', error);
-      // Return fallback nodes for all items
+      // Return fallback nodes for all items with generated avatars
       return kolDataArray.map(kolData => {
         const walletAddress = kolData.kolWallet || kolData.walletAddress || kolData.id;
+        const fallbackDisplayName = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+        const fallbackAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackDisplayName)}`;
+        
         return {
           id: walletAddress,
           type: 'kol' as const,
-          label: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
-          displayName: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+          label: fallbackDisplayName,
+          displayName: fallbackDisplayName,
+          image: fallbackAvatar,
+          displayImage: fallbackAvatar,
           value: kolData.tradeCount || 10,
           connections: 1,
           totalVolume: kolData.totalVolume || 0,

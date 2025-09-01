@@ -137,10 +137,10 @@ const HomePage: React.FC = () => {
         <div className="py-16 md:py-20 bg-gradient-to-br from-accent-from/10 to-accent-to/10">
           <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 md:mb-4">
-              Ready to Start Copy Trading?
+              Start Social Trading Now?
             </h2>
             <p className="text-base md:text-lg text-muted-foreground mb-6 md:mb-8">
-              Join thousands of traders already using KOL Play to maximize their
+              Join traders already using KOL Play to maximize their
               Solana DeFi profits.
             </p>
 

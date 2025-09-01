@@ -56,7 +56,7 @@ export async function executeInstantBuy(
   try {
     // First check if user has valid trade config
     const configCheck = await checkTradeConfig();
-    
+
     if (!configCheck.hasConfig) {
       return {
         success: false,
@@ -76,15 +76,18 @@ export async function executeInstantBuy(
       amount: buyAmount,
       mint: tokenMint,
       // Include watch config if enabled
-      ...(tradeConfig.useWatchConfig && settings.watchConfig && {
-        watchConfig: {
-          takeProfitPercentage: settings.watchConfig.takeProfitPercentage || 20,
-          stopLossPercentage: settings.watchConfig.stopLossPercentage || 10,
-          enableTrailingStop: settings.watchConfig.enableTrailingStop || false,
-          trailingPercentage: settings.watchConfig.trailingPercentage || 5,
-          maxHoldTimeMinutes: settings.watchConfig.maxHoldTimeMinutes || 60,
-        },
-      }),
+      ...(tradeConfig.useWatchConfig &&
+        settings.watchConfig && {
+          watchConfig: {
+            takeProfitPercentage:
+              settings.watchConfig.takeProfitPercentage || 20,
+            stopLossPercentage: settings.watchConfig.stopLossPercentage || 10,
+            enableTrailingStop:
+              settings.watchConfig.enableTrailingStop || false,
+            trailingPercentage: settings.watchConfig.trailingPercentage || 5,
+            maxHoldTimeMinutes: settings.watchConfig.maxHoldTimeMinutes || 60,
+          },
+        }),
     };
 
     // Execute the swap
@@ -98,6 +101,111 @@ export async function executeInstantBuy(
     return {
       success: false,
       error: error.message || 'Failed to execute instant buy',
+    };
+  }
+}
+
+/**
+ * Execute buy with custom amount
+ */
+export async function executeBuyWithAmount(
+  tokenMint: string,
+  amount: number,
+  tokenSymbol?: string
+): Promise<{
+  success: boolean;
+  result?: any;
+  error?: string;
+}> {
+  try {
+    // Validate amount
+    if (amount <= 0) {
+      return {
+        success: false,
+        error: 'Amount must be greater than 0',
+      };
+    }
+
+    if (amount < 0.01) {
+      return {
+        success: false,
+        error: 'Minimum buy amount is 0.01 SOL',
+      };
+    }
+
+    // Check if user has trade config (for watch settings, but not required for custom amount)
+    const configCheck = await checkTradeConfig();
+    const settings = configCheck.config;
+
+    // Prepare swap data
+    const swapData: SwapData = {
+      tradeType: 'buy',
+      amount: amount,
+      mint: tokenMint,
+      // Include watch config if available and enabled
+      ...(settings?.tradeConfig?.useWatchConfig &&
+        settings.watchConfig && {
+          watchConfig: {
+            takeProfitPercentage:
+              settings.watchConfig.takeProfitPercentage || 20,
+            stopLossPercentage: settings.watchConfig.stopLossPercentage || 10,
+            enableTrailingStop:
+              settings.watchConfig.enableTrailingStop || false,
+            trailingPercentage: settings.watchConfig.trailingPercentage || 5,
+            maxHoldTimeMinutes: settings.watchConfig.maxHoldTimeMinutes || 60,
+          },
+        }),
+    };
+
+    // Execute the swap
+    const response = await SwapService.performSwap(swapData);
+
+    return {
+      success: true,
+      result: response.data,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Failed to execute buy order',
+    };
+  }
+}
+
+/**
+ * Get buy amount limits based on user's trade config
+ */
+export async function getBuyAmountLimits(): Promise<{
+  hasConfig: boolean;
+  minAmount: number;
+  maxAmount: number;
+  defaultAmount?: number;
+}> {
+  try {
+    const configCheck = await checkTradeConfig();
+
+    if (configCheck.hasConfig && configCheck.config?.tradeConfig) {
+      const { minSpend, maxSpend } = configCheck.config.tradeConfig;
+      return {
+        hasConfig: true,
+        minAmount: minSpend || 0.01,
+        maxAmount: maxSpend || 100,
+        defaultAmount: minSpend,
+      };
+    }
+
+    // Default limits when no config exists
+    return {
+      hasConfig: false,
+      minAmount: 0.01,
+      maxAmount: 100,
+    };
+  } catch (error) {
+    // Fallback limits on error
+    return {
+      hasConfig: false,
+      minAmount: 0.01,
+      maxAmount: 100,
     };
   }
 }
@@ -117,7 +225,7 @@ export async function executeInstantSell(
   try {
     // First check if user has valid trade config
     const configCheck = await checkTradeConfig();
-    
+
     if (!configCheck.hasConfig) {
       return {
         success: false,
@@ -138,15 +246,18 @@ export async function executeInstantSell(
       amount: sellAmount,
       mint: tokenMint,
       // Include watch config if enabled (though less relevant for instant sells)
-      ...(tradeConfig.useWatchConfig && settings.watchConfig && {
-        watchConfig: {
-          takeProfitPercentage: settings.watchConfig.takeProfitPercentage || 20,
-          stopLossPercentage: settings.watchConfig.stopLossPercentage || 10,
-          enableTrailingStop: settings.watchConfig.enableTrailingStop || false,
-          trailingPercentage: settings.watchConfig.trailingPercentage || 5,
-          maxHoldTimeMinutes: settings.watchConfig.maxHoldTimeMinutes || 60,
-        },
-      }),
+      ...(tradeConfig.useWatchConfig &&
+        settings.watchConfig && {
+          watchConfig: {
+            takeProfitPercentage:
+              settings.watchConfig.takeProfitPercentage || 20,
+            stopLossPercentage: settings.watchConfig.stopLossPercentage || 10,
+            enableTrailingStop:
+              settings.watchConfig.enableTrailingStop || false,
+            trailingPercentage: settings.watchConfig.trailingPercentage || 5,
+            maxHoldTimeMinutes: settings.watchConfig.maxHoldTimeMinutes || 60,
+          },
+        }),
     };
 
     // Execute the swap
@@ -174,4 +285,4 @@ export function getTradeConfigSummary(config?: UpdateSettingParams): string {
 
   const { minSpend, maxSpend, slippage } = config.tradeConfig;
   return `${minSpend} - ${maxSpend} SOL, ${slippage || 0.5}% slippage`;
-} 
+}

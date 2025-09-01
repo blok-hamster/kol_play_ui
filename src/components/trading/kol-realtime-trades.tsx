@@ -50,7 +50,7 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
   const [activeTab, setActiveTab] = useState<'featured' | 'subscribed'>('featured');
-  const { getKOL, ensureKOL } = useKOLStore();
+  const { getKOL, ensureKOLs } = useKOLStore();
   const { isSubscribedToKOL, subscriptions } = useSubscriptions();
 
   // Force update mechanism for when React doesn't detect changes
@@ -112,21 +112,18 @@ export const KOLRealtimeTrades: React.FC<KOLRealtimeTradesProps> = ({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const promises: Promise<any>[] = [];
-      for (const wallet of displayedWallets) {
-        if (!getKOL(wallet)) {
-          promises.push(ensureKOL(wallet));
-        }
-      }
-      if (promises.length) {
+      // Find wallets that aren't loaded yet
+      const walletsToLoad = displayedWallets.filter(wallet => !getKOL(wallet));
+      
+      if (walletsToLoad.length > 0) {
         try {
-          await Promise.allSettled(promises);
+          await ensureKOLs(walletsToLoad);
           if (!cancelled) setForceUpdateCounter(prev => prev + 1);
         } catch {}
       }
     })();
     return () => { cancelled = true; };
-  }, [displayedWallets, getKOL, ensureKOL]);
+  }, [displayedWallets, getKOL, ensureKOLs]);
 
   // Enrich trades with KOL details for downstream components that can use them
   const enrichedTrades = useMemo(() => {

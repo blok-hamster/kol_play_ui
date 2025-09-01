@@ -90,6 +90,8 @@ export const API_ENDPOINTS = {
 
     // Trading
     PERFORM_SWAP: '/api/features/perform-swap',
+    TRANSFER_SOL: '/api/features/transfer-sol',
+    TRANSFER_TOKEN: '/api/features/transfer-token',
     PREDICT_TRADE: '/api/features/predict-trade',
 
     // Token Discovery

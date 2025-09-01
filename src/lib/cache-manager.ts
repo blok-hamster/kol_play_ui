@@ -1,6 +1,6 @@
 /**
  * Cache Management System for KOL Trades Performance Optimization
- * 
+ *
  * Provides efficient data caching with TTL support, session storage fallback,
  * and comprehensive cache invalidation mechanisms.
  */
@@ -48,6 +48,8 @@ const CACHE_PREFIXES = {
   MINDMAP_DATA: 'mindmap_data_',
   STATS_DATA: 'stats_data_',
   TRENDING_TOKENS: 'trending_tokens_',
+  KOL_DATA: 'kol_data_',
+  KOL_METADATA: 'kol_metadata_',
 } as const;
 
 export class CacheManager {
@@ -118,6 +120,110 @@ export class CacheManager {
    */
   setTrendingTokens(tokens: string[], ttl?: number): void {
     this.set(`${CACHE_PREFIXES.TRENDING_TOKENS}list`, tokens, ttl);
+  }
+
+  /**
+   * Get KOL data from cache
+   */
+  getKOLData(walletAddress: string): any | null {
+    return this.get(`${CACHE_PREFIXES.KOL_DATA}${walletAddress.toLowerCase()}`);
+  }
+
+  /**
+   * Set KOL data in cache
+   */
+  setKOLData(walletAddress: string, data: any, ttl?: number): void {
+    this.set(
+      `${CACHE_PREFIXES.KOL_DATA}${walletAddress.toLowerCase()}`,
+      data,
+      ttl
+    );
+  }
+
+  /**
+   * Get all cached KOL data
+   */
+  getAllKOLData(): Record<string, any> {
+    const kolData: Record<string, any> = {};
+
+    // Check memory cache
+    for (const [key, entry] of this.memoryCache.entries()) {
+      if (key.startsWith(CACHE_PREFIXES.KOL_DATA) && !this.isExpired(entry)) {
+        const walletAddress = key.replace(CACHE_PREFIXES.KOL_DATA, '');
+        kolData[walletAddress] = entry.data;
+      }
+    }
+
+    // Check session storage for additional entries
+    if (this.config.enableSessionStorage && typeof window !== 'undefined') {
+      try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && key.startsWith(CACHE_PREFIXES.KOL_DATA)) {
+            const walletAddress = key.replace(CACHE_PREFIXES.KOL_DATA, '');
+            if (!kolData[walletAddress]) {
+              // Don't override memory cache data
+              try {
+                const sessionData = sessionStorage.getItem(key);
+                if (sessionData) {
+                  const entry: CacheEntry<any> = JSON.parse(sessionData);
+                  if (!this.isExpired(entry)) {
+                    kolData[walletAddress] = entry.data;
+                  }
+                }
+              } catch (error) {
+                console.warn(
+                  `Failed to parse KOL data for ${walletAddress}:`,
+                  error
+                );
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to read KOL data from session storage:', error);
+      }
+    }
+
+    return kolData;
+  }
+
+  /**
+   * Set multiple KOL data entries in batch
+   */
+  setKOLDataBatch(kolDataMap: Record<string, any>, ttl?: number): void {
+    const entries = Object.entries(kolDataMap).map(([walletAddress, data]) => ({
+      key: `${CACHE_PREFIXES.KOL_DATA}${walletAddress.toLowerCase()}`,
+      data,
+      ttl,
+    }));
+    this.batchSet(entries);
+  }
+
+  /**
+   * Get KOL metadata (name, avatar, etc.) from cache
+   */
+  getKOLMetadata(
+    walletAddress: string
+  ): { name?: string; avatar?: string; socialLinks?: any } | null {
+    return this.get(
+      `${CACHE_PREFIXES.KOL_METADATA}${walletAddress.toLowerCase()}`
+    );
+  }
+
+  /**
+   * Set KOL metadata in cache
+   */
+  setKOLMetadata(
+    walletAddress: string,
+    metadata: { name?: string; avatar?: string; socialLinks?: any },
+    ttl?: number
+  ): void {
+    this.set(
+      `${CACHE_PREFIXES.KOL_METADATA}${walletAddress.toLowerCase()}`,
+      metadata,
+      ttl
+    );
   }
 
   /**
@@ -192,12 +298,18 @@ export class CacheManager {
         sessionStorage.setItem(key, JSON.stringify(entry));
       } catch (error) {
         // Session storage might be full, try to clean up and retry
-        console.warn('Session storage write failed, attempting cleanup:', error);
+        console.warn(
+          'Session storage write failed, attempting cleanup:',
+          error
+        );
         this.cleanupSessionStorage();
         try {
           sessionStorage.setItem(key, JSON.stringify(entry));
         } catch (retryError) {
-          console.warn('Session storage write failed after cleanup:', retryError);
+          console.warn(
+            'Session storage write failed after cleanup:',
+            retryError
+          );
         }
       }
     }
@@ -244,7 +356,7 @@ export class CacheManager {
 
     // Clear entries matching pattern
     const keysToDelete: string[] = [];
-    
+
     // Check memory cache
     for (const key of this.memoryCache.keys()) {
       if (key.includes(pattern)) {
@@ -301,7 +413,7 @@ export class CacheManager {
 
     try {
       const keysToRemove: string[] = [];
-      
+
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
         if (key && this.isCacheKey(key)) {
@@ -341,7 +453,7 @@ export class CacheManager {
 
     try {
       const keysToRemove: string[] = [];
-      
+
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
         if (key && this.isCacheKey(key)) {
@@ -407,7 +519,8 @@ export class CacheManager {
     }
 
     const totalRequests = this.stats.totalHits + this.stats.totalMisses;
-    const hitRate = totalRequests > 0 ? this.stats.totalHits / totalRequests : 0;
+    const hitRate =
+      totalRequests > 0 ? this.stats.totalHits / totalRequests : 0;
 
     return {
       memoryEntries,
@@ -424,10 +537,10 @@ export class CacheManager {
    */
   updateConfig(newConfig: Partial<CacheConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    
+
     // Restart cleanup timer with new interval
     this.startCleanupTimer();
-    
+
     // Enforce new memory limit
     while (this.memoryCache.size > this.config.maxMemoryEntries) {
       this.evictLRU();
