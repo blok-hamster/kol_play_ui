@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { useInviteCode, isAlphaOrBeta } from '@/contexts/invite-context';
 import { useUserStore } from '@/stores/use-user-store';
 import InviteGate from './invite-gate';
@@ -10,9 +11,14 @@ interface InviteGateWrapperProps {
 }
 
 const InviteGateWrapper: React.FC<InviteGateWrapperProps> = ({ children }) => {
+  const pathname = usePathname();
   const { hasInviteCode, setInviteCode, isInitialized, inviteCode } = useInviteCode();
   const { user, isAuthenticated } = useUserStore();
   const isAlphaBeta = isAlphaOrBeta();
+
+  // OAuth callback routes that should bypass the invite gate
+  const oauthCallbackRoutes = ['/oauth-popup-callback', '/oauth-callback'];
+  const isOAuthCallback = oauthCallbackRoutes.includes(pathname);
 
   // Force re-render when invite code changes
   React.useEffect(() => {
@@ -20,6 +26,8 @@ const InviteGateWrapper: React.FC<InviteGateWrapperProps> = ({ children }) => {
   }, [inviteCode]);
 
   console.log('🎫 InviteGateWrapper render:', { 
+    pathname,
+    isOAuthCallback,
     stage: process.env.NEXT_PUBLIC_STAGE,
     isAlphaBeta, 
     isInitialized, 
@@ -29,6 +37,12 @@ const InviteGateWrapper: React.FC<InviteGateWrapperProps> = ({ children }) => {
     inviteCode: inviteCode ? `"${inviteCode}"` : 'null',
     timestamp: new Date().toISOString()
   });
+
+  // If this is an OAuth callback route, bypass the invite gate entirely
+  if (isOAuthCallback) {
+    console.log('🎫 OAuth callback route detected, bypassing invite gate');
+    return <>{children}</>;
+  }
 
   // If not in alpha/beta stage, show the app normally
   if (!isAlphaBeta) {

@@ -293,7 +293,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
                 {isGoogleLoading ? 'Connecting...' : 'Continue with Google'}
               </Button>
 
-              {/* Alternative redirect option */}
+              {/* Alternative redirect option
               <div className="text-center">
                 <button
                   onClick={handleGoogleRedirect}
@@ -302,7 +302,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
                 >
                   Having popup issues? Try redirect method
                 </button>
-              </div>
+              </div> */}
             </div>
 
             <WalletAuthCompact

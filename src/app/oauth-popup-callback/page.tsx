@@ -15,8 +15,9 @@ export default function OAuthPopupCallbackPage() {
         // Get OAuth parameters from URL
         const token = searchParams.get('token');
         const error = searchParams.get('error');
+        const code = searchParams.get('code'); // Google OAuth returns a code parameter
 
-        void 0 && ('🔐 Popup Callback - URL params:', { token, error });
+        console.log('🔐 Popup Callback - URL params:', { token, error, code, fullUrl: window.location.href });
 
         if (error) {
           // Send error message to parent window
@@ -25,8 +26,18 @@ export default function OAuthPopupCallbackPage() {
             error: error,
           };
 
-          void 0 && ('🔐 Sending error message to parent:', errorMessage);
-          window.opener?.postMessage(errorMessage, window.location.origin);
+          console.log('🔐 Sending error message to parent:', errorMessage);
+          
+          // Try multiple ways to communicate with parent
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(errorMessage, window.location.origin);
+            } else if (window.parent && window.parent !== window) {
+              window.parent.postMessage(errorMessage, window.location.origin);
+            }
+          } catch (e) {
+            console.error('🔐 Failed to send message to parent:', e);
+          }
         } else if (token) {
           // Send success message to parent window
           const successMessage = {
@@ -37,8 +48,37 @@ export default function OAuthPopupCallbackPage() {
             isNewUser: false, // This will be determined by the parent
           };
 
-          void 0 && ('🔐 Sending success message to parent:', successMessage);
-          window.opener?.postMessage(successMessage, window.location.origin);
+          console.log('🔐 Sending success message to parent:', successMessage);
+          
+          // Try multiple ways to communicate with parent
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(successMessage, window.location.origin);
+            } else if (window.parent && window.parent !== window) {
+              window.parent.postMessage(successMessage, window.location.origin);
+            }
+          } catch (e) {
+            console.error('🔐 Failed to send message to parent:', e);
+          }
+        } else if (code) {
+          // If we have a code but no token, send the code to parent for processing
+          const codeMessage = {
+            type: 'OAUTH_CODE',
+            code: code,
+          };
+
+          console.log('🔐 Sending OAuth code to parent:', codeMessage);
+          
+          // Try multiple ways to communicate with parent
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(codeMessage, window.location.origin);
+            } else if (window.parent && window.parent !== window) {
+              window.parent.postMessage(codeMessage, window.location.origin);
+            }
+          } catch (e) {
+            console.error('🔐 Failed to send message to parent:', e);
+          }
         } else {
           // No valid parameters
           const errorMessage = {
@@ -46,13 +86,27 @@ export default function OAuthPopupCallbackPage() {
             error: 'No valid OAuth parameters received',
           };
 
-          void 0 && ('🔐 Sending no-params error to parent:', errorMessage);
-          window.opener?.postMessage(errorMessage, window.location.origin);
+          console.log('🔐 Sending no-params error to parent:', errorMessage);
+          
+          // Try multiple ways to communicate with parent
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(errorMessage, window.location.origin);
+            } else if (window.parent && window.parent !== window) {
+              window.parent.postMessage(errorMessage, window.location.origin);
+            }
+          } catch (e) {
+            console.error('🔐 Failed to send message to parent:', e);
+          }
         }
 
         // Close the popup after sending the message
         setTimeout(() => {
-          window.close();
+          try {
+            window.close();
+          } catch (e) {
+            console.log('🔐 Could not close popup window:', e);
+          }
         }, 1000);
       } catch (error) {
         console.error('🔐 Error in popup callback:', error);
@@ -63,11 +117,24 @@ export default function OAuthPopupCallbackPage() {
           error: 'An unexpected error occurred in popup callback',
         };
 
-        window.opener?.postMessage(errorMessage, window.location.origin);
+        // Try multiple ways to communicate with parent
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(errorMessage, window.location.origin);
+          } else if (window.parent && window.parent !== window) {
+            window.parent.postMessage(errorMessage, window.location.origin);
+          }
+        } catch (e) {
+          console.error('🔐 Failed to send error message to parent:', e);
+        }
 
         // Close popup
         setTimeout(() => {
-          window.close();
+          try {
+            window.close();
+          } catch (e) {
+            console.log('🔐 Could not close popup window:', e);
+          }
         }, 1000);
       }
     };
