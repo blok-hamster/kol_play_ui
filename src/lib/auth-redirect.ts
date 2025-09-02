@@ -27,7 +27,7 @@ export class AuthRedirectManager {
   private static readonly MODAL_OPENING_TIMEOUT = 2000; // 2 seconds to prevent rapid modal opening
   private static readonly AUTH_SESSION_TIMEOUT = 30000; // 30 seconds to prevent cascading auth errors
   private static readonly MIN_AUTH_ERROR_INTERVAL = 5000; // 5 seconds minimum between auth errors
-  private static readonly EXCLUDED_PATHS = ['/login', '/signup', '/auth', '/oauth'];
+  private static readonly EXCLUDED_PATHS = ['/api/login', '/api/signup', '/api/auth', '/api/oauth', '/api/signin', '/api/wallet/challenge'];
 
   /**
    * Set the global modal opener function (should be called during app initialization)

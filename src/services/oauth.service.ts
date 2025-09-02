@@ -143,25 +143,50 @@ export class OAuthService {
       try {
         console.log('🔐 Starting Google OAuth popup flow...');
 
-        // Use the backend OAuth redirect endpoint
-        // The backend will redirect to Google OAuth and then back to the main callback
-        // We'll monitor the popup to detect when it reaches the callback
-        const oauthUrl = `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.OAUTH.GOOGLE}`;
-        
-        console.log('🔐 Opening popup with backend OAuth URL:', oauthUrl);
+        // Get Google OAuth URL first
+        this.getGoogleAuthUrl()
+          .then(urlResponse => {
+            console.log('🔐 Received OAuth URL response:', urlResponse);
 
-        const popup = window.open(
-          oauthUrl,
-          'google-oauth',
-          'width=500,height=600,scrollbars=yes,resizable=yes'
-        );
+            // Extract URL from response - handle both formats
+            let oauthUrl = urlResponse.url || urlResponse;
 
-        if (!popup) {
-          reject(
-            new Error('Popup blocked. Please allow popups for this site.')
-          );
-          return;
-        }
+            if (!oauthUrl || typeof oauthUrl !== 'string') {
+              console.error('🔐 Invalid OAuth URL:', { urlResponse, oauthUrl });
+              reject(new Error('Invalid OAuth URL received from server'));
+              return;
+            }
+
+            // For popup flow, we need to modify the redirect URL to point to our popup callback
+            // The backend OAuth URL should redirect to our popup callback page instead of main callback
+            const popupCallbackUrl = `${window.location.origin}/oauth-popup-callback`;
+
+            // If the URL contains a redirect_uri parameter, replace it
+            if (oauthUrl.includes('redirect_uri=')) {
+              oauthUrl = oauthUrl.replace(
+                /redirect_uri=[^&]+/,
+                `redirect_uri=${encodeURIComponent(popupCallbackUrl)}`
+              );
+            } else {
+              // If no redirect_uri in the URL, add it as a parameter
+              const separator = oauthUrl.includes('?') ? '&' : '?';
+              oauthUrl = `${oauthUrl}${separator}redirect_uri=${encodeURIComponent(popupCallbackUrl)}`;
+            }
+
+            console.log('🔐 Opening popup with URL:', oauthUrl);
+
+            const popup = window.open(
+              oauthUrl,
+              'google-oauth',
+              'width=500,height=600,scrollbars=yes,resizable=yes'
+            );
+
+            if (!popup) {
+              reject(
+                new Error('Popup blocked. Please allow popups for this site.')
+              );
+              return;
+            }
 
             // Listen for messages from popup
             const messageListener = (event: MessageEvent) => {
@@ -199,7 +224,7 @@ export class OAuthService {
                 // Exchange the code for a token
                 this.googleCallback(event.data.code)
                   .then(result => {
-                    if (result.success && result.token) {
+                    if (result.success) {
                       resolve({
                         success: true,
                         token: result.token,
@@ -234,60 +259,12 @@ export class OAuthService {
 
             window.addEventListener('message', messageListener);
 
-            // Monitor popup URL for callback detection
-            const urlMonitor = setInterval(() => {
-              try {
-                if (popup.closed) {
-                  return; // Will be handled by checkClosed
-                }
-
-                // Try to access popup URL to detect callback
-                const popupUrl = popup.location?.href;
-                console.log('🔐 Monitoring popup URL:', popupUrl);
-                
-                if (popupUrl && (popupUrl.includes('/oauth-callback') || popupUrl.includes('token=') || popupUrl.includes('error='))) {
-                  // Extract parameters from URL
-                  const url = new URL(popupUrl);
-                  const token = url.searchParams.get('token');
-                  const error = url.searchParams.get('error');
-
-                  console.log('🔐 Detected callback in popup:', { token: !!token, error });
-
-                  clearInterval(urlMonitor);
-                  clearInterval(checkClosed);
-                  clearTimeout(timeout);
-                  window.removeEventListener('message', wrappedListener);
-                  popup.close();
-
-                  if (token) {
-                    apiClient.setToken(token);
-                    resolve({
-                      success: true,
-                      token: token,
-                      user: null, // Will be fetched by parent
-                      isNewUser: false,
-                    });
-                  } else {
-                    resolve({
-                      success: false,
-                      error: error || 'Authentication failed',
-                    });
-                  }
-                }
-              } catch (e) {
-                // Expected when popup is on different domain (Google OAuth)
-                // Continue monitoring
-              }
-            }, 500);
-
             // Check if popup was closed manually
             const checkClosed = setInterval(() => {
               try {
                 if (popup.closed) {
                   clearInterval(checkClosed);
-                  clearInterval(urlMonitor);
-                  clearTimeout(timeout);
-                  window.removeEventListener('message', wrappedListener);
+                  window.removeEventListener('message', messageListener);
 
                   resolve({
                     success: false,
@@ -304,9 +281,7 @@ export class OAuthService {
             // Add a timeout to prevent hanging indefinitely
             const timeout = setTimeout(() => {
               clearInterval(checkClosed);
-              clearInterval(urlMonitor);
-              clearTimeout(timeout);
-              window.removeEventListener('message', wrappedListener);
+              window.removeEventListener('message', messageListener);
               
               try {
                 popup.close();
@@ -320,17 +295,21 @@ export class OAuthService {
               });
             }, 60000); // 60 second timeout
 
-            // Clean up timeout and intervals if we get a message
+            // Clean up timeout if we get a message
             const originalListener = messageListener;
             const wrappedListener = (event: MessageEvent) => {
               clearTimeout(timeout);
               clearInterval(checkClosed);
-              clearInterval(urlMonitor);
               originalListener(event);
             };
 
-        window.removeEventListener('message', messageListener);
-        window.addEventListener('message', wrappedListener);
+            window.removeEventListener('message', messageListener);
+            window.addEventListener('message', wrappedListener);
+          })
+          .catch(error => {
+            console.error('🔐 Failed to get OAuth URL:', error);
+            reject(error);
+          });
       } catch (error) {
         console.error('🔐 OAuth popup setup error:', error);
         reject(error);

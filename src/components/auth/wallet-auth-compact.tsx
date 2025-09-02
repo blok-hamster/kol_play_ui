@@ -67,14 +67,8 @@ export const WalletAuthCompact: React.FC<WalletAuthCompactProps> = ({
       return;
     }
 
-    // Prevent wallet auth during authentication session to avoid infinite loops
-    if (AuthRedirectManager.isModalOpening() || AuthRedirectManager.isAuthenticationInProgress()) {
-      void 0 && ('🚫 Wallet Auth - Blocked during authentication session to prevent infinite loop');
-      const error = 'Authentication in progress, please wait...';
-      onError?.(error);
-      showError('Authentication In Progress', error);
-      return;
-    }
+    // Note: Wallet authentication is allowed during authentication sessions
+    // since it's part of the authentication process itself
 
     setIsLoading(true);
 

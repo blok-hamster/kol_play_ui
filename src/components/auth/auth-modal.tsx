@@ -46,6 +46,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
 
   React.useEffect(() => {
     console.log('🔐 Auth modal state:', { isOpen, activeTab, modalData });
+    
+    // Clear authentication flags when modal opens to allow authentication
+    if (isOpen) {
+      console.log('🔐 Auth modal opened - clearing authentication flags to allow user authentication');
+      AuthRedirectManager.clearAuthenticationInProgressFlag();
+      // Keep modal opening flag to prevent multiple modals, but clear auth in progress
+    }
   }, [isOpen, activeTab, modalData]);
 
   const handleAuthSuccess = () => {

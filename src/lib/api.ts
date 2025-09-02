@@ -23,9 +23,48 @@ class ApiClient {
     // Request interceptor to add JWT token and prevent circular calls
     this.client.interceptors.request.use(
       config => {
-        // Prevent API calls when authentication is in progress to avoid infinite loops
-        if (AuthRedirectManager.isModalOpening() || AuthRedirectManager.isAuthenticationInProgress()) {
-          void 0 && ('🚫 API Request - Blocked during authentication to prevent infinite loop:', config.url);
+        // Define authentication-related endpoints that should be allowed during auth sessions
+        const authEndpoints = [
+          '/api/auth/signin',
+          '/api/auth/signup',
+          '/api/auth/signup-vcs',
+          '/api/auth/verify-otp',
+          '/api/auth/resend-otp',
+          '/api/auth/forgot-password',
+          '/api/auth/reset-password',
+          '/api/wallet/challenge',
+          '/api/wallet/signup',
+          '/api/wallet/verify',
+          '/api/wallet/link',
+          '/api/wallet/unlink',
+          '/api/wallet/info',
+          '/api/oauth/google/url',
+          '/api/oauth/google/callback',
+          '/api/oauth/verify-token',
+          '/api/oauth/auth/oauth/signin',
+          '/api/oauth/google',
+          '/api/oauth/facebook'
+        ];
+
+        const isAuthEndpoint = authEndpoints.some(endpoint => 
+          config.url?.includes(endpoint)
+        );
+
+        // Debug logging for wallet challenge specifically
+        if (config.url?.includes('/wallet/challenge')) {
+          console.log('🔍 Wallet Challenge Debug:', {
+            url: config.url,
+            isAuthEndpoint,
+            isModalOpening: AuthRedirectManager.isModalOpening(),
+            isAuthenticationInProgress: AuthRedirectManager.isAuthenticationInProgress(),
+            matchedEndpoints: authEndpoints.filter(endpoint => config.url?.includes(endpoint))
+          });
+        }
+
+        // Prevent non-auth API calls when authentication is in progress to avoid infinite loops
+        // But allow authentication-related calls to proceed
+        if (!isAuthEndpoint && (AuthRedirectManager.isModalOpening() || AuthRedirectManager.isAuthenticationInProgress())) {
+          void 0 && ('🚫 API Request - Blocked non-auth call during authentication to prevent infinite loop:', config.url);
           const error = new Error('API call blocked during authentication session') as any;
           error.config = config;
           error.isBlocked = true;
