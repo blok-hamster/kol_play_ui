@@ -872,7 +872,7 @@ export const KOLMindmap: React.FC<KOLMindmapProps> = ({
             )}
           </div>
           <div className="connection-indicator">
-            {isConnected ? '🟢 Live' : '🔴 Offline'}
+            {isConnected ? '🟢 Live' : '🔴 Offline'} 
           </div>
         </div>
       )}
