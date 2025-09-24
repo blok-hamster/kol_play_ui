@@ -15,6 +15,7 @@ import { SUCCESS_MESSAGES } from '@/lib/constants';
 import AuthService from '@/services/auth.service';
 import { AuthRedirectManager } from '@/lib/auth-redirect';
 import { useInviteCode } from '@/contexts/invite-context';
+import { isGoogleAuthDisabled } from '@/lib/feature-flags';
 
 interface AuthModalProps {
   defaultTab?: 'signin' | 'signup';
@@ -30,6 +31,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
   const { setUser } = useUserStore();
   const { showSuccess, showError } = useNotifications();
   const { inviteCode } = useInviteCode();
+  
+  // Check if Google auth should be disabled
+  const googleAuthDisabled = isGoogleAuthDisabled();
 
   const isOpen = isModalOpen('auth');
 
@@ -183,10 +187,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
               <Button
                 variant="outline"
                 size="lg"
-                className="w-full"
-                onClick={handleGoogleAuth}
-                loading={isGoogleLoading}
-                disabled={isGoogleLoading}
+                className={`w-full ${googleAuthDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={googleAuthDisabled ? undefined : handleGoogleAuth}
+                loading={isGoogleLoading && !googleAuthDisabled}
+                disabled={isGoogleLoading || googleAuthDisabled}
+                title={googleAuthDisabled ? 'Google authentication is temporarily unavailable in alpha' : undefined}
               >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -206,19 +211,24 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                {isGoogleLoading ? 'Connecting...' : 'Continue with Google'}
+                {googleAuthDisabled 
+                  ? 'Google Auth (Coming Soon)' 
+                  : (isGoogleLoading ? 'Connecting...' : 'Continue with Google')
+                }
               </Button>
 
               {/* Alternative redirect option */}
-              <div className="text-center">
-                <button
-                  onClick={handleGoogleRedirect}
-                  className="text-sm text-muted-foreground hover:text-primary underline focus:outline-none"
-                  disabled={isGoogleLoading}
-                >
-                  Having popup issues? Try redirect method
-                </button>
-              </div>
+              {!googleAuthDisabled && (
+                <div className="text-center">
+                  <button
+                    onClick={handleGoogleRedirect}
+                    className="text-sm text-muted-foreground hover:text-primary underline focus:outline-none"
+                    disabled={isGoogleLoading}
+                  >
+                    Having popup issues? Try redirect method
+                  </button>
+                </div>
+              )}
             </div>
 
             <WalletAuthCompact
@@ -274,10 +284,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
               <Button
                 variant="outline"
                 size="lg"
-                className="w-full"
-                onClick={handleGoogleAuth}
-                loading={isGoogleLoading}
-                disabled={isGoogleLoading}
+                className={`w-full ${googleAuthDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={googleAuthDisabled ? undefined : handleGoogleAuth}
+                loading={isGoogleLoading && !googleAuthDisabled}
+                disabled={isGoogleLoading || googleAuthDisabled}
+                title={googleAuthDisabled ? 'Google authentication is temporarily unavailable in alpha' : undefined}
               >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -297,19 +308,24 @@ const AuthModal: React.FC<AuthModalProps> = ({ defaultTab = 'signin' }) => {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                {isGoogleLoading ? 'Connecting...' : 'Continue with Google'}
+                {googleAuthDisabled 
+                  ? 'Google Auth (Coming Soon)' 
+                  : (isGoogleLoading ? 'Connecting...' : 'Continue with Google')
+                }
               </Button>
 
-              {/* Alternative redirect option
-              <div className="text-center">
-                <button
-                  onClick={handleGoogleRedirect}
-                  className="text-sm text-muted-foreground hover:text-primary underline focus:outline-none"
-                  disabled={isGoogleLoading}
-                >
-                  Having popup issues? Try redirect method
-                </button>
-              </div> */}
+              {/* Alternative redirect option - only show when Google auth is enabled */}
+              {!googleAuthDisabled && (
+                <div className="text-center">
+                  <button
+                    onClick={handleGoogleRedirect}
+                    className="text-sm text-muted-foreground hover:text-primary underline focus:outline-none"
+                    disabled={isGoogleLoading}
+                  >
+                    Having popup issues? Try redirect method
+                  </button>
+                </div>
+              )}
             </div>
 
             <WalletAuthCompact

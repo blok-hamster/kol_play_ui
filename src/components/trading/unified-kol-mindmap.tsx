@@ -12,6 +12,24 @@ import { formatDistanceToNow } from 'date-fns';
 import { MindmapUpdate } from '@/hooks/use-kol-trade-socket';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import {
   Network,
@@ -33,6 +51,12 @@ import {
   Lightbulb,
   Users,
   AlertCircle,
+  Search,
+  Table as TableIcon,
+  RefreshCw,
+  Filter,
+  ChevronDown,
+  Settings,
 } from 'lucide-react';
 import ReactDOM from 'react-dom/client';
 import { useSubscriptions } from '@/stores/use-trading-store';
@@ -123,6 +147,34 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
 
     return () => clearTimeout(timeoutId);
   }, [loadAllKOLs]);
+
+  // Auto-refresh functionality
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      setIsRefreshing(true);
+      setLastRefresh(new Date());
+      
+      // Trigger a refresh by updating network stats
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 1000);
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(refreshInterval);
+  }, []);
+
+  // Manual refresh function
+  const handleManualRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setLastRefresh(new Date());
+    
+    // Force re-fetch of data
+    loadAllKOLs().finally(() => {
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 1000);
+    });
+  }, [loadAllKOLs]);
   const [selectedNode, setSelectedNode] = useState<UnifiedNode | null>(null);
   const [highlightMode, setHighlightMode] = useState<
     'none' | 'trending' | 'high-volume'
@@ -141,6 +193,19 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     nodes: UnifiedNode[];
     links: UnifiedLink[];
   }>({ nodes: [], links: [] });
+  
+  // New state for enhanced features
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'mindmap' | 'table'>('mindmap');
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  
+  // Enhanced filtering state
+  const [selectedKOLs, setSelectedKOLs] = useState<Set<string>>(new Set());
+  const [selectedTokens, setSelectedTokens] = useState<Set<string>>(new Set());
+  const [filterMode, setFilterMode] = useState<'none' | 'kols' | 'tokens'>('none');
+  const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false);
 
 
   // Handle real-time subscription changes
@@ -311,6 +376,125 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     }, 5000);
   }, []);
 
+  // Enhanced search and filtering functionality with connected nodes
+  const filteredNodes = useMemo(() => {
+    let nodes = processedData.nodes;
+    
+    // Apply search filter first
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchingNodes = new Set<string>();
+      
+      // First pass: Find directly matching nodes
+      nodes.forEach(node => {
+        const searchableText = [
+          node.name,
+          node.symbol,
+          node.label,
+          node.id,
+        ].filter(Boolean).join(' ').toLowerCase();
+        
+        if (searchableText.includes(query)) {
+          matchingNodes.add(node.id);
+        }
+      });
+      
+      // Second pass: For matching KOLs, include their connected tokens
+      // For matching tokens, include their connected KOLs
+      const connectedNodes = new Set(matchingNodes);
+      
+      matchingNodes.forEach(nodeId => {
+        const node = nodes.find(n => n.id === nodeId);
+        if (!node) return;
+        
+        // Find all connections for this node
+        processedData.links.forEach(link => {
+          const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+          const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+          
+          if (sourceId === nodeId) {
+            connectedNodes.add(targetId);
+          } else if (targetId === nodeId) {
+            connectedNodes.add(sourceId);
+          }
+        });
+      });
+      
+      nodes = nodes.filter(node => connectedNodes.has(node.id));
+    }
+    
+    // Apply KOL/Token filtering
+    if (filterMode === 'kols' && selectedKOLs.size > 0) {
+      const filteredNodeIds = new Set<string>();
+      
+      // Include selected KOLs
+      selectedKOLs.forEach(kolId => {
+        filteredNodeIds.add(kolId);
+      });
+      
+      // Include all tokens connected to selected KOLs
+      processedData.links.forEach(link => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        
+        if (selectedKOLs.has(sourceId)) {
+          const targetNode = nodes.find(n => n.id === targetId);
+          if (targetNode?.type === 'token') {
+            filteredNodeIds.add(targetId);
+          }
+        } else if (selectedKOLs.has(targetId)) {
+          const sourceNode = nodes.find(n => n.id === sourceId);
+          if (sourceNode?.type === 'token') {
+            filteredNodeIds.add(sourceId);
+          }
+        }
+      });
+      
+      nodes = nodes.filter(node => filteredNodeIds.has(node.id));
+    } else if (filterMode === 'tokens' && selectedTokens.size > 0) {
+      const filteredNodeIds = new Set<string>();
+      
+      // Include selected tokens
+      selectedTokens.forEach(tokenId => {
+        filteredNodeIds.add(tokenId);
+      });
+      
+      // Include all KOLs connected to selected tokens
+      processedData.links.forEach(link => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        
+        if (selectedTokens.has(sourceId)) {
+          const targetNode = nodes.find(n => n.id === targetId);
+          if (targetNode?.type === 'kol') {
+            filteredNodeIds.add(targetId);
+          }
+        } else if (selectedTokens.has(targetId)) {
+          const sourceNode = nodes.find(n => n.id === sourceId);
+          if (sourceNode?.type === 'kol') {
+            filteredNodeIds.add(sourceId);
+          }
+        }
+      });
+      
+      nodes = nodes.filter(node => filteredNodeIds.has(node.id));
+    }
+    
+    return nodes;
+  }, [processedData.nodes, processedData.links, searchQuery, filterMode, selectedKOLs, selectedTokens]);
+
+  // Filter links based on filtered nodes (including connected nodes)
+  const filteredLinks = useMemo(() => {
+    if (!searchQuery.trim()) return processedData.links;
+    
+    const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
+    return processedData.links.filter(link => {
+      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+      return filteredNodeIds.has(sourceId) && filteredNodeIds.has(targetId);
+    });
+  }, [processedData.links, filteredNodes, searchQuery]);
+
   // Define the render function first
   const renderUnifiedMindmap = useCallback(() => {
     const svg = d3.select(svgRef.current);
@@ -332,11 +516,42 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     svg.call(zoomBehavior);
     zoomRef.current = zoomBehavior;
 
-    // Use processed data from state
-    const { nodes, links } = processedData;
+    // Use filtered data for rendering
+    const nodes = filteredNodes;
+    const links = filteredLinks;
 
     // Don't render if no data is available
-    if (nodes.length === 0 || links.length === 0) {
+    if (nodes.length === 0) {
+      // Show empty state message in the SVG
+      const emptyMessage = svg.append('g')
+        .attr('class', 'empty-state')
+        .attr('transform', `translate(${svgWidth / 2}, ${svgHeight / 2})`);
+      
+      emptyMessage.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '-10')
+        .attr('fill', '#6b7280')
+        .attr('font-size', '16px')
+        .attr('font-weight', '600')
+        .text('No data to display');
+      
+      emptyMessage.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '15')
+        .attr('fill', '#9ca3af')
+        .attr('font-size', '14px')
+        .text(() => {
+          if (searchQuery) {
+            return `No results for "${searchQuery}"`;
+          } else if (filterMode === 'kols' && selectedKOLs.size === 0) {
+            return 'Select KOLs to view their connections';
+          } else if (filterMode === 'tokens' && selectedTokens.size === 0) {
+            return 'Select tokens to view their connections';
+          } else {
+            return 'Try adjusting your filters';
+          }
+        });
+      
       return;
     }
 
@@ -381,7 +596,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
         ) || 100,
       ]);
 
-    // Create simulation with enhanced forces
+    // Create simulation with enhanced forces and position stability
     const simulation = d3
       .forceSimulation<UnifiedNode>(nodes)
       .force(
@@ -413,6 +628,43 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       )
       .force('x', d3.forceX(svgWidth / 2).strength(0.05))
       .force('y', d3.forceY(svgHeight / 2).strength(0.05));
+
+    // Apply saved positions to maintain stability
+    let hasStablePositions = true;
+    nodes.forEach(node => {
+      const savedPosition = nodePositions.get(node.id);
+      if (savedPosition) {
+        node.x = savedPosition.x;
+        node.y = savedPosition.y;
+        // Only fix positions if we have a complete set of stable positions
+        if (hasStablePositions) {
+          node.fx = savedPosition.x;
+          node.fy = savedPosition.y;
+        }
+      } else {
+        hasStablePositions = false;
+      }
+    });
+
+    // If we have stable positions, reduce simulation iterations
+    if (hasStablePositions) {
+      simulation.alpha(0.1).alphaDecay(0.1);
+    }
+
+    // Save positions when simulation stabilizes
+    let positionSaveTimeout: NodeJS.Timeout;
+    simulation.on('tick', () => {
+      clearTimeout(positionSaveTimeout);
+      positionSaveTimeout = setTimeout(() => {
+        const newPositions = new Map();
+        nodes.forEach(node => {
+          if (node.x !== undefined && node.y !== undefined) {
+            newPositions.set(node.id, { x: node.x, y: node.y });
+          }
+        });
+        setNodePositions(newPositions);
+      }, 1000); // Save positions 1 second after last movement
+    });
 
     // Create link elements with app's accent gradient
     const defs = svg.append('defs');
@@ -986,7 +1238,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     return () => {
       tooltipContainer.remove();
     };
-  }, [dimensions, processedData, handleInteractionError, highlightMode, selectedNode]);
+  }, [dimensions, filteredNodes, filteredLinks, handleInteractionError, highlightMode, selectedNode, nodePositions]);
 
   // Now add the useEffect that uses the render function
   useEffect(() => {
@@ -1029,7 +1281,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     return () => {
       clearTimeout(renderTimeout);
     };
-  }, [processedData, dimensions.width, dimensions.height, highlightMode, showSubscribedOnly]);
+  }, [filteredNodes, filteredLinks, dimensions.width, dimensions.height, highlightMode, showSubscribedOnly, viewMode]);
 
   // Handle recent trades updates with debouncing to prevent infinite loops
   const recentTradesRef = useRef(recentTrades);
@@ -1295,12 +1547,26 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       // Clear selected node when changing filters to avoid stale selections
       setSelectedNode(null);
 
+      // Clear node-specific filters when changing subscription filter
+      setFilterMode('none');
+      setSelectedKOLs(new Set());
+      setSelectedTokens(new Set());
+
       // The WebSocket subscriptions are maintained by the useKOLTradeSocket hook
       // which already subscribes to both featured and subscribed KOLs
       // This ensures we don't lose real-time updates when switching between views
     },
     []
   );
+
+  // Clear all filters
+  const handleClearAllFilters = useCallback(() => {
+    setSearchQuery('');
+    setFilterMode('none');
+    setSelectedKOLs(new Set());
+    setSelectedTokens(new Set());
+    setSelectedNode(null);
+  }, []);
 
   // Use real-time network statistics from filtering process
   const tokenCount = networkStats.totalTokens;
@@ -1315,6 +1581,231 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       Object.keys(data.kolConnections || {})
     )
   ).size;
+
+  // Table view component - Mobile Responsive
+  const TableView = () => {
+    const tokenNodes = filteredNodes.filter(n => n.type === 'token');
+    const kolNodes = filteredNodes.filter(n => n.type === 'kol');
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        {/* Tokens Table */}
+        <div>
+          <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+            <CircleDollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span>Tokens ({tokenNodes.length})</span>
+          </h3>
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[140px]">Token</TableHead>
+                    <TableHead className="hidden sm:table-cell">Symbol</TableHead>
+                    <TableHead className="text-center">KOLs</TableHead>
+                    <TableHead className="text-center">Trades</TableHead>
+                    <TableHead className="text-center hidden md:table-cell">Volume (SOL)</TableHead>
+                    <TableHead className="hidden lg:table-cell">Status</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tokenNodes.map((token) => (
+                    <TableRow key={token.id}>
+                      <TableCell className="min-w-[140px]">
+                        <div className="flex items-center gap-2">
+                          {token.image && (
+                            <img 
+                              src={token.image} 
+                              alt={token.name || token.symbol || 'Token'} 
+                              className="w-5 h-5 sm:w-6 sm:h-6 rounded flex-shrink-0"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-xs sm:text-sm truncate">
+                              {token.name || 'Unknown Token'}
+                            </div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {token.id.slice(0, 6)}...{token.id.slice(-3)}
+                            </div>
+                            {/* Show symbol on mobile when column is hidden */}
+                            {token.symbol && (
+                              <div className="sm:hidden">
+                                <Badge variant="secondary" className="text-xs mt-1">{token.symbol}</Badge>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {token.symbol && (
+                          <Badge variant="secondary" className="text-xs">{token.symbol}</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center font-medium">{token.connections}</TableCell>
+                      <TableCell className="text-center font-medium">{token.tradeCount}</TableCell>
+                      <TableCell className="text-center font-medium hidden md:table-cell">
+                        {token.totalVolume?.toFixed(2) || '0.00'}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {token.isTrending && (
+                          <Badge variant="default" className="bg-accent-from text-xs">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            <span className="hidden xl:inline">Trending</span>
+                            <span className="xl:hidden">Hot</span>
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigator.clipboard.writeText(token.id)}
+                            className="h-6 w-6 p-0"
+                            title="Copy address"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(`https://dexscreener.com/solana/${token.id}`, '_blank')}
+                            className="h-6 w-6 p-0"
+                            title="View on DexScreener"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </div>
+
+        {/* KOLs Table */}
+        <div>
+          <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 flex items-center gap-2">
+            <UserCheck className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span>KOLs ({kolNodes.length})</span>
+          </h3>
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[140px]">KOL</TableHead>
+                    <TableHead className="text-center hidden sm:table-cell">Influence</TableHead>
+                    <TableHead className="text-center">Trades</TableHead>
+                    <TableHead className="text-center hidden md:table-cell">Volume (SOL)</TableHead>
+                    <TableHead className="hidden lg:table-cell">Connected Tokens</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {kolNodes.map((kol) => {
+                    const connectedTokens = filteredLinks
+                      .filter(link => {
+                        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                        return sourceId === kol.id || targetId === kol.id;
+                      })
+                      .map(link => {
+                        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                        const tokenId = sourceId === kol.id ? targetId : sourceId;
+                        return tokenNodes.find(t => t.id === tokenId);
+                      })
+                      .filter(Boolean);
+
+                    return (
+                      <TableRow key={kol.id}>
+                        <TableCell className="min-w-[140px]">
+                          <div className="flex items-center gap-2">
+                            {kol.image && (
+                              <img 
+                                src={kol.image} 
+                                alt={kol.name || 'KOL'} 
+                                className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-xs sm:text-sm truncate">
+                                {kol.name || 'Unknown KOL'}
+                              </div>
+                              <div className="text-xs text-muted-foreground font-mono">
+                                {kol.id.slice(0, 6)}...{kol.id.slice(-3)}
+                              </div>
+                              {/* Show influence on mobile when column is hidden */}
+                              <div className="sm:hidden text-xs text-muted-foreground mt-1">
+                                Influence: {kol.influenceScore?.toFixed(0) || '0'}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center font-medium hidden sm:table-cell">
+                          {kol.influenceScore?.toFixed(0) || '0'}
+                        </TableCell>
+                        <TableCell className="text-center font-medium">{kol.tradeCount}</TableCell>
+                        <TableCell className="text-center font-medium hidden md:table-cell">
+                          {kol.totalVolume?.toFixed(2) || '0.00'}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {connectedTokens.slice(0, 2).map((token) => (
+                              <Badge key={token?.id} variant="outline" className="text-xs">
+                                {token?.symbol || token?.name?.slice(0, 4) || 'Unknown'}
+                              </Badge>
+                            ))}
+                            {connectedTokens.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{connectedTokens.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigator.clipboard.writeText(kol.id)}
+                              className="h-6 w-6 p-0"
+                              title="Copy wallet address"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(`https://dexscreener.com/solana?q=${kol.id}`, '_blank')}
+                              className="h-6 w-6 p-0"
+                              title="Search on DexScreener"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Enhanced empty state handling for subscribed-only view
   if (showSubscribedOnly && Object.keys(filteredTokensData).length === 0) {
@@ -1360,62 +1851,87 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
           className
         )}
       >
-        {/* Mobile-Responsive Controls Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-2 bg-muted/20 border-b border-border/50 flex-shrink-0">
-          <div className="flex items-center justify-center sm:justify-start space-x-2 sm:space-x-4 text-xs sm:text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <CircleDollarSign className="h-3 w-3" />
-              <span className="font-medium">0</span>
-              <span className="hidden xs:inline">tokens</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <UserCheck className="h-3 w-3" />
-              <span className="font-medium">0</span>
-              <span className="hidden xs:inline">KOLs</span>
-            </span>
-            <span className="text-xs text-muted-foreground/70">
-              ({activeSubscriptions} active of {subscriptions.length}{' '}
-              subscriptions)
-            </span>
+        {/* Enhanced Controls Header - Mobile Optimized */}
+        <div className="flex flex-col gap-2 px-2 sm:px-4 py-2 bg-muted/20 border-b border-border/50 flex-shrink-0">
+          {/* Top Row - Stats and Essential Controls */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Stats - Compact */}
+            <div className="flex items-center space-x-2 text-xs text-muted-foreground overflow-hidden">
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <CircleDollarSign className="h-3 w-3" />
+                <span className="font-medium">0</span>
+                <span className="hidden xs:inline">tokens</span>
+                <span className="xs:hidden">T</span>
+              </span>
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <UserCheck className="h-3 w-3" />
+                <span className="font-medium">0</span>
+                <span className="hidden xs:inline">KOLs</span>
+                <span className="xs:hidden">K</span>
+              </span>
+              <span className="text-xs text-muted-foreground/70 flex-shrink-0 hidden xs:inline">
+                ({activeSubscriptions} active of {subscriptions.length} subs)
+              </span>
+            </div>
+
+            {/* Essential Controls - Always Visible */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setViewMode('mindmap')}
+                className="h-7 px-2 text-xs flex-shrink-0"
+              >
+                <Network className="h-3 w-3 mr-1" />
+                <span className="hidden xs:inline">Map</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-7 px-2 text-xs flex-shrink-0"
+              >
+                <TableIcon className="h-3 w-3 mr-1" />
+                <span className="hidden xs:inline">Table</span>
+              </Button>
+            </div>
           </div>
 
-          <div className="flex items-center justify-center gap-1 overflow-x-auto pb-1">
-            {/* KOL Filter Toggle */}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setShowSubscribedOnly(true)}
-              className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
-            >
-              <UserCheck className="h-3 w-3 mr-1" />
-              <span className="hidden xs:inline">Subscribed</span> (
-              {subscribedKOLs})
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSubscribedOnly(false)}
-              className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
-            >
-              <Users className="h-3 w-3 mr-1" />
-              <span className="hidden xs:inline">All</span> ({allKOLs})
-            </Button>
+          {/* Second Row - Search */}
+          <div className="relative w-full">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              placeholder="Search tokens and KOLs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-7 h-8 text-xs w-full"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Enhanced Empty State */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4 p-8 max-w-md">
+        {/* Enhanced Empty State - Mobile Responsive */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center space-y-4 max-w-sm">
             <div className="relative">
-              <UserCheck className="h-16 w-16 text-muted-foreground mx-auto" />
+              <UserCheck className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto" />
               {emptyStateReason === 'no-active-subscriptions' && (
-                <div className="absolute -top-1 -right-1 h-6 w-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                <div className="absolute -top-1 -right-1 h-5 w-5 sm:h-6 sm:w-6 bg-yellow-500 rounded-full flex items-center justify-center">
                   <span className="text-xs text-white">!</span>
                 </div>
               )}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
+              <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
                 {emptyStateTitle}
               </h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
@@ -1435,11 +1951,12 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
                 )}
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <div className="flex flex-col gap-2 justify-center">
               <Button
                 variant="outline"
                 onClick={() => handleFilterChange(false)}
-                className="flex-1 sm:flex-none"
+                size="sm"
+                className="w-full sm:w-auto"
               >
                 <Users className="h-4 w-4 mr-2" />
                 View All KOLs
@@ -1451,7 +1968,8 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
                     // Navigate to KOLs page or open subscription modal
                     window.location.href = '/kols';
                   }}
-                  className="flex-1 sm:flex-none"
+                  size="sm"
+                  className="w-full sm:w-auto"
                 >
                   <UserCheck className="h-4 w-4 mr-2" />
                   Find KOLs
@@ -1464,224 +1982,852 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     );
   }
 
+  // Handle empty state for node filtering modes
+  if (filterMode === 'kols' && selectedKOLs.size === 0 && processedData.nodes.length > 0) {
+    return (
+      <div
+        ref={containerRef}
+        className={cn(
+          'w-full h-full flex flex-col min-h-[300px] max-h-[600px]',
+          className
+        )}
+      >
+        {/* Enhanced Controls Header - Mobile Optimized */}
+        <div className="flex flex-col gap-2 px-2 sm:px-4 py-2 bg-gray-50/20 dark:bg-gray-800/20 border-b border-gray-200/50 dark:border-gray-700/50 flex-shrink-0">
+          {/* Top Row - Stats and Essential Controls */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Stats - Compact */}
+            <div className="flex items-center space-x-2 text-xs text-muted-foreground overflow-hidden">
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <CircleDollarSign className="h-3 w-3" />
+                <span className="font-medium">0</span>
+                <span className="hidden xs:inline">tokens</span>
+                <span className="xs:hidden">T</span>
+                <span className="text-xs opacity-70">(filtered)</span>
+              </span>
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <UserCheck className="h-3 w-3" />
+                <span className="font-medium">0</span>
+                <span className="hidden xs:inline">KOLs</span>
+                <span className="xs:hidden">K</span>
+                <span className="text-xs opacity-70">(kols)</span>
+              </span>
+            </div>
+
+            {/* Essential Controls - Always Visible */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setViewMode('mindmap')}
+                className="h-7 px-2 text-xs flex-shrink-0"
+              >
+                <Network className="h-3 w-3 mr-1" />
+                <span className="hidden xs:inline">Map</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-7 px-2 text-xs flex-shrink-0"
+              >
+                <TableIcon className="h-3 w-3 mr-1" />
+                <span className="hidden xs:inline">Table</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Empty State for KOL Filter */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center space-y-4 max-w-sm">
+            <UserCheck className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto" />
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
+                Select KOLs to Filter
+              </h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Choose specific KOLs from the filter bar above to view their trading connections and related tokens.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 justify-center">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedKOLs(new Set(processedData.nodes.filter(n => n.type === 'kol').map(n => n.id)));
+                }}
+                size="sm"
+                className="w-full sm:w-auto"
+              >
+                <UserCheck className="h-4 w-4 mr-2" />
+                Select All KOLs
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFilterMode('none');
+                  setSelectedKOLs(new Set());
+                }}
+                size="sm"
+                className="w-full sm:w-auto"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Show All Nodes
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (filterMode === 'tokens' && selectedTokens.size === 0 && processedData.nodes.length > 0) {
+    return (
+      <div
+        ref={containerRef}
+        className={cn(
+          'w-full h-full flex flex-col min-h-[300px] max-h-[600px]',
+          className
+        )}
+      >
+        {/* Enhanced Controls Header - Mobile Optimized */}
+        <div className="flex flex-col gap-2 px-2 sm:px-4 py-2 bg-gray-50/20 dark:bg-gray-800/20 border-b border-gray-200/50 dark:border-gray-700/50 flex-shrink-0">
+          {/* Top Row - Stats and Essential Controls */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Stats - Compact */}
+            <div className="flex items-center space-x-2 text-xs text-muted-foreground overflow-hidden">
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <CircleDollarSign className="h-3 w-3" />
+                <span className="font-medium">0</span>
+                <span className="hidden xs:inline">tokens</span>
+                <span className="xs:hidden">T</span>
+                <span className="text-xs opacity-70">(filtered)</span>
+              </span>
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <UserCheck className="h-3 w-3" />
+                <span className="font-medium">0</span>
+                <span className="hidden xs:inline">KOLs</span>
+                <span className="xs:hidden">K</span>
+                <span className="text-xs opacity-70">(tokens)</span>
+              </span>
+            </div>
+
+            {/* Essential Controls - Always Visible */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setViewMode('mindmap')}
+                className="h-7 px-2 text-xs flex-shrink-0"
+              >
+                <Network className="h-3 w-3 mr-1" />
+                <span className="hidden xs:inline">Map</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className="h-7 px-2 text-xs flex-shrink-0"
+              >
+                <TableIcon className="h-3 w-3 mr-1" />
+                <span className="hidden xs:inline">Table</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Empty State for Token Filter */}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center space-y-4 max-w-sm">
+            <CircleDollarSign className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto" />
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
+                Select Tokens to Filter
+              </h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Choose specific tokens from the filter bar above to view their trading connections and related KOLs.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 justify-center">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedTokens(new Set(processedData.nodes.filter(n => n.type === 'token').map(n => n.id)));
+                }}
+                size="sm"
+                className="w-full sm:w-auto"
+              >
+                <CircleDollarSign className="h-4 w-4 mr-2" />
+                Select All Tokens
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFilterMode('none');
+                  setSelectedTokens(new Set());
+                }}
+                size="sm"
+                className="w-full sm:w-auto"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Show All Nodes
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
       className={cn(
-        'w-full h-full flex flex-col min-h-[300px] max-h-[600px]',
+        'w-full h-full flex flex-col min-h-[300px]',
+        viewMode === 'table' ? 'max-h-none' : 'max-h-[600px]',
         className
       )}
     >
-      {/* Mobile-Responsive Controls Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-2 bg-muted/20 border-b border-border/50 flex-shrink-0">
-        <div className="flex items-center justify-center sm:justify-start space-x-2 sm:space-x-4 text-xs sm:text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <CircleDollarSign className="h-3 w-3" />
-            <span className="font-medium">{tokenCount}</span>
-            <span className="hidden xs:inline">tokens</span>
-            {showSubscribedOnly && <span className="text-xs">(filtered)</span>}
-          </span>
-          <span className="flex items-center gap-1">
-            <UserCheck className="h-3 w-3" />
-            <span className="font-medium">{totalKOLs}</span>
-            <span className="hidden xs:inline">KOLs</span>
-            {showSubscribedOnly && (
-              <span className="text-xs">(subscribed)</span>
-            )}
-          </span>
-          {/* Real-time update indicator */}
-          <span className="flex items-center gap-1 text-xs">
-            <Activity className="h-2.5 w-2.5 text-green-500" />
-            <span className="text-muted-foreground/70">
-              {formatDistanceToNow(networkStats.lastUpdate, {
-                addSuffix: true,
-              })}
+      {/* Enhanced Controls Header - Mobile Optimized */}
+      <div className="flex flex-col gap-2 px-2 sm:px-4 py-2 bg-gray-50/20 dark:bg-gray-800/20 border-b border-gray-200/50 dark:border-gray-700/50 flex-shrink-0">
+        {/* Top Row - Stats and Essential Controls */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Stats - Compact */}
+          <div className="flex items-center space-x-2 text-xs text-muted-foreground overflow-hidden">
+            <span className="flex items-center gap-1 flex-shrink-0">
+              <CircleDollarSign className="h-3 w-3" />
+              <span className="font-medium">{filteredNodes.filter(n => n.type === 'token').length}</span>
+              <span className="hidden xs:inline">tokens</span>
+              <span className="xs:hidden">T</span>
             </span>
-          </span>
-        </div>
+            <span className="flex items-center gap-1 flex-shrink-0">
+              <UserCheck className="h-3 w-3" />
+              <span className="font-medium">{filteredNodes.filter(n => n.type === 'kol').length}</span>
+              <span className="hidden xs:inline">KOLs</span>
+              <span className="xs:hidden">K</span>
+            </span>
+            {(searchQuery || filterMode !== 'none' || showSubscribedOnly) && (
+              <span className="text-xs opacity-70 hidden xs:inline">(filtered)</span>
+            )}
+          </div>
 
-        <div className="flex items-center justify-center gap-1 overflow-x-auto pb-1">
-          {/* KOL Filter Toggle with real-time updates */}
-          <Button
-            variant={showSubscribedOnly ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleFilterChange(true)}
-            className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
-            disabled={subscriptions.filter(s => s.isActive).length === 0}
-          >
-            <UserCheck className="h-3 w-3 mr-1" />
-            <span className="hidden xs:inline">Subscribed</span> (
-            {subscribedKOLs})
-          </Button>
-          <Button
-            variant={!showSubscribedOnly ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleFilterChange(false)}
-            className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
-          >
-            <Users className="h-3 w-3 mr-1" />
-            <span className="hidden xs:inline">All</span> ({allKOLs})
-          </Button>
+          {/* Essential Controls - Always Visible */}
+          <div className="flex items-center gap-1">
+            {/* View Mode Toggle */}
+            <Button
+              variant={viewMode === 'mindmap' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('mindmap')}
+              className="h-7 px-2 text-xs flex-shrink-0"
+            >
+              <Network className="h-3 w-3 mr-1" />
+              <span className="hidden xs:inline">Map</span>
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-7 px-2 text-xs flex-shrink-0"
+            >
+              <TableIcon className="h-3 w-3 mr-1" />
+              <span className="hidden xs:inline">Table</span>
+            </Button>
 
-          {/* Divider */}
-          <div className="w-px h-4 bg-border mx-1" />
-
-          {/* Highlight Mode Toggle */}
-          <Button
-            variant={highlightMode === 'none' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setHighlightMode('none')}
-            className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
-          >
-            All
-          </Button>
-          <Button
-            variant={highlightMode === 'trending' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setHighlightMode('trending')}
-            className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
-          >
-            <TrendingUp className="h-3 w-3 mr-1" />
-            <span className="hidden xs:inline">Trending</span>
-          </Button>
-          <Button
-            variant={highlightMode === 'high-volume' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setHighlightMode('high-volume')}
-            className="h-6 sm:h-7 px-1.5 sm:px-2 text-xs flex-shrink-0"
-          >
-            <Activity className="h-3 w-3 mr-1" />
-            <span className="hidden xs:inline">Volume</span>
-          </Button>
-
-          {/* Zoom Controls */}
-          <div className="ml-1 sm:ml-2 flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            {/* Manual Refresh */}
             <Button
               variant="outline"
               size="sm"
-              onClick={handleZoomIn}
-              className="h-6 w-6 sm:h-7 sm:w-7 p-0"
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="h-7 w-7 p-0 flex-shrink-0"
+              title="Refresh data"
             >
-              <ZoomIn className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              <RefreshCw className={cn("h-3 w-3", isRefreshing && "animate-spin")} />
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleZoomOut}
-              className="h-6 w-6 sm:h-7 sm:w-7 p-0"
-            >
-              <ZoomOut className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetZoom}
-              className="h-6 w-6 sm:h-7 sm:w-7 p-0"
-            >
-              <RotateCcw className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-            </Button>
+
+            {/* Mobile Dropdown Menu - Hidden on Desktop */}
+            <DropdownMenu open={mobileDropdownOpen} onOpenChange={setMobileDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0 flex-shrink-0 md:hidden"
+                  title="More options"
+                >
+                  <Settings className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Filters & Options</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                
+                {/* Subscription Filters */}
+                <DropdownMenuItem
+                  onClick={() => {
+                    handleFilterChange(true);
+                    setMobileDropdownOpen(false);
+                  }}
+                  disabled={subscriptions.filter(s => s.isActive).length === 0}
+                  className={showSubscribedOnly ? 'bg-accent' : ''}
+                >
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Subscribed KOLs ({subscribedKOLs})
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    handleFilterChange(false);
+                    setMobileDropdownOpen(false);
+                  }}
+                  className={!showSubscribedOnly ? 'bg-accent' : ''}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  All KOLs ({allKOLs})
+                </DropdownMenuItem>
+                
+                <DropdownMenuSeparator />
+                
+                {/* Node Type Filters */}
+                <DropdownMenuItem
+                  onClick={() => {
+                    setFilterMode('none');
+                    setSelectedKOLs(new Set());
+                    setSelectedTokens(new Set());
+                    setMobileDropdownOpen(false);
+                  }}
+                  className={filterMode === 'none' ? 'bg-accent' : ''}
+                >
+                  <Network className="h-4 w-4 mr-2" />
+                  All Nodes
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setFilterMode('kols');
+                    setSelectedTokens(new Set());
+                    setMobileDropdownOpen(false);
+                  }}
+                  className={filterMode === 'kols' ? 'bg-accent' : ''}
+                >
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Filter KOLs {selectedKOLs.size > 0 && `(${selectedKOLs.size})`}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setFilterMode('tokens');
+                    setSelectedKOLs(new Set());
+                    setMobileDropdownOpen(false);
+                  }}
+                  className={filterMode === 'tokens' ? 'bg-accent' : ''}
+                >
+                  <CircleDollarSign className="h-4 w-4 mr-2" />
+                  Filter Tokens {selectedTokens.size > 0 && `(${selectedTokens.size})`}
+                </DropdownMenuItem>
+
+                {/* Mindmap-specific controls */}
+                {viewMode === 'mindmap' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Highlight Mode</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setHighlightMode('none');
+                        setMobileDropdownOpen(false);
+                      }}
+                      className={highlightMode === 'none' ? 'bg-accent' : ''}
+                    >
+                      <Network className="h-4 w-4 mr-2" />
+                      All Nodes
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setHighlightMode('trending');
+                        setMobileDropdownOpen(false);
+                      }}
+                      className={highlightMode === 'trending' ? 'bg-accent' : ''}
+                    >
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      Trending
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setHighlightMode('high-volume');
+                        setMobileDropdownOpen(false);
+                      }}
+                      className={highlightMode === 'high-volume' ? 'bg-accent' : ''}
+                    >
+                      <Activity className="h-4 w-4 mr-2" />
+                      High Volume
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Zoom Controls</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => { handleZoomIn(); setMobileDropdownOpen(false); }}>
+                      <ZoomIn className="h-4 w-4 mr-2" />
+                      Zoom In
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { handleZoomOut(); setMobileDropdownOpen(false); }}>
+                      <ZoomOut className="h-4 w-4 mr-2" />
+                      Zoom Out
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { handleResetZoom(); setMobileDropdownOpen(false); }}>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reset Zoom
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    handleClearAllFilters();
+                    setMobileDropdownOpen(false);
+                  }}
+                  className="text-destructive"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear All Filters
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
+
+        {/* Second Row - Search and Desktop Filters */}
+        <div className="flex flex-col gap-2">
+          {/* Search Bar - Full Width */}
+          <div className="relative w-full">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              placeholder="Search tokens and KOLs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-7 h-8 text-xs w-full"
+            />
+            {(searchQuery || filterMode !== 'none') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearAllFilters}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                title="Clear all filters"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+
+          {/* Desktop Filter Controls - Hidden on Mobile */}
+          <div className="hidden md:flex flex-wrap items-center gap-1 justify-start">
+            {/* Subscription Filters */}
+            <Button
+              variant={showSubscribedOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleFilterChange(true)}
+              className="h-7 px-2 text-xs flex-shrink-0"
+              disabled={subscriptions.filter(s => s.isActive).length === 0}
+            >
+              <UserCheck className="h-3 w-3 mr-1" />
+              Subscribed ({subscribedKOLs})
+            </Button>
+            <Button
+              variant={!showSubscribedOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleFilterChange(false)}
+              className="h-7 px-2 text-xs flex-shrink-0"
+            >
+              <Users className="h-3 w-3 mr-1" />
+              All ({allKOLs})
+            </Button>
+
+            {/* Node Type Filters */}
+            <div className="w-px h-4 bg-border mx-1" />
+            <Button
+              variant={filterMode === 'none' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setFilterMode('none');
+                setSelectedKOLs(new Set());
+                setSelectedTokens(new Set());
+              }}
+              className="h-7 px-2 text-xs flex-shrink-0"
+            >
+              All Nodes
+            </Button>
+            <Button
+              variant={filterMode === 'kols' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setFilterMode('kols');
+                setSelectedTokens(new Set());
+              }}
+              className="h-7 px-2 text-xs flex-shrink-0"
+            >
+              <UserCheck className="h-3 w-3 mr-1" />
+              Filter KOLs
+              {selectedKOLs.size > 0 && (
+                <span className="ml-1">({selectedKOLs.size})</span>
+              )}
+            </Button>
+            <Button
+              variant={filterMode === 'tokens' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setFilterMode('tokens');
+                setSelectedKOLs(new Set());
+              }}
+              className="h-7 px-2 text-xs flex-shrink-0"
+            >
+              <CircleDollarSign className="h-3 w-3 mr-1" />
+              Filter Tokens
+              {selectedTokens.size > 0 && (
+                <span className="ml-1">({selectedTokens.size})</span>
+              )}
+            </Button>
+
+            {/* Mindmap-specific controls */}
+            {viewMode === 'mindmap' && (
+              <>
+                <div className="w-px h-4 bg-border mx-1" />
+                
+                {/* Highlight Mode Toggle */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant={highlightMode === 'none' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setHighlightMode('none')}
+                    className="h-7 px-2 text-xs flex-shrink-0"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={highlightMode === 'trending' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setHighlightMode('trending')}
+                    className="h-7 px-2 text-xs flex-shrink-0"
+                  >
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    Trending
+                  </Button>
+                  <Button
+                    variant={highlightMode === 'high-volume' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setHighlightMode('high-volume')}
+                    className="h-7 px-2 text-xs flex-shrink-0"
+                  >
+                    <Activity className="h-3 w-3 mr-1" />
+                    Volume
+                  </Button>
+                </div>
+
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-0.5 ml-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleZoomIn}
+                    className="h-7 w-7 p-0 flex-shrink-0"
+                    title="Zoom in"
+                  >
+                    <ZoomIn className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleZoomOut}
+                    className="h-7 w-7 p-0 flex-shrink-0"
+                    title="Zoom out"
+                  >
+                    <ZoomOut className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetZoom}
+                    className="h-7 w-7 p-0 flex-shrink-0"
+                    title="Reset zoom"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Filter Selection UI */}
+        {(filterMode === 'kols' || filterMode === 'tokens') && (
+          <div className="px-2 sm:px-4 py-2 bg-gray-50/10 dark:bg-gray-800/10 border-b border-gray-200/30 dark:border-gray-700/30">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-medium text-muted-foreground">
+                Select {filterMode === 'kols' ? 'KOLs' : 'tokens'} to filter:
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (filterMode === 'kols') {
+                      setSelectedKOLs(new Set(processedData.nodes.filter(n => n.type === 'kol').map(n => n.id)));
+                    } else {
+                      setSelectedTokens(new Set(processedData.nodes.filter(n => n.type === 'token').map(n => n.id)));
+                    }
+                  }}
+                  className="h-5 px-2 text-xs"
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (filterMode === 'kols') {
+                      setSelectedKOLs(new Set());
+                    } else {
+                      setSelectedTokens(new Set());
+                    }
+                  }}
+                  className="h-5 px-2 text-xs"
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+              {filterMode === 'kols' ? (
+                processedData.nodes
+                  .filter(node => node.type === 'kol')
+                  .map(kol => (
+                    <Button
+                      key={kol.id}
+                      variant={selectedKOLs.has(kol.id) ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        const newSelected = new Set(selectedKOLs);
+                        if (newSelected.has(kol.id)) {
+                          newSelected.delete(kol.id);
+                        } else {
+                          newSelected.add(kol.id);
+                        }
+                        setSelectedKOLs(newSelected);
+                      }}
+                      className="h-6 px-2 text-xs flex-shrink-0"
+                    >
+                      {kol.image && (
+                        <img 
+                          src={kol.image} 
+                          alt={kol.name || 'KOL'} 
+                          className="w-3 h-3 rounded-full mr-1 flex-shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <span className="truncate max-w-[100px]">
+                        {kol.name || `${kol.id.slice(0, 6)}...`}
+                      </span>
+                    </Button>
+                  ))
+              ) : (
+                processedData.nodes
+                  .filter(node => node.type === 'token')
+                  .map(token => (
+                    <Button
+                      key={token.id}
+                      variant={selectedTokens.has(token.id) ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        const newSelected = new Set(selectedTokens);
+                        if (newSelected.has(token.id)) {
+                          newSelected.delete(token.id);
+                        } else {
+                          newSelected.add(token.id);
+                        }
+                        setSelectedTokens(newSelected);
+                      }}
+                      className="h-6 px-2 text-xs flex-shrink-0"
+                    >
+                      {token.image && (
+                        <img 
+                          src={token.image} 
+                          alt={token.symbol || token.name || 'Token'} 
+                          className="w-3 h-3 rounded mr-1 flex-shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <span className="truncate max-w-[100px]">
+                        {token.symbol || token.name || `${token.id.slice(0, 6)}...`}
+                      </span>
+                    </Button>
+                  ))
+              )}
+            </div>
+            {((filterMode === 'kols' && selectedKOLs.size === 0) || (filterMode === 'tokens' && selectedTokens.size === 0)) && (
+              <div className="text-xs text-muted-foreground mt-1 text-center">
+                Select {filterMode === 'kols' ? 'KOLs' : 'tokens'} to filter the network view
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Main Visualization */}
-      <div className="relative flex-1 w-full h-full min-h-0 overflow-hidden">
-        <svg
-          ref={svgRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          className="w-full h-full touch-pan-y touch-pinch-zoom"
-          style={{
-            display: 'block',
-            background: 'transparent',
-          }}
-        />
+      {/* Main Content Area */}
+      <div className="flex-1 w-full h-full min-h-0 overflow-hidden">
+        {viewMode === 'mindmap' ? (
+          <div className="relative w-full h-full">
+            <svg
+              ref={svgRef}
+              width={dimensions.width}
+              height={dimensions.height}
+              className="w-full h-full touch-pan-y touch-pinch-zoom"
+              style={{
+                display: 'block',
+                background: 'transparent',
+              }}
+            />
 
-        {/* Mobile-Optimized Legend */}
-        <div className="absolute top-1 sm:top-2 left-1 sm:left-2 p-1.5 sm:p-2 bg-card/90 border border-border rounded-md shadow-sm">
-          <div className="space-y-0.5 sm:space-y-1 text-xs">
-            <div className="flex items-center space-x-1">
-              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-accent-gradient flex items-center justify-center">
-                <CircleDollarSign className="h-1 w-1 sm:h-1.5 sm:w-1.5 text-white" />
-              </div>
-              <span className="text-muted-foreground text-xs">Tokens</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <div
-                className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border border-white flex items-center justify-center"
-                style={{
-                  background:
-                    'linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%)',
-                }}
-              >
-                <UserCheck className="h-1 w-1 sm:h-1.5 sm:w-1.5 text-white" />
-              </div>
-              <span className="text-muted-foreground text-xs">KOLs</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Interaction Error Display */}
-        {interactionErrors.length > 0 && (
-          <div className="absolute top-1 left-1 z-50 space-y-2">
-            {interactionErrors.map((error, index) => (
-              <div
-                key={index}
-                className="bg-red-500/10 border border-red-500/20 text-red-500 p-2 rounded-lg shadow-lg animate-in slide-in-from-left-5 max-w-xs"
-              >
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-3 w-3" />
-                  <span className="text-xs font-medium">Interaction Error</span>
+            {/* Mobile-Optimized Legend */}
+            <div className="absolute top-1 sm:top-2 left-1 sm:left-2 p-1 sm:p-2 bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm">
+              <div className="space-y-0.5 text-xs">
+                <div className="flex items-center space-x-1">
+                  <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-accent-gradient flex items-center justify-center">
+                    <CircleDollarSign className="h-1 w-1 sm:h-1.5 sm:w-1.5 text-white" />
+                  </div>
+                  <span className="text-muted-foreground text-xs">
+                    <span className="hidden sm:inline">Tokens</span>
+                    <span className="sm:hidden">T</span>
+                  </span>
                 </div>
-                <div className="text-xs mt-1 opacity-80">{error.message}</div>
+                <div className="flex items-center space-x-1">
+                  <div
+                    className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-white flex items-center justify-center"
+                    style={{
+                      background:
+                        'linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%)',
+                    }}
+                  >
+                    <UserCheck className="h-1 w-1 sm:h-1.5 sm:w-1.5 text-white" />
+                  </div>
+                  <span className="text-muted-foreground text-xs">
+                    <span className="hidden sm:inline">KOLs</span>
+                    <span className="sm:hidden">K</span>
+                  </span>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* Search Results Indicator - Mobile Responsive */}
+            {searchQuery && (
+              <div className="absolute top-1 sm:top-2 right-1 sm:right-2 p-1 sm:p-2 bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm max-w-[200px] sm:max-w-none">
+                <div className="text-xs text-muted-foreground">
+                  <Filter className="h-3 w-3 inline mr-1" />
+                  <span className="hidden sm:inline">
+                    {filteredNodes.length} results for "{searchQuery.length > 10 ? searchQuery.slice(0, 10) + '...' : searchQuery}"
+                  </span>
+                  <span className="sm:hidden">
+                    {filteredNodes.length} results
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Interaction Error Display */}
+            {interactionErrors.length > 0 && (
+              <div className="absolute top-12 left-1 z-50 space-y-2">
+                {interactionErrors.map((error, index) => (
+                  <div
+                    key={index}
+                    className="bg-red-500/10 border border-red-500/20 text-red-500 p-2 rounded-lg shadow-lg animate-in slide-in-from-left-5 max-w-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-3 w-3" />
+                      <span className="text-xs font-medium">Interaction Error</span>
+                    </div>
+                    <div className="text-xs mt-1 opacity-80">{error.message}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Enhanced Selected Node Info */}
+            {selectedNode && (
+              <DetailedInfoPanel
+                node={selectedNode}
+                connections={filteredLinks}
+                onClose={() => setSelectedNode(null)}
+                onError={handleInteractionError}
+                className="sm:absolute sm:top-2 sm:right-2 z-50"
+              />
+            )}
+
+
+          </div>
+        ) : (
+          <div className="w-full h-full overflow-auto p-2 sm:p-4">
+            {filteredNodes.length === 0 && (searchQuery || filterMode !== 'none') ? (
+              <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+                {searchQuery ? (
+                  <>
+                    <Search className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-2">No results found</h3>
+                    <p className="text-muted-foreground mb-4 text-sm sm:text-base">
+                      No tokens or KOLs match your search for "{searchQuery.length > 20 ? searchQuery.slice(0, 20) + '...' : searchQuery}"
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setSearchQuery('')}
+                      size="sm"
+                    >
+                      Clear search
+                    </Button>
+                  </>
+                ) : filterMode !== 'none' ? (
+                  <>
+                    <Filter className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-2">No nodes selected</h3>
+                    <p className="text-muted-foreground mb-4 text-sm sm:text-base">
+                      Select some {filterMode === 'kols' ? 'KOLs' : 'tokens'} from the filter bar above to view their connections
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          if (filterMode === 'kols') {
+                            setSelectedKOLs(new Set(processedData.nodes.filter(n => n.type === 'kol').map(n => n.id)));
+                          } else {
+                            setSelectedTokens(new Set(processedData.nodes.filter(n => n.type === 'token').map(n => n.id)));
+                          }
+                        }}
+                        size="sm"
+                      >
+                        Select All {filterMode === 'kols' ? 'KOLs' : 'Tokens'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setFilterMode('none');
+                          setSelectedKOLs(new Set());
+                          setSelectedTokens(new Set());
+                        }}
+                        size="sm"
+                      >
+                        Clear Filter
+                      </Button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : (
+              <TableView />
+            )}
           </div>
         )}
-
-        {/* Enhanced Selected Node Info */}
-        {selectedNode && (
-          <DetailedInfoPanel
-            node={selectedNode}
-            connections={processedData.links}
-            onClose={() => setSelectedNode(null)}
-            onError={handleInteractionError}
-            className="sm:absolute sm:top-2 sm:right-2 z-50"
-          />
-        )}
-
-        {/* Desktop-only Interactive Guide - Hidden on Mobile */}
-        <div className="hidden lg:block absolute bottom-2 left-2 p-2 bg-card/90 border border-border rounded-md shadow-sm text-xs text-muted-foreground max-w-48">
-          <div className="font-semibold text-foreground mb-1 flex items-center gap-1">
-            <Lightbulb className="h-3 w-3" />
-            <span>Tips</span>
-          </div>
-          <div className="space-y-0.5">
-            <div>
-              • <strong>Drag</strong> nodes to reposition
-            </div>
-            <div>
-              • <strong>Hover</strong> for quick details
-            </div>
-            <div>
-              • <strong>Click</strong> to select
-            </div>
-            <div className="flex items-center gap-1">
-              • <CircleDollarSign className="h-2.5 w-2.5" />{' '}
-              <strong>Tokens</strong> = larger with more connections
-            </div>
-            <div className="flex items-center gap-1">
-              • <UserCheck className="h-2.5 w-2.5" /> <strong>KOLs</strong> =
-              dashed border, size by influence
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
 
-// Unified NodeInfoPanel component for both hover and click states
+// Unified NodeInfoPanel component for both hover and click states - Mobile Responsive
 const NodeInfoPanel: React.FC<{
   node: UnifiedNode;
   onClose?: () => void;
@@ -1703,20 +2849,20 @@ const NodeInfoPanel: React.FC<{
   return (
     <div
       className={cn(
-        'w-48 sm:w-64 bg-card/95 border border-border rounded-md shadow-lg',
+        'w-44 sm:w-56 md:w-64 bg-white/95 dark:bg-gray-800/95 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-w-[90vw]',
         className
       )}
     >
-      <div className="flex items-center justify-between p-1.5 sm:p-2 border-b border-border/50">
+      <div className="flex items-center justify-between p-1.5 sm:p-2 border-b border-gray-200/50 dark:border-gray-700/50">
         <div className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium">
           {node.type === 'token' ? (
             <>
-              <CircleDollarSign className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              <CircleDollarSign className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span>Token</span>
             </>
           ) : (
             <>
-              <UserCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              <UserCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               <span>KOL</span>
             </>
           )}
@@ -1726,18 +2872,18 @@ const NodeInfoPanel: React.FC<{
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-5 w-5 sm:h-6 sm:w-6 p-0"
+            className="h-6 w-6 p-0 flex-shrink-0"
           >
-            <X className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <X className="h-3 w-3" />
           </Button>
         )}
       </div>
 
-      <div className="p-1.5 sm:p-2 space-y-1.5 sm:space-y-2">
+      <div className="p-1.5 sm:p-2 space-y-2">
         {/* Token/KOL Name and Symbol with Image */}
         {(node.name || node.symbol || node.image) && (
           <div className="text-xs">
-            <div className="text-muted-foreground mb-0.5 sm:mb-1">
+            <div className="text-muted-foreground mb-1">
               {node.type === 'token' ? 'Token' : 'KOL'}
             </div>
             <div className="flex items-center gap-2">
@@ -1745,88 +2891,96 @@ const NodeInfoPanel: React.FC<{
                 <img 
                   src={node.image} 
                   alt={node.symbol || node.name || 'Token'} 
-                  className="w-4 h-4 rounded"
+                  className="w-4 h-4 sm:w-5 sm:h-5 rounded flex-shrink-0"
                   onError={(e) => {
                     // Hide image if it fails to load
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
               )}
-              <div className="font-semibold">
-                {node.type === 'token' 
-                  ? `${node.name || 'Unknown Token'}${node.symbol ? ` (${node.symbol})` : ''}`
-                  : node.name
-                }
+              <div className="font-semibold text-xs sm:text-sm min-w-0 flex-1">
+                {node.type === 'token' ? (
+                  <div>
+                    <div className="truncate">{node.name || 'Unknown Token'}</div>
+                    {node.symbol && (
+                      <div className="text-muted-foreground">({node.symbol})</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="truncate">{node.name}</div>
+                )}
               </div>
             </div>
           </div>
         )}
 
         <div className="text-xs">
-          <div className="text-muted-foreground mb-0.5 sm:mb-1">
+          <div className="text-muted-foreground mb-1">
             {node.type === 'token' ? 'Address' : 'Wallet'}
           </div>
           <div className="flex items-center gap-1">
-            <span className="font-mono text-xs break-all">
-              {node.id.slice(0, 12)}...
+            <span className="font-mono text-xs break-all flex-1 min-w-0">
+              {node.id.slice(0, 8)}...{node.id.slice(-4)}
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCopy}
-              className="h-4 w-4 p-0 text-primary hover:text-primary/80"
-              title={`Copy ${node.type === 'token' ? 'address' : 'wallet'}`}
-            >
-              <Copy className="h-2.5 w-2.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDexScreener}
-              className="h-4 w-4 p-0 text-primary hover:text-primary/80"
-              title={
-                node.type === 'token'
-                  ? 'View on DexScreener'
-                  : 'Search on DexScreener'
-              }
-            >
-              <ExternalLink className="h-2.5 w-2.5" />
-            </Button>
+            <div className="flex gap-1 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopy}
+                className="h-5 w-5 p-0 text-primary hover:text-primary/80"
+                title={`Copy ${node.type === 'token' ? 'address' : 'wallet'}`}
+              >
+                <Copy className="h-2.5 w-2.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDexScreener}
+                className="h-5 w-5 p-0 text-primary hover:text-primary/80"
+                title={
+                  node.type === 'token'
+                    ? 'View on DexScreener'
+                    : 'Search on DexScreener'
+                }
+              >
+                <ExternalLink className="h-2.5 w-2.5" />
+              </Button>
+            </div>
           </div>
         </div>
 
         {node.type === 'token' ? (
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
               <div className="text-muted-foreground">KOLs</div>
-              <div className="font-semibold">{node.connections}</div>
+              <div className="font-semibold text-sm">{node.connections}</div>
             </div>
             <div>
               <div className="text-muted-foreground">Trades</div>
-              <div className="font-semibold">{node.tradeCount}</div>
+              <div className="font-semibold text-sm">{node.tradeCount}</div>
             </div>
             <div className="col-span-2">
               <div className="text-muted-foreground">Volume</div>
-              <div className="font-semibold">
+              <div className="font-semibold text-sm">
                 {node.totalVolume?.toFixed(2)} SOL
               </div>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
               <div className="text-muted-foreground">Influence</div>
-              <div className="font-semibold">
+              <div className="font-semibold text-sm">
                 {node.influenceScore?.toFixed(0)}
               </div>
             </div>
             <div>
               <div className="text-muted-foreground">Trades</div>
-              <div className="font-semibold">{node.tradeCount}</div>
+              <div className="font-semibold text-sm">{node.tradeCount}</div>
             </div>
             <div className="col-span-2">
               <div className="text-muted-foreground">Volume</div>
-              <div className="font-semibold">
+              <div className="font-semibold text-sm">
                 {node.totalVolume?.toFixed(2)} SOL
               </div>
             </div>
@@ -1842,7 +2996,7 @@ const NodeInfoPanel: React.FC<{
 
         {/* Mobile-friendly interaction tips - only show in click state */}
         {isClickState && (
-          <div className="block sm:hidden pt-1 border-t border-border/30">
+          <div className="block sm:hidden pt-2 border-t border-gray-200/30 dark:border-gray-700/30">
             <div className="text-xs text-muted-foreground">
               Tap nodes • Drag to move • Pinch to zoom
             </div>

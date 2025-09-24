@@ -1,6 +1,7 @@
 import apiClient from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/constants';
 import type { AuthResponse, OAuthResponse } from '@/types';
+import { isGoogleAuthDisabled } from '@/lib/feature-flags';
 
 /**
  * OAuth Service
@@ -139,6 +140,14 @@ export class OAuthService {
    * Google OAuth with popup window
    */
   static async googleOAuthPopup(): Promise<OAuthResponse> {
+    // Check if Google auth is disabled
+    if (isGoogleAuthDisabled()) {
+      return {
+        success: false,
+        error: 'Google authentication is temporarily unavailable in alpha',
+      };
+    }
+
     return new Promise((resolve, reject) => {
       try {
         console.log('🔐 Starting Google OAuth popup flow...');
@@ -322,6 +331,11 @@ export class OAuthService {
    * This will redirect the entire page to Google OAuth
    */
   static async googleOAuthRedirect(): Promise<void> {
+    // Check if Google auth is disabled
+    if (isGoogleAuthDisabled()) {
+      throw new Error('Google authentication is temporarily unavailable in alpha');
+    }
+
     try {
       console.log('🔐 Starting Google OAuth redirect flow...');
 
