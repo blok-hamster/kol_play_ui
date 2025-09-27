@@ -30,6 +30,17 @@ export function middleware(req: NextRequest) {
 		const url = req.nextUrl.clone();
 		url.pathname = '/';
 		url.searchParams.set('signin', '1');
+		
+		// Add debug info for troubleshooting (only in development)
+		if (process.env.NODE_ENV === 'development') {
+			console.log('🚫 Middleware - Redirecting unauthenticated user:', {
+				pathname,
+				cookies: req.cookies.getAll(),
+				hasAuthCookie: !!req.cookies.get('isAuth'),
+				authCookieValue: req.cookies.get('isAuth')?.value
+			});
+		}
+		
 		return NextResponse.redirect(url);
 	}
 

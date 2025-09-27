@@ -340,9 +340,19 @@ export const useUserStore = create<UserState>()(
           const isEmailAuth = AuthService.isAuthenticated();
           const isWalletAuth = SiwsAuthService.isAuthenticated();
           
-          if (isEmailAuth || isWalletAuth) {
-            void 0 && ('🔄 User authenticated via:', isEmailAuth ? 'email' : 'wallet');
+          // Also check if we have persisted user data (important for reload scenarios)
+          const currentState = get();
+          const hasPersistedUser = currentState.user && currentState.isAuthenticated;
+          
+          if (isEmailAuth || isWalletAuth || hasPersistedUser) {
+            void 0 && ('🔄 User authenticated via:', 
+              isEmailAuth ? 'email' : 
+              isWalletAuth ? 'wallet' : 
+              'persisted state'
+            );
             set({ isAuthenticated: true });
+            
+            // Note: Auth cookie sync is handled by AuthCookieSync in AuthInitProvider
             
             // If wallet authenticated, ensure we have a user profile
             if (isWalletAuth && !isEmailAuth) {
@@ -442,6 +452,34 @@ export const useUserStore = create<UserState>()(
         isAuthenticated: state.isAuthenticated,
         // Don't persist wallet info for security
       }),
+      // Add storage configuration to ensure proper persistence
+      storage: {
+        getItem: (name) => {
+          if (typeof window === 'undefined') return null;
+          try {
+            return localStorage.getItem(name);
+          } catch (error) {
+            console.warn('Failed to get item from localStorage:', error);
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          if (typeof window === 'undefined') return;
+          try {
+            localStorage.setItem(name, value);
+          } catch (error) {
+            console.warn('Failed to set item in localStorage:', error);
+          }
+        },
+        removeItem: (name) => {
+          if (typeof window === 'undefined') return;
+          try {
+            localStorage.removeItem(name);
+          } catch (error) {
+            console.warn('Failed to remove item from localStorage:', error);
+          }
+        },
+      },
     }
   )
 );
