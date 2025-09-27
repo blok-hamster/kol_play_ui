@@ -352,7 +352,24 @@ export const useUserStore = create<UserState>()(
             );
             set({ isAuthenticated: true });
             
-            // Note: Auth cookie sync is handled by AuthCookieSync in AuthInitProvider
+            // Ensure auth cookie is set for middleware (fixes reload issue after deployment)
+            if (typeof window !== 'undefined') {
+              try {
+                const isSecure = window.location.protocol === 'https:';
+                const maxAge = 60 * 60 * 24 * 30; // 30 days
+                let cookieString = `isAuth=1; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+                
+                if (isSecure) {
+                  cookieString += '; Secure';
+                }
+                
+                // For production deployments, don't set explicit domain to allow subdomain flexibility
+                document.cookie = cookieString;
+                void 0 && ('🔑 UserStore - Auth cookie set during initialization:', cookieString);
+              } catch (error) {
+                void 0 && ('⚠️ Failed to set auth cookie during initialization:', error);
+              }
+            }
             
             // If wallet authenticated, ensure we have a user profile
             if (isWalletAuth && !isEmailAuth) {

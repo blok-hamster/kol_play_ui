@@ -22,12 +22,6 @@ export const AuthInitProvider: React.FC<AuthInitProviderProps> = ({
     // Sync auth cookie with localStorage token first (fixes reload issue after deployment)
     AuthCookieSync.syncAuthCookie();
     
-    // Debug authentication state in development
-    if (process.env.NODE_ENV === 'development') {
-      AuthDebug.logAuthState();
-      AuthDebug.checkAuthConsistency();
-    }
-    
     // Initialize authentication and user store on app startup
     void 0 && ('🚀 Initializing authentication...');
     initialize().catch(error => {

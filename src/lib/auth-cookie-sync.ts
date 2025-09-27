@@ -58,9 +58,9 @@ export class AuthCookieSync {
   }
   
   /**
-   * Set auth cookie (internal implementation)
+   * Set auth cookie
    */
-  private static setAuthCookieInternal(): void {
+  private static setAuthCookie(): void {
     if (typeof document === 'undefined') return;
     
     try {
@@ -81,9 +81,9 @@ export class AuthCookieSync {
   }
   
   /**
-   * Clear auth cookie (internal implementation)
+   * Clear auth cookie
    */
-  private static clearAuthCookieInternal(): void {
+  private static clearAuthCookie(): void {
     if (typeof document === 'undefined') return;
     
     try {
