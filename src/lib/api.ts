@@ -1,7 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 import { ApiResponse } from '@/types';
 import { AuthRedirectManager } from './auth-redirect';
-import { AuthCookieSync } from './auth-cookie-sync';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -131,9 +130,6 @@ class ApiClient {
         '🔑 API Client - Loading token from storage:',
         this.token ? this.token.substring(0, 50) + '...' : 'No token found'
       );
-      
-      // Sync auth cookie with token state (fixes reload issue after deployment)
-      AuthCookieSync.syncAuthCookie();
     }
   }
 
@@ -247,7 +243,9 @@ class ApiClient {
       void 0 && ('🔑 API Client - Token stored in localStorage');
 
       // Set a lightweight auth presence cookie for middleware checks
-      AuthCookieSync.setAuthCookie();
+      const isSecure = window.location.protocol === 'https:';
+      const maxAge = 60 * 60 * 24 * 30; // 30 days
+      document.cookie = `isAuth=1; Path=/; Max-Age=${maxAge}; SameSite=Lax${isSecure ? '; Secure' : ''}`;
     }
   }
 
@@ -262,8 +260,13 @@ class ApiClient {
         void 0 && ('⚠️ Failed to remove authToken from localStorage:', error);
       }
       
-      // Clear auth presence cookie
-      AuthCookieSync.clearAuthCookie();
+      try {
+        // Clear auth presence cookie
+        document.cookie = 'isAuth=; Path=/; Max-Age=0; SameSite=Lax';
+      } catch (error) {
+        // Silently handle cookie errors
+        void 0 && ('⚠️ Failed to clear auth cookie:', error);
+      }
       
       // Clear redirect data when clearing tokens (useful for logout)
       AuthRedirectManager.clearAll();

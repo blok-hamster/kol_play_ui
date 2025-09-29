@@ -340,36 +340,9 @@ export const useUserStore = create<UserState>()(
           const isEmailAuth = AuthService.isAuthenticated();
           const isWalletAuth = SiwsAuthService.isAuthenticated();
           
-          // Also check if we have persisted user data (important for reload scenarios)
-          const currentState = get();
-          const hasPersistedUser = currentState.user && currentState.isAuthenticated;
-          
-          if (isEmailAuth || isWalletAuth || hasPersistedUser) {
-            void 0 && ('🔄 User authenticated via:', 
-              isEmailAuth ? 'email' : 
-              isWalletAuth ? 'wallet' : 
-              'persisted state'
-            );
+          if (isEmailAuth || isWalletAuth) {
+            void 0 && ('🔄 User authenticated via:', isEmailAuth ? 'email' : 'wallet');
             set({ isAuthenticated: true });
-            
-            // Ensure auth cookie is set for middleware (fixes reload issue after deployment)
-            if (typeof window !== 'undefined') {
-              try {
-                const isSecure = window.location.protocol === 'https:';
-                const maxAge = 60 * 60 * 24 * 30; // 30 days
-                let cookieString = `isAuth=1; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
-                
-                if (isSecure) {
-                  cookieString += '; Secure';
-                }
-                
-                // For production deployments, don't set explicit domain to allow subdomain flexibility
-                document.cookie = cookieString;
-                void 0 && ('🔑 UserStore - Auth cookie set during initialization:', cookieString);
-              } catch (error) {
-                void 0 && ('⚠️ Failed to set auth cookie during initialization:', error);
-              }
-            }
             
             // If wallet authenticated, ensure we have a user profile
             if (isWalletAuth && !isEmailAuth) {
@@ -469,34 +442,6 @@ export const useUserStore = create<UserState>()(
         isAuthenticated: state.isAuthenticated,
         // Don't persist wallet info for security
       }),
-      // Add storage configuration to ensure proper persistence
-      storage: {
-        getItem: (name) => {
-          if (typeof window === 'undefined') return null;
-          try {
-            return localStorage.getItem(name);
-          } catch (error) {
-            console.warn('Failed to get item from localStorage:', error);
-            return null;
-          }
-        },
-        setItem: (name, value) => {
-          if (typeof window === 'undefined') return;
-          try {
-            localStorage.setItem(name, value);
-          } catch (error) {
-            console.warn('Failed to set item in localStorage:', error);
-          }
-        },
-        removeItem: (name) => {
-          if (typeof window === 'undefined') return;
-          try {
-            localStorage.removeItem(name);
-          } catch (error) {
-            console.warn('Failed to remove item from localStorage:', error);
-          }
-        },
-      },
     }
   )
 );

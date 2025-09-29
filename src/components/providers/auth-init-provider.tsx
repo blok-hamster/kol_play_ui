@@ -3,8 +3,6 @@
 import React, { useEffect, ReactNode } from 'react';
 import { useUserStore } from '@/stores/use-user-store';
 import { useAuthRedirectSetup } from '@/hooks/use-auth-redirect-setup';
-import { AuthCookieSync } from '@/lib/auth-cookie-sync';
-import { AuthDebug } from '@/lib/auth-debug';
 
 interface AuthInitProviderProps {
   children: ReactNode;
@@ -19,9 +17,6 @@ export const AuthInitProvider: React.FC<AuthInitProviderProps> = ({
   useAuthRedirectSetup();
 
   useEffect(() => {
-    // Sync auth cookie with localStorage token first (fixes reload issue after deployment)
-    AuthCookieSync.syncAuthCookie();
-    
     // Initialize authentication and user store on app startup
     void 0 && ('🚀 Initializing authentication...');
     initialize().catch(error => {
