@@ -88,6 +88,14 @@ export const API_ENDPOINTS = {
     GET_USER_TRANSACTIONS: '/api/features/get-user-transactions',
     GET_USER_TRANSACTION_BY_MINT: '/api/features/get-user-transaction-by-mint',
 
+    // Trade History (New)
+    GET_TRADE_BY_ID: '/api/features/trade-history', // Base endpoint, append /:tradeId
+    GET_USER_TRADES: '/api/features/trade-history', // Append ?status=open or ?status=closed
+    GET_TRADES_BY_TOKEN: '/api/features/trade-history/token', // Append /:tokenMint
+    GET_OPEN_TRADES: '/api/features/trade-history/open', // Direct endpoint for open trades
+    QUERY_TRADES: '/api/features/trade-history/query',
+    GET_TRADE_HISTORY_STATS: '/api/features/trade-history-stats',
+
     // Trading
     PERFORM_SWAP: '/api/features/perform-swap',
     TRANSFER_SOL: '/api/features/transfer-sol',

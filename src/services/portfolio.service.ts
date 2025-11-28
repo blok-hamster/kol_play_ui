@@ -8,6 +8,10 @@ import {
   Transaction,
   TransactionDetails,
   SearchFilters,
+  TradeHistoryEntry,
+  TradeStats,
+  TradeHistoryStatsResponse,
+  QueryTradesRequest,
 } from '@/types';
 
 export interface GetTransactionsRequest extends SearchFilters {
@@ -294,6 +298,128 @@ export class PortfolioService {
             100,
         },
       };
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  // ==================== NEW TRADE HISTORY ENDPOINTS ====================
+
+  /**
+   * Get a specific trade by ID
+   */
+  static async getTradeById(
+    tradeId: string
+  ): Promise<ApiResponse<TradeHistoryEntry>> {
+    try {
+      const response = await apiClient.get<TradeHistoryEntry>(
+        `${API_ENDPOINTS.FEATURES.GET_TRADE_BY_ID}/${tradeId}`
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get all trades for the authenticated user
+   */
+  static async getUserTrades(
+    status?: 'open' | 'closed'
+  ): Promise<ApiResponse<TradeHistoryEntry[]>> {
+    try {
+      const params = status ? `?status=${status}` : '';
+      const response = await apiClient.get<TradeHistoryEntry[]>(
+        `${API_ENDPOINTS.FEATURES.GET_USER_TRADES}${params}`
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get all trades for a specific token
+   */
+  static async getTradesByToken(
+    tokenMint: string
+  ): Promise<ApiResponse<TradeHistoryEntry[]>> {
+    try {
+      const response = await apiClient.get<TradeHistoryEntry[]>(
+        `${API_ENDPOINTS.FEATURES.GET_TRADES_BY_TOKEN}/${tokenMint}`
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get all open trades for the authenticated user
+   * Note: This is a convenience method that calls getUserTrades with status='open'
+   */
+  static async getOpenTrades(): Promise<ApiResponse<TradeHistoryEntry[]>> {
+    try {
+      // Use the same endpoint as getUserTrades with status='open'
+      const response = await apiClient.get<TradeHistoryEntry[]>(
+        `${API_ENDPOINTS.FEATURES.GET_USER_TRADES}?status=open`
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get user trade statistics (new endpoint)
+   */
+  static async getUserTradeStatsNew(
+    startDate?: string,
+    endDate?: string
+  ): Promise<ApiResponse<TradeStats>> {
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+
+      const queryString = params.toString();
+      const response = await apiClient.get<TradeStats>(
+        `${API_ENDPOINTS.FEATURES.GET_USER_TRADE_STATS}${queryString ? `?${queryString}` : ''}`
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Query trades with advanced filters
+   */
+  static async queryTrades(
+    request: QueryTradesRequest
+  ): Promise<ApiResponse<TradeHistoryEntry[]>> {
+    try {
+      const response = await apiClient.post<TradeHistoryEntry[]>(
+        API_ENDPOINTS.FEATURES.QUERY_TRADES,
+        request
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get trade history storage statistics
+   */
+  static async getTradeHistoryStats(): Promise<
+    ApiResponse<TradeHistoryStatsResponse>
+  > {
+    try {
+      const response = await apiClient.get<TradeHistoryStatsResponse>(
+        API_ENDPOINTS.FEATURES.GET_TRADE_HISTORY_STATS
+      );
+      return response;
     } catch (error: any) {
       throw new Error(apiClient.handleError(error));
     }

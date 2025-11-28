@@ -846,3 +846,79 @@ export interface TradeFilters {
   sortBy?: 'timestamp' | 'amount' | 'kolName';
   sortOrder?: 'asc' | 'desc';
 }
+
+// Trade History Types
+export interface TradeHistoryEntry {
+  id: string;
+  agentId: string;
+  tokenMint: string;
+  status: 'open' | 'closed' | 'failed';
+  openedAt: Date | string;
+  closedAt?: Date | string;
+  entryPrice: number;
+  entryAmount: number;
+  entryValue: number;
+  buyTransactionId?: string;
+  exitPrice?: number;
+  exitAmount?: number;
+  exitValue?: number;
+  sellTransactionId?: string;
+  sellReason?: string;
+  realizedPnL?: number;
+  realizedPnLPercentage?: number;
+  highestPrice?: number;
+  lowestPrice?: number;
+  currentPrice?: number;
+  lastPriceUpdate?: Date | string;
+  sellConditions: {
+    takeProfitPercentage?: number;
+    stopLossPercentage?: number;
+    trailingStopPercentage?: number;
+    maxHoldTimeMinutes?: number;
+  };
+  ledgerId?: string;
+  originalTradeId?: string;
+  watchJobId?: string;
+  tags?: string[];
+  notes?: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface TradeStats {
+  totalTrades: number;
+  openTrades: number;
+  closedTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRate: number;
+  totalPnL: number;
+  totalPnLPercentage?: number;
+  averagePnL: number;
+  averagePnLPercentage?: number;
+  averageWinAmount?: number;
+  averageLossAmount?: number;
+  largestWin: number;
+  largestLoss: number;
+  averageHoldTime: number; // in minutes
+}
+
+export interface TradeHistoryStatsResponse {
+  totalTrades: number;
+  openTrades: number;
+  closedTrades: number;
+  agents: number;
+  tokens: number;
+}
+
+export interface QueryTradesRequest {
+  tokenMint?: string;
+  status?: 'open' | 'closed' | 'failed';
+  startDate?: string;
+  endDate?: string;
+  minPnL?: number;
+  maxPnL?: number;
+  tags?: string[];
+  limit?: number;
+  offset?: number;
+}

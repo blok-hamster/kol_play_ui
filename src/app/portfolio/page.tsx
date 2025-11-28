@@ -28,10 +28,13 @@ import { useNotifications } from '@/stores/use-ui-store';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
 import { formatCurrency, formatNumber, formatRelativeTime, safeFormatAmount, safeToFixed, cn } from '@/lib/utils';
 import { executeInstantSell, checkTradeConfig } from '@/lib/trade-utils';
-import type { TransactionStats, Transaction, SolanaWalletBalance } from '@/types';
+import type { TransactionStats, Transaction, SolanaWalletBalance, TradeStats } from '@/types';
+import OpenPositions from '@/components/portfolio/open-positions';
+import ClosedTrades from '@/components/portfolio/closed-trades';
 
 const PortfolioPage: React.FC = () => {
   const [tradeStats, setTradeStats] = useState<TransactionStats | null>(null);
+  const [newTradeStats, setNewTradeStats] = useState<TradeStats | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(
     []
   );
@@ -134,13 +137,17 @@ const PortfolioPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      // Fetch trading stats, recent transactions, and enhanced wallet data in parallel
-      const [statsResponse, transactionsResponse] = await Promise.all([
+      // Fetch trading stats (both old and new), recent transactions, and enhanced wallet data in parallel
+      const [statsResponse, newStatsResponse, transactionsResponse] = await Promise.all([
         PortfolioService.getUserTradeStats(),
+        PortfolioService.getUserTradeStatsNew().catch(() => null), // Fallback to null if new endpoint fails
         PortfolioService.getUserTransactions({ page: 1, limit: 5 }),
       ]);
 
       setTradeStats(statsResponse.data);
+      if (newStatsResponse) {
+        setNewTradeStats(newStatsResponse.data);
+      }
       
       // Sort recent transactions by timestamp/createdAt in descending order (newest first)
       const sortedRecentTransactions = transactionsResponse.data.sort((a, b) => {
@@ -533,11 +540,16 @@ const PortfolioPage: React.FC = () => {
               )}
             </div>
 
-            {/* Token Holdings */}
+            {/* Open Positions - NEW */}
+            <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
+              <OpenPositions limit={5} showHeader={true} />
+            </div>
+
+            {/* Token Holdings - Keep for wallet balance display */}
             <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg sm:text-xl font-semibold text-foreground">
-                  Token Holdings
+                  Wallet Holdings
                 </h2>
                 {enrichedTokens.length > 0 && (
                   <span className="text-sm text-muted-foreground">
@@ -800,8 +812,21 @@ const PortfolioPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Recent Transactions */}
+          {/* Closed Trades - NEW */}
           <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
+            <ClosedTrades limit={5} showHeader={true} />
+            <div className="mt-4">
+              <Link href="/portfolio/transactions">
+                <Button variant="outline" className="w-full">
+                  <History className="h-4 w-4 mr-2" />
+                  View All Transactions
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Recent Transactions - Keep as fallback */}
+          <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg hidden">
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-semibold text-foreground">
                 Recent Transactions
