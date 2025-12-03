@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/layout/app-layout';
-import { Settings, User, Shield, Zap, Bell } from 'lucide-react';
+import { Settings, User, Shield, Zap, Bell, Key } from 'lucide-react';
 import TradingSettingsComponent from '@/components/settings/trading-settings';
 import AccountSettingsComponent from '@/components/settings/account-settings';
 import SecuritySettingsComponent from '@/components/settings/security-settings';
+import ApiKeysSettingsComponent from '@/components/settings/api-keys-settings';
 import {
   SettingsService,
   UpdateSettingParams,
@@ -17,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, Save, RefreshCw } from 'lucide-react';
 import RequireAuth from '@/components/auth/require-auth';
 
-type SettingsTab = 'trading' | 'account' | 'security' | 'notifications';
+type SettingsTab = 'trading' | 'account' | 'security' | 'notifications' | 'api-keys';
 
 const SettingsPage: React.FC = () => {
   const searchParams = useSearchParams();
@@ -26,7 +27,7 @@ const SettingsPage: React.FC = () => {
   // Handle tab parameter from URL
   useEffect(() => {
     const tabParam = searchParams.get('tab') as SettingsTab;
-    if (tabParam && ['trading', 'account', 'security', 'notifications'].includes(tabParam)) {
+    if (tabParam && ['trading', 'account', 'security', 'notifications', 'api-keys'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -43,6 +44,12 @@ const SettingsPage: React.FC = () => {
       label: 'Account',
       icon: User,
       description: 'Profile information and social accounts',
+    },
+    {
+      id: 'api-keys' as SettingsTab,
+      label: 'API Keys',
+      icon: Key,
+      description: 'Manage API keys for programmatic access',
     },
     {
       id: 'security' as SettingsTab,
@@ -65,6 +72,8 @@ const SettingsPage: React.FC = () => {
         return <TradingSettingsComponent />;
       case 'account':
         return <AccountSettingsComponent />;
+      case 'api-keys':
+        return <ApiKeysSettingsComponent />;
       case 'security':
         return <SecuritySettingsComponent />;
       case 'notifications':

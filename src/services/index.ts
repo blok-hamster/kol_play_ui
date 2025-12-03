@@ -3,6 +3,7 @@ export * from './auth.service';
 export * from './siws-auth.service';
 export * from './oauth.service';
 export { default as WalletService } from './wallet.service';
+export * from './api-keys.service';
 
 // Core Feature Services
 export { default as FeaturesService } from './features.service';

@@ -4,23 +4,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   TrendingUp,
-  TrendingDown,
   Clock,
   Target,
   Shield,
   RefreshCw,
-  Eye,
   AlertCircle,
-  Info,
+  ChevronDown,
 } from 'lucide-react';
 import { PortfolioService } from '@/services/portfolio.service';
+import { SolanaService } from '@/services/solana.service';
 import { useNotifications } from '@/stores/use-ui-store';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
 import {
   formatCurrency,
-  formatNumber,
   formatPercentage,
-  safeFormatAmount,
   cn,
 } from '@/lib/utils';
 import type { TradeHistoryEntry } from '@/types';
@@ -29,18 +26,35 @@ interface OpenPositionsProps {
   onTradeClick?: (trade: TradeHistoryEntry) => void;
   limit?: number;
   showHeader?: boolean;
+  defaultExpanded?: boolean;
 }
 
 const OpenPositions: React.FC<OpenPositionsProps> = ({
   onTradeClick,
   limit,
   showHeader = true,
+  defaultExpanded = false,
 }) => {
   const [openTrades, setOpenTrades] = useState<TradeHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [solPrice, setSolPrice] = useState<number>(0);
 
-  const { showError, showSuccess } = useNotifications();
+  const { showError } = useNotifications();
+
+  // Fetch SOL price
+  useEffect(() => {
+    const fetchSolPrice = async () => {
+      try {
+        const price = await SolanaService.getSolPrice();
+        setSolPrice(price);
+      } catch (error) {
+        console.error('Failed to fetch SOL price:', error);
+      }
+    };
+    fetchSolPrice();
+  }, []);
 
   // Token lazy loading for metadata
   const { tokens: tokenDetails, loadTokens, getToken } = useTokenLazyLoading({
@@ -99,13 +113,13 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
 
       return {
         ...trade,
-        tokenSymbol: tokenDetail?.token?.symbol || 'UNKNOWN',
-        tokenName: tokenDetail?.token?.name || 'Unknown Token',
+        tokenSymbol: tokenDetail?.token?.symbol || `${trade.tokenMint.slice(0, 4)}...${trade.tokenMint.slice(-4)}`,
+        tokenName: tokenDetail?.token?.name || `${trade.tokenMint.slice(0, 8)}...${trade.tokenMint.slice(-8)}`,
         tokenImage: tokenDetail?.token?.image || tokenDetail?.token?.logoURI,
         verified: tokenDetail?.token?.verified || false,
         currentPrice,
         currentValue,
-        unrealizedPnL,
+        unrealizedPnL, // This is in SOL
         unrealizedPnLPercentage,
         holdTime,
       };
@@ -116,33 +130,28 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2">
         {showHeader && (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold text-foreground">
               Open Positions
             </h3>
           </div>
         )}
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="animate-pulse bg-muted/30 border border-border rounded-xl p-4"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-muted rounded-full"></div>
-                  <div>
-                    <div className="h-4 bg-muted rounded w-24 mb-2"></div>
-                    <div className="h-3 bg-muted rounded w-32"></div>
-                  </div>
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="animate-pulse bg-muted/20 border border-border rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-muted rounded-full"></div>
+                <div>
+                  <div className="h-4 bg-muted rounded w-16 mb-1"></div>
+                  <div className="h-3 bg-muted rounded w-24"></div>
                 </div>
-                <div className="h-6 bg-muted rounded w-20"></div>
               </div>
+              <div className="h-4 bg-muted rounded w-16"></div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -172,26 +181,34 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
 
   if (displayedTrades.length === 0) {
     return (
-      <div className="text-center py-8">
-        <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground mb-2">No open positions</p>
-        <p className="text-sm text-muted-foreground">
-          Your active trades will appear here
-        </p>
+      <div className="text-center py-6">
+        <Target className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">No open positions</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {showHeader && (
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">
-            Open Positions
-            <span className="ml-2 text-sm text-muted-foreground font-normal">
-              ({displayedTrades.length})
-            </span>
-          </h3>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+          >
+            <h3 className="text-lg font-semibold text-foreground">
+              Open Positions
+              <span className="ml-2 text-sm text-muted-foreground font-normal">
+                ({displayedTrades.length})
+              </span>
+            </h3>
+            <ChevronDown
+              className={cn(
+                'h-5 w-5 text-muted-foreground transition-transform',
+                isExpanded && 'rotate-180'
+              )}
+            />
+          </button>
           <Button
             variant="ghost"
             size="sm"
@@ -204,166 +221,113 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
         </div>
       )}
 
-      <div className="space-y-3">
-        {displayedTrades.map(trade => (
-          <div
-            key={trade.id}
-            onClick={() => onTradeClick?.(trade)}
-            className={cn(
-              'bg-muted/30 border border-border rounded-xl p-4',
-              'hover:border-muted-foreground transition-all duration-200',
-              onTradeClick && 'cursor-pointer'
-            )}
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-3 flex-1 min-w-0">
-                {/* Token Icon */}
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 border-2 border-muted">
-                  {trade.tokenImage ? (
-                    <img
-                      src={trade.tokenImage}
-                      alt={trade.tokenSymbol}
-                      className="w-full h-full object-cover"
-                      onError={e => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.parentElement!.innerHTML = `<span class="text-primary-foreground font-bold">${trade.tokenSymbol.charAt(0)}</span>`;
-                      }}
-                    />
-                  ) : (
-                    <span className="text-primary-foreground font-bold">
-                      {trade.tokenSymbol.charAt(0)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Token Info */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <h4 className="font-bold text-foreground text-lg">
-                      {trade.tokenSymbol}
-                    </h4>
-                    {trade.verified && (
-                      <div
-                        className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center"
-                        title="Verified Token"
-                      >
-                        <svg
-                          className="w-2.5 h-2.5 text-white"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
+      {isExpanded && (
+        <div className="space-y-1">
+          {displayedTrades.map(trade => (
+            <div
+              key={trade.id}
+              onClick={() => onTradeClick?.(trade)}
+              className={cn(
+                'bg-muted/20 border border-border rounded-lg p-3',
+                'hover:bg-muted/40 hover:border-muted-foreground transition-all duration-200',
+                onTradeClick && 'cursor-pointer'
+              )}
+            >
+              <div className="flex items-center justify-between gap-3">
+                {/* Left: Token Info */}
+                <div className="flex items-center space-x-2 flex-1 min-w-0">
+                  {/* Token Icon - Smaller */}
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0">
+                    {trade.tokenImage ? (
+                      <img
+                        src={trade.tokenImage}
+                        alt={trade.tokenSymbol}
+                        className="w-full h-full object-cover"
+                        onError={e => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement!.innerHTML = `<span class="text-primary-foreground font-bold text-xs">${trade.tokenSymbol.charAt(0)}</span>`;
+                        }}
+                      />
+                    ) : (
+                      <span className="text-primary-foreground font-bold text-xs">
+                        {trade.tokenSymbol.charAt(0)}
+                      </span>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {trade.tokenName}
-                  </p>
-                </div>
-              </div>
 
-              {/* Unrealized P&L */}
-              <div className="text-right ml-2">
-                <div
-                  className={cn(
-                    'text-lg font-bold',
-                    trade.unrealizedPnL >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
+                  {/* Token Symbol & Price Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-1">
+                      <span className="font-semibold text-foreground text-sm">
+                        {trade.tokenSymbol}
+                      </span>
+                      {trade.verified && (
+                        <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center" title="Verified">
+                          <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                      <span>{formatCurrency(trade.entryPrice)} → {formatCurrency(trade.currentPrice)}</span>
+                      <span>•</span>
+                      <span className="flex items-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {trade.holdTime}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Middle: Sell Conditions */}
+                <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
+                  {trade.sellConditions.takeProfitPercentage && (
+                    <div className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded text-xs">
+                      TP: +{trade.sellConditions.takeProfitPercentage}%
+                    </div>
                   )}
-                >
-                  {trade.unrealizedPnL >= 0 ? '+' : ''}
-                  {formatCurrency(trade.unrealizedPnL)}
-                </div>
-                <div
-                  className={cn(
-                    'text-sm',
-                    trade.unrealizedPnL >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
+                  {trade.sellConditions.stopLossPercentage && (
+                    <div className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-xs">
+                      SL: -{trade.sellConditions.stopLossPercentage}%
+                    </div>
                   )}
-                >
-                  {trade.unrealizedPnL >= 0 ? '+' : ''}
-                  {formatPercentage(trade.unrealizedPnLPercentage)}
                 </div>
-              </div>
-            </div>
 
-            {/* Price Info */}
-            <div className="grid grid-cols-3 gap-3 mb-3 p-3 bg-background/50 rounded-lg">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                <p className="text-sm font-medium text-foreground">
-                  {formatCurrency(trade.entryPrice)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Current</p>
-                <p className="text-sm font-medium text-foreground">
-                  {formatCurrency(trade.currentPrice)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Amount</p>
-                <p className="text-sm font-medium text-foreground">
-                  {safeFormatAmount(trade.entryAmount, 2)}
-                </p>
-              </div>
-            </div>
-
-            {/* Sell Conditions & Hold Time */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              {trade.sellConditions.takeProfitPercentage && (
-                <div className="flex items-center space-x-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded">
-                  <Target className="w-3 h-3" />
-                  <span>TP: +{trade.sellConditions.takeProfitPercentage}%</span>
-                </div>
-              )}
-              {trade.sellConditions.stopLossPercentage && (
-                <div className="flex items-center space-x-1 px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded">
-                  <Shield className="w-3 h-3" />
-                  <span>SL: -{trade.sellConditions.stopLossPercentage}%</span>
-                </div>
-              )}
-              {trade.sellConditions.trailingStopPercentage && (
-                <div className="flex items-center space-x-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded">
-                  <TrendingUp className="w-3 h-3" />
-                  <span>Trail: {trade.sellConditions.trailingStopPercentage}%</span>
-                </div>
-              )}
-              <div className="flex items-center space-x-1 px-2 py-1 bg-muted rounded text-muted-foreground">
-                <Clock className="w-3 h-3" />
-                <span>{trade.holdTime}</span>
-              </div>
-            </div>
-
-            {/* Tags */}
-            {trade.tags && trade.tags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1 mt-2">
-                {trade.tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded"
+                {/* Right: P&L */}
+                <div className="text-right flex-shrink-0">
+                  <div
+                    className={cn(
+                      'text-sm font-bold',
+                      trade.unrealizedPnL >= 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    )}
                   >
-                    {tag}
-                  </span>
-                ))}
+                    {trade.unrealizedPnL >= 0 ? '+' : ''}
+                    {formatCurrency(trade.unrealizedPnL * solPrice)}
+                  </div>
+                  <div
+                    className={cn(
+                      'text-xs',
+                      trade.unrealizedPnL >= 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    )}
+                  >
+                    {trade.unrealizedPnL >= 0 ? '+' : ''}
+                    {formatPercentage(trade.unrealizedPnLPercentage)}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {limit && enrichedTrades.length > limit && (
-        <Button variant="outline" className="w-full">
-          <Eye className="h-4 w-4 mr-2" />
+        <Button variant="outline" className="w-full mt-2" size="sm">
           View All {enrichedTrades.length} Positions
         </Button>
       )}

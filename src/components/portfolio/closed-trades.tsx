@@ -14,6 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { PortfolioService } from '@/services/portfolio.service';
+import { SolanaService } from '@/services/solana.service';
 import { useNotifications } from '@/stores/use-ui-store';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
 import {
@@ -30,18 +31,37 @@ interface ClosedTradesProps {
   onTradeClick?: (trade: TradeHistoryEntry) => void;
   limit?: number;
   showHeader?: boolean;
+  defaultExpanded?: boolean;
+  showViewAll?: boolean;
 }
 
 const ClosedTrades: React.FC<ClosedTradesProps> = ({
   onTradeClick,
   limit = 5,
   showHeader = true,
+  defaultExpanded = true,
+  showViewAll = true,
 }) => {
   const [closedTrades, setClosedTrades] = useState<TradeHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [solPrice, setSolPrice] = useState<number>(0);
 
   const { showError } = useNotifications();
+
+  // Fetch SOL price
+  useEffect(() => {
+    const fetchSolPrice = async () => {
+      try {
+        const price = await SolanaService.getSolPrice();
+        setSolPrice(price);
+      } catch (error) {
+        console.error('Failed to fetch SOL price:', error);
+      }
+    };
+    fetchSolPrice();
+  }, []);
 
   // Token lazy loading for metadata
   const { tokens: tokenDetails, loadTokens, getToken } = useTokenLazyLoading({
@@ -103,8 +123,8 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
 
       return {
         ...trade,
-        tokenSymbol: tokenDetail?.token?.symbol || 'UNKNOWN',
-        tokenName: tokenDetail?.token?.name || 'Unknown Token',
+        tokenSymbol: tokenDetail?.token?.symbol || `${trade.tokenMint.slice(0, 4)}...${trade.tokenMint.slice(-4)}`,
+        tokenName: tokenDetail?.token?.name || `${trade.tokenMint.slice(0, 8)}...${trade.tokenMint.slice(-8)}`,
         tokenImage: tokenDetail?.token?.image || tokenDetail?.token?.logoURI,
         verified: tokenDetail?.token?.verified || false,
         holdTime,
@@ -112,7 +132,7 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
     });
   }, [closedTrades, tokenDetails]);
 
-  const displayedTrades = limit ? enrichedTrades.slice(0, limit) : enrichedTrades;
+  const displayedTrades = (showAll || !limit) ? enrichedTrades : enrichedTrades.slice(0, limit);
 
   const getSellReasonLabel = (reason?: string) => {
     const labels: Record<string, string> = {
@@ -307,7 +327,7 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
                   )}
                 >
                   {(trade.realizedPnL || 0) >= 0 ? '+' : ''}
-                  {formatCurrency(trade.realizedPnL || 0)}
+                  {formatCurrency((trade.realizedPnL || 0) * solPrice)}
                 </div>
                 <div
                   className={cn(
@@ -385,10 +405,27 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
         ))}
       </div>
 
-      {limit && enrichedTrades.length > limit && (
-        <Button variant="outline" className="w-full">
+      {showViewAll && limit && enrichedTrades.length > limit && !showAll && (
+        <Button 
+          variant="outline" 
+          className="w-full mt-2" 
+          size="sm"
+          onClick={() => setShowAll(true)}
+        >
           <Eye className="h-4 w-4 mr-2" />
           View All {enrichedTrades.length} Closed Trades
+        </Button>
+      )}
+      
+      {showViewAll && showAll && enrichedTrades.length > limit && (
+        <Button 
+          variant="outline" 
+          className="w-full mt-2" 
+          size="sm"
+          onClick={() => setShowAll(false)}
+        >
+          <Eye className="h-4 w-4 mr-2" />
+          Show Less
         </Button>
       )}
     </div>

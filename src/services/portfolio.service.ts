@@ -384,7 +384,7 @@ export class PortfolioService {
 
       const queryString = params.toString();
       const response = await apiClient.get<TradeStats>(
-        `${API_ENDPOINTS.FEATURES.GET_USER_TRADE_STATS}${queryString ? `?${queryString}` : ''}`
+        `${API_ENDPOINTS.FEATURES.GET_TRADE_HISTORY_STATS}${queryString ? `?${queryString}` : ''}`
       );
       return response;
     } catch (error: any) {

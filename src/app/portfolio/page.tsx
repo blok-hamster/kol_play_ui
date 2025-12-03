@@ -20,6 +20,7 @@ import {
   ExternalLink,
   TrendingDown,
   ChevronDown,
+  Clock,
 } from 'lucide-react';
 import { PortfolioService } from '@/services/portfolio.service';
 import { SolanaService } from '@/services/solana.service';
@@ -28,16 +29,13 @@ import { useNotifications } from '@/stores/use-ui-store';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
 import { formatCurrency, formatNumber, formatRelativeTime, safeFormatAmount, safeToFixed, cn } from '@/lib/utils';
 import { executeInstantSell, checkTradeConfig } from '@/lib/trade-utils';
-import type { TransactionStats, Transaction, SolanaWalletBalance, TradeStats } from '@/types';
+import type { SolanaWalletBalance, TradeStats, TradeHistoryEntry } from '@/types';
 import OpenPositions from '@/components/portfolio/open-positions';
 import ClosedTrades from '@/components/portfolio/closed-trades';
+import TradeDetailsModal from '@/components/portfolio/trade-details-modal';
 
 const PortfolioPage: React.FC = () => {
-  const [tradeStats, setTradeStats] = useState<TransactionStats | null>(null);
   const [newTradeStats, setNewTradeStats] = useState<TradeStats | null>(null);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(
-    []
-  );
   const [enhancedWalletData, setEnhancedWalletData] = useState<(SolanaWalletBalance & { 
     totalValueUsd: number;
     solValueUsd: number;
@@ -49,6 +47,9 @@ const PortfolioPage: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [sellingTokens, setSellingTokens] = useState<Set<string>>(new Set());
   const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
+  const [selectedTrade, setSelectedTrade] = useState<TradeHistoryEntry | null>(null);
+  const [showTradeDetails, setShowTradeDetails] = useState(false);
+  const [solPrice, setSolPrice] = useState<number>(0);
 
   // Mobile collapsible controls
   const [isMobile, setIsMobile] = useState(false);
@@ -137,26 +138,13 @@ const PortfolioPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      // Fetch trading stats (both old and new), recent transactions, and enhanced wallet data in parallel
-      const [statsResponse, newStatsResponse, transactionsResponse] = await Promise.all([
-        PortfolioService.getUserTradeStats(),
-        PortfolioService.getUserTradeStatsNew().catch(() => null), // Fallback to null if new endpoint fails
-        PortfolioService.getUserTransactions({ page: 1, limit: 5 }),
-      ]);
+      // Fetch new trade history stats
+      const newStatsResponse = await PortfolioService.getUserTradeStatsNew();
 
-      setTradeStats(statsResponse.data);
       if (newStatsResponse) {
         setNewTradeStats(newStatsResponse.data);
       }
       
-      // Sort recent transactions by timestamp/createdAt in descending order (newest first)
-      const sortedRecentTransactions = transactionsResponse.data.sort((a, b) => {
-        const dateA = a.timestamp || new Date(a.createdAt || 0).getTime();
-        const dateB = b.timestamp || new Date(b.createdAt || 0).getTime();
-        return dateB - dateA; // Descending order (newest first)
-      });
-      
-      setRecentTransactions(sortedRecentTransactions);
       setLastUpdated(new Date());
       
       // Fetch enhanced wallet data separately
@@ -174,6 +162,22 @@ const PortfolioPage: React.FC = () => {
   useEffect(() => {
     fetchPortfolioData();
   }, [isAuthenticated]);
+
+  // Fetch SOL price
+  useEffect(() => {
+    const fetchSolPrice = async () => {
+      try {
+        const price = await SolanaService.getSolPrice();
+        setSolPrice(price);
+      } catch (error) {
+        console.error('Failed to fetch SOL price:', error);
+      }
+    };
+    fetchSolPrice();
+    // Refresh SOL price every 30 seconds
+    const interval = setInterval(fetchSolPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleRefresh = async () => {
     await fetchPortfolioData();
@@ -257,13 +261,11 @@ const PortfolioPage: React.FC = () => {
     const solValue = enhancedWalletData?.solValueUsd || user?.accountDetails?.solValueUsd || 0;
     const solBalance = enhancedWalletData?.solBalance || user?.accountDetails?.balance || 0;
     
-    const totalPnL = tradeStats?.pnlStats?.totalPnL || 0;
-    const totalPnLPercent = tradeStats?.pnlStats?.totalPnLPercent || 0;
-    
-    // Calculate average trade size
-    const totalVolume = tradeStats?.totalVolume || 0;
-    const totalTrades = tradeStats?.totalTrades || 0;
-    const averageTradeSize = totalTrades > 0 ? totalVolume / totalTrades : 0;
+    // Use new trade stats
+    const stats = newTradeStats;
+    const totalPnLSol = newTradeStats?.totalPnL || 0;
+    const totalPnL = totalPnLSol * solPrice; // Convert SOL to USD
+    const totalPnLPercent = newTradeStats?.totalPnLPercentage || 0;
 
     // Check if we have enhanced wallet data vs basic account details
     const hasEnhancedData = !!enhancedWalletData;
@@ -273,11 +275,12 @@ const PortfolioPage: React.FC = () => {
       solValue,
       solBalance,
       totalPnL,
+      totalPnLSol,
       totalPnLPercent,
-      averageTradeSize,
+      stats, // Include the stats object for use in the UI
       hasEnhancedData,
     };
-  }, [enhancedWalletData, user?.accountDetails, tradeStats]);
+  }, [enhancedWalletData, user?.accountDetails, newTradeStats, solPrice]);
 
   // Enhanced tokens with detailed information
   const enrichedTokens = useMemo(() => {
@@ -455,6 +458,12 @@ const PortfolioPage: React.FC = () => {
                           )}>
                             {portfolioMetrics.totalPnLPercent >= 0 ? '+' : ''}
                             {formatNumber(portfolioMetrics.totalPnLPercent, 2)}%
+                            {portfolioMetrics.totalPnLSol !== 0 && (
+                              <span className="ml-1">
+                                ({portfolioMetrics.totalPnLSol >= 0 ? '+' : ''}
+                                {safeFormatAmount(portfolioMetrics.totalPnLSol, 4)} SOL)
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -484,56 +493,113 @@ const PortfolioPage: React.FC = () => {
                       </button>
                     </div>
                     <div id="trading-stats-panel" className={cn('grid grid-cols-2 gap-3 sm:gap-4', isMobile && isTradingStatsCollapsed && 'hidden')}>
-                      <div className="bg-muted/30 border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200">
-                        <div className="text-center">
-                          <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 mx-auto mb-2" />
-                          <p className="text-lg sm:text-2xl font-bold text-foreground">
-                            {tradeStats?.totalTrades || 0}
-                          </p>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            Total Trades
-                          </p>
-                        </div>
-                      </div>
-
+                      {/* Total Trades */}
                       <div className="bg-muted/30 border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200">
                         <div className="text-center">
                           <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 mx-auto mb-2" />
                           <p className="text-lg sm:text-2xl font-bold text-foreground">
-                            {formatNumber(tradeStats?.winRate || 0, 1)}%
+                            {portfolioMetrics.stats?.totalTrades || 0}
                           </p>
-                          <p className="text-xs sm:text-sm text-muted-foreground">Win Rate</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            Total Trades
+                          </p>
+                          {portfolioMetrics.stats && (
+                            <p className="text-xs text-muted-foreground/70 mt-1">
+                              {portfolioMetrics.stats.openTrades || 0} open · {portfolioMetrics.stats.closedTrades || 0} closed
+                            </p>
+                          )}
                         </div>
                       </div>
 
+                      {/* Win Rate */}
+                      <div className="bg-muted/30 border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200">
+                        <div className="text-center">
+                          <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 mx-auto mb-2" />
+                          <p className="text-lg sm:text-2xl font-bold text-foreground">
+                            {formatNumber(portfolioMetrics.stats?.winRate || 0, 1)}%
+                          </p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">Win Rate</p>
+                          {portfolioMetrics.stats && (
+                            <p className="text-xs text-muted-foreground/70 mt-1">
+                              {portfolioMetrics.stats.winningTrades || 0}W · {portfolioMetrics.stats.losingTrades || 0}L
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Average P&L */}
                       <div className="bg-muted/30 border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200">
                         <div className="text-center">
                           <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 mx-auto mb-2" />
-                          <p className="text-lg sm:text-2xl font-bold text-foreground">
-                            {safeFormatAmount(portfolioMetrics.averageTradeSize, 4)} SOL
+                          <p className={cn(
+                            "text-lg sm:text-2xl font-bold",
+                            (portfolioMetrics.stats?.averagePnL || 0) >= 0 
+                              ? "text-green-600 dark:text-green-400" 
+                              : "text-red-600 dark:text-red-400"
+                          )}>
+                            {(portfolioMetrics.stats?.averagePnL || 0) >= 0 ? '+' : ''}
+                            {formatCurrency((portfolioMetrics.stats?.averagePnL || 0) * solPrice)}
                           </p>
                           <p className="text-xs sm:text-sm text-muted-foreground">
-                            Avg Trade Size
-                            {tradeStats && tradeStats.totalTrades > 0 && (
-                              <span className="block text-xs opacity-75">
-                                Based on {tradeStats.totalTrades} trades
-                              </span>
-                            )}
+                            Avg P&L per Trade
+                          </p>
+                          <p className="text-xs text-muted-foreground/70 mt-1">
+                            {(portfolioMetrics.stats?.averagePnL || 0) >= 0 ? '+' : ''}
+                            {safeFormatAmount(portfolioMetrics.stats?.averagePnL || 0, 4)} SOL
                           </p>
                         </div>
                       </div>
 
+                      {/* Average Hold Time */}
                       <div className="bg-muted/30 border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200">
                         <div className="text-center">
-                          <PieChart className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 mx-auto mb-2" />
+                          <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 mx-auto mb-2" />
                           <p className="text-lg sm:text-2xl font-bold text-foreground">
-                            {tradeStats?.uniqueTokensTraded || 0}
+                            {portfolioMetrics.stats?.averageHoldTime 
+                              ? `${Math.floor(portfolioMetrics.stats.averageHoldTime / 60)}h ${Math.floor(portfolioMetrics.stats.averageHoldTime % 60)}m`
+                              : '0h 0m'}
                           </p>
                           <p className="text-xs sm:text-sm text-muted-foreground">
-                            Unique Tokens
+                            Avg Hold Time
                           </p>
                         </div>
                       </div>
+
+                      {/* Largest Win */}
+                      {portfolioMetrics.stats?.largestWin !== undefined && (
+                        <div className="bg-muted/30 border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200">
+                          <div className="text-center">
+                            <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 mx-auto mb-2" />
+                            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">
+                              +{formatCurrency(portfolioMetrics.stats.largestWin * solPrice)}
+                            </p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                              Largest Win
+                            </p>
+                            <p className="text-xs text-muted-foreground/70 mt-1">
+                              +{safeFormatAmount(portfolioMetrics.stats.largestWin, 4)} SOL
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Largest Loss */}
+                      {portfolioMetrics.stats?.largestLoss !== undefined && (
+                        <div className="bg-muted/30 border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200">
+                          <div className="text-center">
+                            <TrendingDown className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 mx-auto mb-2" />
+                            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">
+                              -{formatCurrency(Math.abs(portfolioMetrics.stats.largestLoss) * solPrice)}
+                            </p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                              Largest Loss
+                            </p>
+                            <p className="text-xs text-muted-foreground/70 mt-1">
+                              -{safeFormatAmount(Math.abs(portfolioMetrics.stats.largestLoss), 4)} SOL
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -542,7 +608,15 @@ const PortfolioPage: React.FC = () => {
 
             {/* Open Positions - NEW */}
             <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
-              <OpenPositions limit={5} showHeader={true} />
+              <OpenPositions 
+                limit={10} 
+                showHeader={true} 
+                defaultExpanded={true}
+                onTradeClick={(trade) => {
+                  setSelectedTrade(trade);
+                  setShowTradeDetails(true);
+                }}
+              />
             </div>
 
             {/* Token Holdings - Keep for wallet balance display */}
@@ -814,204 +888,18 @@ const PortfolioPage: React.FC = () => {
 
           {/* Closed Trades - NEW */}
           <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
-            <ClosedTrades limit={5} showHeader={true} />
-            <div className="mt-4">
-              <Link href="/portfolio/transactions">
-                <Button variant="outline" className="w-full">
-                  <History className="h-4 w-4 mr-2" />
-                  View All Transactions
-                </Button>
-              </Link>
-            </div>
+            <ClosedTrades 
+              limit={5} 
+              showHeader={true} 
+              defaultExpanded={true} 
+              showViewAll={true}
+              onTradeClick={(trade) => {
+                setSelectedTrade(trade);
+                setShowTradeDetails(true);
+              }}
+            />
           </div>
 
-          {/* Recent Transactions - Keep as fallback */}
-          <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg hidden">
-            <div className="flex items-start justify-between mb-4">
-              <h2 className="text-lg sm:text-xl font-semibold text-foreground">
-                Recent Transactions
-              </h2>
-              <Link href="/portfolio/transactions">
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground hover:bg-muted/50 flex-shrink-0">
-                  <History className="h-4 w-4 mr-2" />
-                  View All
-                </Button>
-              </Link>
-            </div>
-            
-            <div className="space-y-4">
-              {isLoading ? (
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="animate-pulse bg-muted/30 border border-border rounded-xl p-4"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded-full"></div>
-                          <div>
-                            <div className="h-4 bg-muted rounded w-24 mb-1"></div>
-                            <div className="h-3 bg-muted rounded w-32"></div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="h-4 bg-muted rounded w-20 mb-1"></div>
-                          <div className="h-3 bg-muted rounded w-16"></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : recentTransactions.length > 0 ? (
-                <div className="space-y-4">
-                  {recentTransactions.map((transaction, index) => (
-                    <div
-                      key={transaction.id || index}
-                      className="bg-muted/30 border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer"
-                    >
-                      <div className="flex items-start sm:items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          {/* Token Icon */}
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 border-muted">
-                            <span className="text-primary-foreground font-bold text-sm">
-                              {transaction.mint?.slice(0, 1) || '?'}
-                            </span>
-                          </div>
-
-                          {/* Transaction Info */}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1">
-                              <h3 className="font-bold text-foreground text-base sm:text-lg">
-                                {transaction.action === 'buy' ? 'Buy' : 'Sell'} Token
-                              </h3>
-                              <span
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 sm:mt-0 w-fit ${
-                                  transaction.action === 'buy'
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200'
-                                    : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200'
-                                }`}
-                              >
-                                {transaction.action === 'buy' ? 'Buy' : 'Sell'}
-                              </span>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 text-sm text-muted-foreground space-y-1 sm:space-y-0">
-                              <span>
-                                {transaction.timestamp
-                                  ? formatRelativeTime(
-                                      new Date(transaction.timestamp)
-                                    )
-                                  : 'Recently'}
-                              </span>
-                              <span className="hidden sm:inline">
-                                {transaction.timestamp
-                                  ? new Date(transaction.timestamp).toLocaleDateString()
-                                  : transaction.createdAt
-                                  ? new Date(transaction.createdAt).toLocaleDateString()
-                                  : 'Unknown date'}
-                              </span>
-                              <span className="font-mono text-xs">
-                                {transaction.transactionHash
-                                  ? `${transaction.transactionHash.slice(0, 8)}...`
-                                  : 'No TX'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right section - Amounts */}
-                        <div className="text-right ml-2">
-                          <div className="text-base sm:text-lg font-bold text-foreground">
-                            {formatNumber(transaction.amountOut || 0, 2)} Token
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {formatNumber(transaction.amountIn || 0, 4)} SOL
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Stats row */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm space-y-2 sm:space-y-0">
-                        {/* Left stats */}
-                        <div className="flex flex-wrap items-center gap-2 sm:space-x-4 sm:gap-0">
-                          <div className="flex items-center space-x-1">
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                transaction.action === 'buy'
-                                  ? 'bg-green-500'
-                                  : 'bg-red-500'
-                              }`}
-                            ></span>
-                            <span className="text-muted-foreground">
-                              {transaction.action === 'buy'
-                                ? 'Buy Order'
-                                : 'Sell Order'}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-1 px-2 py-1 bg-muted rounded text-xs">
-                            <span className="text-blue-400">💰</span>
-                            <span className="text-muted-foreground">
-                              {formatCurrency((transaction.amountIn || 0) * 200)}
-                            </span>
-                          </div>
-                          {transaction.fees && (
-                            <div className="flex items-center space-x-1 px-2 py-1 bg-muted rounded text-xs">
-                              <span className="text-orange-400">⚡</span>
-                              <span className="text-muted-foreground">
-                                {formatNumber(transaction.fees, 6)} SOL
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Right stats - Actions */}
-                        <div className="flex items-center justify-between sm:justify-end space-x-2">
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="p-1 h-auto hover:bg-muted rounded-lg"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {transaction.transactionHash && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  window.open(`https://solscan.io/tx/${transaction.transactionHash}`, '_blank');
-                                }}
-                                className="p-1 h-auto hover:bg-muted rounded-lg"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {transaction.status === 'success' ? (
-                              <span className="text-green-600">✓ Success</span>
-                            ) : (
-                              <span className="text-red-600">✗ Failed</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-2">
-                    No transactions found
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Start trading to see your transaction history
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       
       {/* Trade Config Prompt Modal */}
@@ -1047,6 +935,17 @@ const PortfolioPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Trade Details Modal */}
+      {showTradeDetails && selectedTrade && (
+        <TradeDetailsModal
+          trade={selectedTrade}
+          onClose={() => {
+            setShowTradeDetails(false);
+            setSelectedTrade(null);
+          }}
+        />
       )}
     </div>
   </AppLayout>
