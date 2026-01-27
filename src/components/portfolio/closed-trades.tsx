@@ -16,7 +16,9 @@ import {
 import { PortfolioService } from '@/services/portfolio.service';
 import { SolanaService } from '@/services/solana.service';
 import { useNotifications } from '@/stores/use-ui-store';
+import AuthService from '@/services/auth.service';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
+import { useEnhancedWebSocket } from '@/hooks/use-enhanced-websocket';
 import {
   formatCurrency,
   formatNumber,
@@ -47,6 +49,12 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [solPrice, setSolPrice] = useState<number>(0);
+  const token = AuthService.getToken();
+  const { connect, disconnect } = useEnhancedWebSocket({
+    auth: {
+      token: token || undefined
+    }
+  });
 
   const { showError } = useNotifications();
 
@@ -103,6 +111,24 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
 
   useEffect(() => {
     fetchClosedTrades();
+    connect();
+
+    const handleEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.type === 'POSITION_CLOSED') {
+        console.log('🔄 [ClosedTrades] Trade closed event received, refreshing...');
+        fetchClosedTrades();
+      }
+
+      // Also potentially handle TRADE_OPENED/FAILED if relevant, but primarily CLOSED matters here
+    };
+
+    window.addEventListener('kolplay_user_event', handleEvent);
+
+    return () => {
+      window.removeEventListener('kolplay_user_event', handleEvent);
+      disconnect();
+    };
   }, []);
 
   // Enrich trades with token data
@@ -309,6 +335,18 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
                     >
                       {getSellReasonLabel(trade.sellReason)}
                     </span>
+                    {trade.isSimulation && (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400">
+                        Paper
+                      </span>
+                    )}
+                    {trade.reconciledStatus === 'verified' && (
+                      <div className="w-4 h-4 text-green-500 rounded-full flex items-center justify-center border border-green-500" title="On-Chain Verified">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {formatRelativeTime(new Date(trade.closedAt || trade.updatedAt))}
@@ -346,16 +384,32 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
             {/* Trade Details */}
             <div className="grid grid-cols-4 gap-2 p-3 bg-background/50 rounded-lg text-xs">
               <div>
-                <p className="text-muted-foreground mb-1">Entry</p>
-                <p className="font-medium text-foreground">
-                  {formatCurrency(trade.entryPrice)}
-                </p>
+                <p className="text-muted-foreground mb-1">Price</p>
+                <div className="flex flex-col">
+                  <div className="flex items-center space-x-1 font-medium text-foreground">
+                    <span>${formatNumber(trade.entryPrice, 8)}</span>
+                    <span className="text-muted-foreground text-[10px]">→</span>
+                    <span className={cn(
+                      (trade.exitPrice || 0) >= trade.entryPrice ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                    )}>
+                      ${formatNumber(trade.exitPrice || 0, 8)}
+                    </span>
+                  </div>
+                </div>
               </div>
               <div>
-                <p className="text-muted-foreground mb-1">Exit</p>
-                <p className="font-medium text-foreground">
-                  {formatCurrency(trade.exitPrice || 0)}
-                </p>
+                <p className="text-muted-foreground mb-1">Value (SOL)</p>
+                <div className="flex flex-col">
+                  <div className="flex items-center space-x-1 font-medium text-foreground">
+                    <span>{safeFormatAmount(trade.entryValue, 4)}</span>
+                    <span className="text-muted-foreground text-[10px]">→</span>
+                    <span className={cn(
+                      (trade.exitValue || 0) >= trade.entryValue ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                    )}>
+                      {trade.exitValue ? safeFormatAmount(trade.exitValue, 4) : '-'}
+                    </span>
+                  </div>
+                </div>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">Amount</p>
@@ -406,9 +460,9 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
       </div>
 
       {showViewAll && limit && enrichedTrades.length > limit && !showAll && (
-        <Button 
-          variant="outline" 
-          className="w-full mt-2" 
+        <Button
+          variant="outline"
+          className="w-full mt-2"
           size="sm"
           onClick={() => setShowAll(true)}
         >
@@ -416,11 +470,11 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
           View All {enrichedTrades.length} Closed Trades
         </Button>
       )}
-      
+
       {showViewAll && showAll && enrichedTrades.length > limit && (
-        <Button 
-          variant="outline" 
-          className="w-full mt-2" 
+        <Button
+          variant="outline"
+          className="w-full mt-2"
           size="sm"
           onClick={() => setShowAll(false)}
         >

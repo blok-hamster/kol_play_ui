@@ -166,6 +166,7 @@ const TradingSettingsComponent: React.FC = () => {
           minSpend: applyDefault(settings.tradeConfig?.minSpend, 0.01),
           maxSpend: applyDefault(settings.tradeConfig?.maxSpend, 10),
           useWatchConfig: settings.tradeConfig?.useWatchConfig || false,
+          paperTrading: settings.tradeConfig?.paperTrading ?? true,
         },
         watchConfig: {
           takeProfitPercentage: applyDefault(
@@ -366,6 +367,29 @@ const TradingSettingsComponent: React.FC = () => {
               }
               placeholder="10"
             />
+          </div>
+
+          <div>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary"
+                checked={settings.tradeConfig?.paperTrading ?? true} // Default to true
+                onChange={e =>
+                  handleToggleChange(
+                    'tradeConfig',
+                    'paperTrading',
+                    e.target.checked
+                  )
+                }
+              />
+              <span className="text-sm font-medium text-foreground">
+                Paper Trading Mode (Simulation)
+              </span>
+            </label>
+            <p className="text-xs text-muted-foreground mt-1 ml-6">
+              If enabled, trades will be simulated and no real funds will be used.
+            </p>
           </div>
 
           <div>

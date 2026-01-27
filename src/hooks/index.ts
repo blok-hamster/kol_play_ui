@@ -30,3 +30,10 @@ export type {
   DeviceInfo, 
   ResponsiveMindmapConfig 
 } from './use-responsive-mindmap';
+
+// PumpPortal Stream Hook
+export { usePumpPortalStream } from './use-pumpportal-stream';
+export type {
+  PumpPortalNewToken,
+  PumpPortalTrade,
+} from './use-pumpportal-stream';

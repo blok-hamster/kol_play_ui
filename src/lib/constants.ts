@@ -109,6 +109,10 @@ export const API_ENDPOINTS = {
     GET_TRENDING_TOKENS: '/api/features/get-trending-tokens',
     GET_TOKENS_BY_VOLUME: '/api/features/get-tokens-by-volume',
     GET_LATEST_TOKENS: '/api/features/get-latest-tokens',
+
+    // Paper Trading
+    GET_PAPER_BALANCE: '/api/features/paper-trading/balance',
+    RESET_PAPER_ACCOUNT: '/api/features/paper-trading/reset',
   },
 
   // Notifications

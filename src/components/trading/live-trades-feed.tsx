@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { SwapService } from '@/services';
-import { useLiveTradesFeed, useLoading, useNotifications } from '@/stores';
+import { useLiveTradesFeed, useLoading, useNotifications, useSubscriptions } from '@/stores';
 import { useLiveTradesUpdates } from '@/hooks/use-realtime-updates';
 import { KOLTrade, TradeFilters } from '@/types';
 import {
@@ -73,10 +73,14 @@ export default function LiveTradesFeed({
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
+  const { subscriptions } = useSubscriptions();
+
   // Get subscribed KOL wallets for filtering
   const subscribedKOLWallets = useMemo(
-    () => liveTradesFeed.map(trade => trade.kolWallet),
-    [liveTradesFeed]
+    () => subscriptions
+      .filter(sub => sub.isActive && sub.kolWallet)
+      .map(sub => sub.kolWallet),
+    [subscriptions]
   );
 
   // Real-time updates for subscribed KOLs
@@ -538,8 +542,8 @@ export default function LiveTradesFeed({
 
       {/* Trades List */}
       <div className={cn(
-        viewMode === 'cards' 
-          ? 'grid gap-6 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3' 
+        viewMode === 'cards'
+          ? 'grid gap-6 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'
           : 'space-y-4'
       )}>
         {filteredTrades.map((trade, index) => (

@@ -50,11 +50,15 @@ export interface UseRealTimeUpdatesOptions {
 export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
   const { subscriptions, config, enabled = true } = options;
 
-  // Store references
-  const tradingStore = useTradingStore();
-  const tokenStore = useTokenStore();
-  const userStore = useUserStore();
-
+  // Store references - using selectors to prevent unnecessary re-renders
+  const addLiveTrade = useTradingStore(s => s.addLiveTrade);
+  const setPortfolioStats = useTradingStore(s => s.setPortfolioStats);
+  
+  const watchlist = useTokenStore(s => s.watchlist);
+  const setTrendingTokens = useTokenStore(s => s.setTrendingTokens);
+  const setHighVolumeTokens = useTokenStore(s => s.setHighVolumeTokens);
+  const setLatestTokens = useTokenStore(s => s.setLatestTokens);
+  
   // Service reference
   const serviceRef = useRef(getRealTimeUpdateService(config));
   const subscriptionIdsRef = useRef<string[]>([]);
@@ -74,10 +78,10 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
       const trades = Array.isArray(data) ? data : [data];
 
       trades.forEach(trade => {
-        tradingStore.addLiveTrade(trade);
+        addLiveTrade(trade);
       });
     },
-    [tradingStore]
+    [addLiveTrade]
   );
 
   // Price update handler
@@ -90,7 +94,6 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
       updates.forEach(
         (update: { mint: string; price: number; change24h: number }) => {
           // Update could trigger token store updates for watchlist items
-          const { watchlist } = tokenStore;
           const isWatched = watchlist.some(token => token.mint === update.mint);
 
           if (isWatched) {
@@ -100,7 +103,7 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
         }
       );
     },
-    [tokenStore]
+    [watchlist]
   );
 
   // Balance update handler
@@ -116,9 +119,9 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
   // Portfolio update handler
   const handlePortfolioUpdates = useCallback(
     (data: OverallPnL) => {
-      tradingStore.setPortfolioStats(data);
+      setPortfolioStats(data);
     },
-    [tradingStore]
+    [setPortfolioStats]
   );
 
   // Token update handler
@@ -130,13 +133,13 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
         (update: { tokens: SearchTokenResult[]; category: string }) => {
           switch (update.category) {
             case 'trending':
-              tokenStore.setTrendingTokens(update.tokens);
+              setTrendingTokens(update.tokens);
               break;
             case 'volume':
-              tokenStore.setHighVolumeTokens(update.tokens);
+              setHighVolumeTokens(update.tokens);
               break;
             case 'latest':
-              tokenStore.setLatestTokens(update.tokens);
+              setLatestTokens(update.tokens);
               break;
             default:
               void 0 && ('Unknown token category update:', update.category);
@@ -144,7 +147,7 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
         }
       );
     },
-    [tokenStore]
+    [setTrendingTokens, setHighVolumeTokens, setLatestTokens]
   );
 
   // Setup subscriptions

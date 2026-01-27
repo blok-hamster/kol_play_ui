@@ -424,6 +424,57 @@ export class PortfolioService {
       throw new Error(apiClient.handleError(error));
     }
   }
+  /**
+   * Execute a swap (buy/sell) transaction
+   */
+  static async performSwap(
+    payload: {
+      tradeType: 'buy' | 'sell';
+      amount: number;
+      mint: string;
+      watchConfig?: any;
+      tradeId?: string;
+    }
+  ): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post<any>(
+        API_ENDPOINTS.FEATURES.PERFORM_SWAP, // Ensure this endpoint constant exists or use '/features/perform-swap'
+        payload
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get Paper Trading Balance
+   */
+  static async getPaperBalance(): Promise<ApiResponse<Record<string, number>>> {
+    try {
+      const response = await apiClient.get<Record<string, number>>(
+        API_ENDPOINTS.FEATURES.GET_PAPER_BALANCE
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Reset Paper Trading Account
+   */
+  static async resetPaperAccount(): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post<any>(
+        API_ENDPOINTS.FEATURES.RESET_PAPER_ACCOUNT,
+        {}
+      );
+      return response;
+    } catch (error: any) {
+      throw new Error(apiClient.handleError(error));
+    }
+  }
 }
 
 export default PortfolioService;

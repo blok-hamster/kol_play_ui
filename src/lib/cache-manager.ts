@@ -141,6 +141,50 @@ export class CacheManager {
   }
 
   /**
+   * Get all mindmap data from cache
+   */
+  getAllMindmapData(): Record<string, MindmapUpdate> {
+    const mindmapData: Record<string, MindmapUpdate> = {};
+
+    // Check memory cache
+    for (const [key, entry] of this.memoryCache.entries()) {
+      if (key.startsWith(CACHE_PREFIXES.MINDMAP_DATA) && !this.isExpired(entry)) {
+        const tokenMint = key.replace(CACHE_PREFIXES.MINDMAP_DATA, '');
+        mindmapData[tokenMint] = entry.data;
+      }
+    }
+
+    // Check session storage for additional entries
+    if (this.config.enableSessionStorage && typeof window !== 'undefined') {
+      try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && key.startsWith(CACHE_PREFIXES.MINDMAP_DATA)) {
+            const tokenMint = key.replace(CACHE_PREFIXES.MINDMAP_DATA, '');
+            if (!mindmapData[tokenMint]) {
+              try {
+                const sessionData = sessionStorage.getItem(key);
+                if (sessionData) {
+                  const entry: CacheEntry<MindmapUpdate> = JSON.parse(sessionData);
+                  if (!this.isExpired(entry)) {
+                    mindmapData[tokenMint] = entry.data;
+                  }
+                }
+              } catch (error) {
+                console.warn(`Failed to parse mindmap data for ${tokenMint}:`, error);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to read mindmap data from session storage:', error);
+      }
+    }
+
+    return mindmapData;
+  }
+
+  /**
    * Get all cached KOL data
    */
   getAllKOLData(): Record<string, any> {

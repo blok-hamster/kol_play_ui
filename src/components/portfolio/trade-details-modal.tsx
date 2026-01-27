@@ -10,14 +10,10 @@ import {
   TrendingDown,
   Target,
   Shield,
-  Calendar,
-  DollarSign,
-  Activity,
   Copy,
 } from 'lucide-react';
 import {
   formatCurrency,
-  formatNumber,
   formatPercentage,
   formatRelativeTime,
   safeFormatAmount,
@@ -33,6 +29,7 @@ interface TradeDetailsModalProps {
     tokenImage?: string;
     verified?: boolean;
     currentPrice?: number;
+    currentValue?: number;
     unrealizedPnL?: number;
     unrealizedPnLPercentage?: number;
     holdTime?: string;
@@ -66,12 +63,9 @@ const TradeDetailsModal: React.FC<TradeDetailsModalProps> = ({
     : trade.realizedPnLPercentage;
 
   // Convert SOL values to USD
+  // const pnlUsd = (pnl || 0) * solPrice; // Kept if needed for PnL box?
   const pnlUsd = (pnl || 0) * solPrice;
-  const entryValueUsd = trade.entryValue * solPrice;
-  const exitValueUsd = trade.exitValue ? trade.exitValue * solPrice : 0;
-  const currentValueUsd = isOpen && trade.currentPrice 
-    ? trade.entryAmount * trade.currentPrice * solPrice 
-    : 0;
+  // Others unused after refactor
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -216,24 +210,40 @@ const TradeDetailsModal: React.FC<TradeDetailsModalProps> = ({
 
           {/* Trade Details Grid */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Entry Price */}
+            {/* Price Progression */}
             <div className="bg-muted/30 rounded-lg p-4">
-              <p className="text-xs text-muted-foreground mb-1">Entry Price</p>
-              <p className="text-lg font-bold text-foreground">
-                {formatCurrency(trade.entryPrice)}
-              </p>
+              <p className="text-xs text-muted-foreground mb-1">Price</p>
+              <div className="flex flex-col space-y-1">
+                <div className="flex items-center space-x-2 text-sm font-mono text-foreground">
+                  <span>${(trade.entryPrice || 0).toFixed(8)}</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className={cn(
+                    (isOpen ? trade.currentPrice || 0 : trade.exitPrice || 0) >= trade.entryPrice
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400"
+                  )}>
+                    ${(isOpen ? trade.currentPrice || 0 : trade.exitPrice || 0).toFixed(8)}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Current/Exit Price */}
+            {/* Value Progression */}
             <div className="bg-muted/30 rounded-lg p-4">
-              <p className="text-xs text-muted-foreground mb-1">
-                {isOpen ? 'Current Price' : 'Exit Price'}
-              </p>
-              <p className="text-lg font-bold text-foreground">
-                {formatCurrency(
-                  isOpen ? trade.currentPrice || 0 : trade.exitPrice || 0
-                )}
-              </p>
+              <p className="text-xs text-muted-foreground mb-1">Value (SOL)</p>
+              <div className="flex flex-col space-y-1">
+                <div className="flex items-center space-x-2 text-sm font-mono text-foreground">
+                  <span>{safeFormatAmount(trade.entryValue || 0, 4)}</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className={cn(
+                    (isOpen ? (trade.currentValue || (trade.entryAmount * (trade.currentPrice || 0))) : trade.exitValue) >= (trade.entryValue || 0)
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400"
+                  )}>
+                    {safeFormatAmount(isOpen ? (trade.currentValue || (trade.entryAmount * (trade.currentPrice || 0))) : trade.exitValue, 4)}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Entry Amount */}
@@ -244,15 +254,11 @@ const TradeDetailsModal: React.FC<TradeDetailsModalProps> = ({
               </p>
             </div>
 
-            {/* Entry Value */}
             <div className="bg-muted/30 rounded-lg p-4">
-              <p className="text-xs text-muted-foreground mb-1">Entry Value</p>
-              <p className="text-lg font-bold text-foreground">
-                {formatCurrency(entryValueUsd)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {safeFormatAmount(trade.entryValue, 6)} SOL
-              </p>
+              <p className="text-xs text-muted-foreground mb-1">Total PnL (SOL)</p>
+              <div className={cn("text-lg font-bold", (pnl || 0) >= 0 ? "text-green-500" : "text-red-500")}>
+                {(pnl || 0) > 0 ? '+' : ''}{safeFormatAmount(pnl || 0, 4)} SOL
+              </div>
             </div>
 
             {/* Hold Time */}
@@ -388,7 +394,7 @@ const TradeDetailsModal: React.FC<TradeDetailsModalProps> = ({
                     </span>
                     <div className="text-right">
                       <span className="text-sm font-medium text-foreground block">
-                        {formatCurrency(exitValueUsd)}
+                        {formatCurrency((trade.exitValue || 0) * solPrice)}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {safeFormatAmount(trade.exitValue, 6)} SOL

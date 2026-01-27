@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { UserSubscription } from '@/types';
 import { useSubscriptions } from '@/stores/use-trading-store';
-import { useNotifications } from '@/stores/use-ui-store';
+import { useNotifications, useLoading } from '@/stores/use-ui-store';
+import { TradingService } from '@/services/trading.service';
 import KOLTradesModal from './kol-trades-modal';
 import SubscriptionSettingsModal from './subscription-settings-modal';
 import {
@@ -19,6 +20,7 @@ import {
   Calendar,
   MoreHorizontal,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
@@ -81,6 +83,7 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isTradesModalOpen, setIsTradesModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const { isLoading, setLoading } = useLoading();
 
   const isList = viewMode === 'list';
 
@@ -98,17 +101,21 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
   // Prefetch KOL details
   useEffect(() => {
     (async () => {
-      try { await ensureKOL(subscription.kolWallet); } catch {}
+      try { await ensureKOL(subscription.kolWallet); } catch { }
     })();
   }, [subscription.kolWallet, ensureKOL]);
 
   // Resolve KOL details from store
   const kolDetails = useMemo(() => getKOL(subscription.kolWallet), [getKOL, subscription.kolWallet]);
 
-  // Display name: prefer KOL name, fallback to short wallet
+  // Display name: prefer custom label (if personal), then KOL name, fallback to short wallet
   const displayName = useMemo(() => {
+    // If we have a custom label from the subscription, use it (especially for personal wallets)
+    if (subscription.label && subscription.label !== subscription.kolWallet) {
+      return subscription.label;
+    }
     return kolDetails?.name || `KOL ${subscription.kolWallet.slice(0, 6)}...${subscription.kolWallet.slice(-4)}`;
-  }, [kolDetails?.name, subscription.kolWallet]);
+  }, [kolDetails?.name, subscription.label, subscription.kolWallet]);
 
   // Avatar: prefer store avatar, then Twitter avatar from social links/description, then dicebear initials
   const avatarUrl = useMemo(() => {
@@ -116,9 +123,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
     if (storeAvatar && storeAvatar.trim().length > 0) return storeAvatar;
     const twitterHelperArg = kolDetails
       ? {
-          ...(kolDetails.socialLinks?.twitter ? { socialLinks: { twitter: kolDetails.socialLinks.twitter } } : {}),
-          ...(kolDetails.description ? { description: kolDetails.description } : {}),
-        }
+        ...(kolDetails.socialLinks?.twitter ? { socialLinks: { twitter: kolDetails.socialLinks.twitter } } : {}),
+        ...(kolDetails.description ? { description: kolDetails.description } : {}),
+      }
       : undefined;
     const twitterUrl = findTwitterUrlFromKOL(twitterHelperArg);
     const twitterAvatar = getTwitterAvatarUrl(twitterUrl, displayName || subscription.kolWallet);
@@ -143,10 +150,14 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
   const handleUnsubscribe = async () => {
     try {
+      setLoading(`unsubscribe-${subscription.kolWallet}`, true);
+      await TradingService.unsubscribeFromKOL(subscription.kolWallet);
       removeSubscription(subscription.kolWallet);
       showSuccess('Unsubscribed', 'Subscription removed successfully');
-    } catch (error) {
-      showError('Error', 'Failed to remove subscription');
+    } catch (error: any) {
+      showError('Error', error.message || 'Failed to remove subscription');
+    } finally {
+      setLoading(`unsubscribe-${subscription.kolWallet}`, false);
     }
   };
 
@@ -318,13 +329,18 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                       <div className="border-t border-border my-1" />
 
                       <button
-                        onClick={() => {
-                          handleUnsubscribe();
+                        onClick={async () => {
+                          await handleUnsubscribe();
                           setShowDropdown(false);
                         }}
-                        className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        disabled={isLoading(`unsubscribe-${subscription.kolWallet}`)}
+                        className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {isLoading(`unsubscribe-${subscription.kolWallet}`) ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                         <span>Unsubscribe</span>
                       </button>
                     </div>

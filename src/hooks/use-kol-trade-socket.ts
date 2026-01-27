@@ -30,6 +30,8 @@ export interface KOLTrade {
   affectedUsers: string[];
   processed: boolean;
   prediction?: PredictionResult;
+  isFeatured?: boolean;
+  label?: string;
 }
 
 export interface MindmapUpdate {
@@ -934,6 +936,7 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       const cachedTrades = cacheManager.getTradeData('recent');
       const cachedStats = cacheManager.getStatsData('current');
       const cachedTrending = cacheManager.getTrendingTokens();
+      const cachedMindmap = cacheManager.getAllMindmapData();
 
       if (cachedTrades) {
         globalState.data.trades = cachedTrades.slice(0, MAX_TRADES);
@@ -943,6 +946,13 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
       }
       if (cachedTrending) {
         globalState.data.trendingTokens = cachedTrending.slice(0, 10);
+      }
+      if (Object.keys(cachedMindmap).length > 0) {
+        // Hydrate mindmap data from cache
+        Object.entries(cachedMindmap).forEach(([tokenMint, data]) => {
+          globalState.data.mindmapData[tokenMint] = data;
+        });
+        console.log(`🧠 Hydrated mindmap with ${Object.keys(cachedMindmap).length} cached tokens`);
       }
 
       // If we have all cached data, use it and skip API calls

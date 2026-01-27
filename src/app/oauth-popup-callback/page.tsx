@@ -27,7 +27,7 @@ export default function OAuthPopupCallbackPage() {
           };
 
           console.log('🔐 Sending error message to parent:', errorMessage);
-          
+
           // Try multiple ways to communicate with parent
           try {
             if (window.opener && !window.opener.closed) {
@@ -49,7 +49,7 @@ export default function OAuthPopupCallbackPage() {
           };
 
           console.log('🔐 Sending success message to parent:', successMessage);
-          
+
           // Try multiple ways to communicate with parent
           try {
             if (window.opener && !window.opener.closed) {
@@ -68,7 +68,7 @@ export default function OAuthPopupCallbackPage() {
           };
 
           console.log('🔐 Sending OAuth code to parent:', codeMessage);
-          
+
           // Try multiple ways to communicate with parent
           try {
             if (window.opener && !window.opener.closed) {
@@ -87,7 +87,7 @@ export default function OAuthPopupCallbackPage() {
           };
 
           console.log('🔐 Sending no-params error to parent:', errorMessage);
-          
+
           // Try multiple ways to communicate with parent
           try {
             if (window.opener && !window.opener.closed) {
@@ -144,44 +144,66 @@ export default function OAuthPopupCallbackPage() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
-      <div className="max-w-sm w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
-        <div className="mb-4">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full">
-            <svg
-              className="animate-spin h-6 w-6 text-blue-600 dark:text-blue-400"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
+    <div className="min-h-screen bg-[#171616] flex items-center justify-center p-6 font-sans">
+      <div className="relative max-w-sm w-full">
+        {/* Glow effect background */}
+        <div className="absolute -inset-4 bg-gradient-to-r from-[#14f195] to-[#9945ff] rounded-2xl blur-xl opacity-20 animate-pulse" />
+
+        <div className="relative bg-[#1f1f1f] border border-[#374151] rounded-2xl p-8 text-center shadow-2xl">
+          <div className="mb-8 relative flex justify-center">
+            {/* Animated outer ring */}
+            <div className="absolute w-16 h-16 border-2 border-[#14f195]/30 rounded-full animate-ping" />
+
+            <div className="relative flex items-center justify-center w-16 h-16 bg-[#171616] rounded-full border border-[#374151] shadow-inner">
+              <svg
+                className="animate-spin h-8 w-8 text-[#14f195]"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-10"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+                <path
+                  className="opacity-90"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <h1 className="text-2xl font-bold text-white mb-3 tracking-tight">
+            Authenticating
+          </h1>
+
+          <p className="text-[#9ca3af] text-base font-medium leading-relaxed mb-6">
+            Connecting your Google account to <span className="text-[#14f195]">KOL Play</span>...
+          </p>
+
+          <div className="flex flex-col space-y-4">
+            <div className="h-1.5 w-full bg-[#374151] rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-[#14f195] to-[#9945ff] w-2/3 rounded-full animate-[progress_2s_ease-in-out_infinite]" />
+            </div>
+
+            <p className="text-xs text-[#6b7280] font-semibold uppercase tracking-widest animate-pulse">
+              Securing Session
+            </p>
           </div>
         </div>
-
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Completing Authentication
-        </h1>
-
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Please wait while we complete the authentication process...
-        </p>
-
-        <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-          This window will close automatically.
-        </div>
       </div>
+
+      <style jsx>{`
+        @keyframes progress {
+          0% { transform: translateX(-100%); }
+          50% { transform: translateX(50%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
   );
 }

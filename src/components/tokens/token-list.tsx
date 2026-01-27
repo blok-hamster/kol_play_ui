@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, TrendingUp, DollarSign, Clock, Loader2 } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, Clock, Loader2, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TokenService } from '@/services/token.service';
+import SolanaService from '@/services/solana.service';
 import { useTokenStore } from '@/stores/use-token-store';
 import { useLoading } from '@/stores/use-ui-store';
 import { useNotifications } from '@/stores/use-ui-store';
@@ -12,6 +13,7 @@ import { formatNumber, formatRelativeTime, cn } from '@/lib/utils';
 import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
 import TokenDetailModal from './token-detail-modal';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
+import { usePumpPortalStream, type PumpPortalNewToken } from '@/hooks';
 import type { TokenFilters } from '@/types';
 type DiscoveryItem = {
   token: {
@@ -67,12 +69,12 @@ interface TokenListProps {
 
 interface TokenListFilters extends TokenFilters {
   sortBy?:
-    | 'marketCap'
-    | 'volume'
-    | 'price'
-    | 'liquidity'
-    | 'name'
-    | 'createdAt';
+  | 'marketCap'
+  | 'volume'
+  | 'price'
+  | 'liquidity'
+  | 'name'
+  | 'createdAt';
   sortOrder?: 'asc' | 'desc';
   timeframe?: '5m' | '15m' | '30m' | '1h' | '6h' | '12h' | '24h' | '7d' | '30d';
 }
@@ -105,6 +107,18 @@ const TokenList: React.FC<TokenListProps> = ({
 
   // Instant buy loading state
   const [buyingTokens, setBuyingTokens] = useState<Set<string>>(new Set());
+
+  // Real-time streaming state
+  const [isLiveEnabled, setIsLiveEnabled] = useState(category === 'latest');
+  const [newTokensCount, setNewTokensCount] = useState(0);
+  const maxTokensRef = useRef(200); // Limit tokens to prevent memory issues
+
+  // PumpPortal WebSocket hook (only for latest category)
+  const pumpPortal = usePumpPortalStream({
+    autoConnect: category === 'latest' && isLiveEnabled,
+    reconnectInterval: 5000,
+    maxReconnectAttempts: 10,
+  });
 
   // Filter state
   const [filters, setFilters] = useState<TokenListFilters>({
@@ -148,16 +162,16 @@ const TokenList: React.FC<TokenListProps> = ({
 
         switch (category) {
           case 'trending':
-            void 0 && ('📈 Calling getTrendingTokens');
-            response = await TokenService.getTrendingTokens(requestFilters);
+            void 0 && ('📈 Calling SolanaService.getTrendingTokens');
+            response = { data: await SolanaService.getTrendingTokens() };
             break;
           case 'volume':
-            void 0 && ('📊 Calling getTokensByVolume');
-            response = await TokenService.getTokensByVolume(requestFilters);
+            void 0 && ('📊 Calling SolanaService.getHighVolumeTokens');
+            response = { data: await SolanaService.getHighVolumeTokens() };
             break;
           case 'latest':
-            void 0 && ('🆕 Calling getLatestTokens');
-            response = await TokenService.getLatestTokens(requestFilters);
+            void 0 && ('🆕 Calling SolanaService.getNewTokens');
+            response = { data: await SolanaService.getNewTokens() };
             break;
           default:
             throw new Error('Invalid token category');
@@ -296,7 +310,7 @@ const TokenList: React.FC<TokenListProps> = ({
       try {
         // First check if user has trade config
         const configCheck = await checkTradeConfig();
-        
+
         if (!configCheck.hasConfig) {
           // Show trade config prompt
           setPendingBuyToken({ token: { mint: token.mint, symbol: token.symbol, name: token.symbol || 'Token', decimals: 6 }, pools: [] } as any);
@@ -405,9 +419,74 @@ const TokenList: React.FC<TokenListProps> = ({
     setFilters(newFilters);
     setHasMore(true);
 
-    // Fetch new data for the category
-    fetchTokens(newFilters);
+    // Initial fetch on mount or category change
   }, [category, limit, timeframe]);
+
+  // Initial fetch on mount or category change
+  useEffect(() => {
+    fetchTokens({ page: 1 });
+  }, [category, timeframe]);
+
+  // Subscribe to real-time new tokens (only for 'latest' category)
+  useEffect(() => {
+    if (category !== 'latest' || !isLiveEnabled || !pumpPortal.isConnected) {
+      return;
+    }
+
+    console.log('🔔 Subscribing to real-time new tokens...');
+
+    const unsubscribe = pumpPortal.subscribeNewTokens((newToken: PumpPortalNewToken) => {
+      console.log('🆕 New token received:', newToken);
+
+      // Transform PumpPortal token to DiscoveryItem
+      const token = {
+        name: newToken.name,
+        symbol: newToken.symbol,
+        mint: newToken.mint,
+        decimals: 6,
+        ...(newToken.uri && { uri: newToken.uri }),
+        ...(newToken.image && { image: newToken.image }),
+        ...(newToken.twitter && { twitter: newToken.twitter }),
+        ...(newToken.website && { website: newToken.website }),
+        createdOn: new Date(newToken.created_timestamp || Date.now()).toISOString(),
+      };
+
+      const discoveryItem: DiscoveryItem = {
+        token: token as any,
+        pools: [],
+        events: {},
+        risk: { isPumpFun: true },
+      };
+
+      // Prepend to token list (limit to maxTokensRef)
+      setTokens((prev) => {
+        const updated = [discoveryItem, ...prev];
+        if (updated.length > maxTokensRef.current) {
+          return updated.slice(0, maxTokensRef.current);
+        }
+        return updated;
+      });
+
+      // Increment new tokens counter for UI indication
+      setNewTokensCount((prev) => prev + 1);
+    });
+
+    return () => {
+      console.log('🔕 Unsubscribing from new tokens');
+      unsubscribe();
+    };
+  }, [category, isLiveEnabled, pumpPortal.isConnected, pumpPortal]);
+
+  // Toggle live mode
+  const toggleLiveMode = useCallback(() => {
+    if (!isLiveEnabled && category === 'latest') {
+      pumpPortal.connect();
+      setNewTokensCount(0);
+    } else if (isLiveEnabled) {
+      pumpPortal.disconnect();
+    }
+    setIsLiveEnabled((prev) => !prev);
+  }, [category, isLiveEnabled, pumpPortal]);
 
   // Re-fetch when fetchTokens function changes (but not on category change to avoid double fetch)
   useEffect(() => {
@@ -424,7 +503,7 @@ const TokenList: React.FC<TokenListProps> = ({
       const t = item.token;
       const primaryPool = item.pools && item.pools.length > 0 ? item.pools[0] : undefined;
       const isBuying = buyingTokens.has(t.mint);
-      
+
       // New horizontal card design matching the uploaded image
       return (
         <div
@@ -583,205 +662,158 @@ const TokenList: React.FC<TokenListProps> = ({
     [category, handleTokenClick, handleQuickBuy, buyingTokens]
   );
 
+  const getTimeframeText = (tf: string): string => {
+    const map: Record<string, string> = {
+      '5m': '5 minutes',
+      '15m': '15 minutes',
+      '30m': '30 minutes',
+      '1h': '1 hour',
+      '6h': '6 hours',
+      '12h': '12 hours',
+      '24h': '24 hours',
+      '7d': '7 days',
+      '30d': '30 days',
+    };
+    return map[tf] || tf;
+  };
+
   return (
     <div className={cn('space-y-6', className)}>
-      {/* Header */}
-      {(title || showFilters) && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          {title && (
-            <div className="flex items-center space-x-3">
-              {getCategoryIcon()}
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-                {description && (
-                  <p className="text-muted-foreground mt-1">{description}</p>
-                )}
-              </div>
+      filters.timeframe &&
+      ` (${getTimeframeText(filters.timeframe)})`}
+    </span>
+    </div >
+
+  <div>
+    {category === 'trending' && <span>Updated every 5 minutes</span>}
+    {category === 'volume' && <span>Real-time volume tracking</span>}
+    {category === 'latest' && <span>Newest tokens on Solana</span>}
+  </div>
+  </div >
+
+  {/* Loading State */ }
+{
+  isLoading(`tokens-${category}`) && tokens.length === 0 && (
+    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="bg-background rounded-lg border border-border p-6 animate-pulse"
+        >
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-12 h-12 bg-muted rounded-full"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-muted rounded mb-2"></div>
+              <div className="h-3 bg-muted rounded w-2/3"></div>
             </div>
-          )}
-
-          {showFilters && (
-            <div className="flex items-center space-x-3">
-              {/* Timeframe selector for trending and volume */}
-              {(category === 'trending' || category === 'volume') && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">
-                    Timeframe:
-                  </span>
-                  <select
-                    value={filters.timeframe}
-                    onChange={e =>
-                      handleFilterChange({ timeframe: e.target.value as any })
-                    }
-                    className="px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-                  >
-                    <option value="5m">5 minutes</option>
-                    <option value="15m">15 minutes</option>
-                    <option value="30m">30 minutes</option>
-                    <option value="1h">1 hour</option>
-                    <option value="6h">6 hours</option>
-                    <option value="12h">12 hours</option>
-                    <option value="24h">24 hours</option>
-                    <option value="7d">7 days</option>
-                    <option value="30d">30 days</option>
-                  </select>
-                </div>
-              )}
-
-              <select
-                value={filters.sortBy}
-                onChange={e =>
-                  handleFilterChange({ sortBy: e.target.value as any })
-                }
-                className="px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-              >
-                <option value="marketCap">Market Cap</option>
-                <option value="volume">Volume</option>
-                <option value="price">Price</option>
-                <option value="liquidity">Liquidity</option>
-                <option value="name">Name</option>
-                {category === 'latest' && (
-                  <option value="createdAt">Creation Date</option>
-                )}
-              </select>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <div>
-          <span>
-            {isLoading(`tokens-${category}`)
-              ? 'Loading...'
-              : `${filteredTokens.length} tokens found`}
-            {(category === 'trending' || category === 'volume') &&
-              filters.timeframe &&
-              ` (${getTimeframeText(filters.timeframe)})`}
-          </span>
-        </div>
-
-        <div>
-          {category === 'trending' && <span>Updated every 5 minutes</span>}
-          {category === 'volume' && <span>Real-time volume tracking</span>}
-          {category === 'latest' && <span>Newest tokens on Solana</span>}
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {isLoading(`tokens-${category}`) && tokens.length === 0 && (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-background rounded-lg border border-border p-6 animate-pulse"
-            >
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-12 h-12 bg-muted rounded-full"></div>
-                <div className="flex-1">
-                  <div className="h-4 bg-muted rounded mb-2"></div>
-                  <div className="h-3 bg-muted rounded w-2/3"></div>
-                </div>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+            {Array.from({ length: 3 }).map((_, j) => (
+              <div key={j}>
+                <div className="h-3 bg-muted rounded mb-1"></div>
+                <div className="h-4 bg-muted rounded"></div>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                {Array.from({ length: 3 }).map((_, j) => (
-                  <div key={j}>
-                    <div className="h-3 bg-muted rounded mb-1"></div>
-                    <div className="h-4 bg-muted rounded"></div>
-                  </div>
-                ))}
-              </div>
-              <div className="h-8 bg-muted rounded"></div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <div className="h-8 bg-muted rounded"></div>
         </div>
-      )}
+      ))}
+    </div>
+  )
+}
 
-      {/* Token Grid */}
-      {filteredTokens.length > 0 && (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {filteredTokens.map(renderTokenCard)}
-        </div>
-      )}
+{/* Token Grid */ }
+{
+  filteredTokens.length > 0 && (
+    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {filteredTokens.map(renderTokenCard)}
+    </div>
+  )
+}
 
-      {/* Load More */}
-      {hasMore && filteredTokens.length > 0 && (
-        <div className="flex justify-center">
-          <Button
-            onClick={handleLoadMore}
-            disabled={isLoading(`tokens-${category}`)}
-            className="px-6 py-3"
-          >
-            {isLoading(`tokens-${category}`) && (
-              <svg
-                className="animate-spin h-4 w-4 mr-2"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-            )}
-            {isLoading(`tokens-${category}`)
-              ? 'Loading...'
-              : 'Load More Tokens'}
-          </Button>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {filteredTokens.length === 0 && !isLoading(`tokens-${category}`) && (
-        <div className="text-center py-12">
+{/* Load More */ }
+{
+  hasMore && filteredTokens.length > 0 && (
+    <div className="flex justify-center">
+      <Button
+        onClick={handleLoadMore}
+        disabled={isLoading(`tokens-${category}`)}
+        className="px-6 py-3"
+      >
+        {isLoading(`tokens-${category}`) && (
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="animate-spin h-4 w-4 mr-2"
             fill="none"
-            stroke="currentColor"
             viewBox="0 0 24 24"
           >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
             <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-            No tokens found
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Try adjusting your filters or check back later.
-          </p>
-        </div>
-      )}
-
-      {/* Token Detail Modal */}
-      {selectedToken && (
-        <TokenDetailModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          tokenData={selectedToken}
-        />
-      )}
-
-      {/* Trade Config Prompt */}
-      <TradeConfigPrompt
-        isOpen={showTradeConfigPrompt}
-        onClose={handleTradeConfigPromptClose}
-        tokenSymbol={pendingBuyToken?.token?.symbol || pendingBuyToken?.token?.name}
-      />
+        )}
+        {isLoading(`tokens-${category}`)
+          ? 'Loading...'
+          : 'Load More Tokens'}
+      </Button>
     </div>
+  )
+}
+
+{/* Empty State */ }
+{
+  filteredTokens.length === 0 && !isLoading(`tokens-${category}`) && (
+    <div className="text-center py-12">
+      <svg
+        className="mx-auto h-12 w-12 text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+        />
+      </svg>
+      <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+        No tokens found
+      </h3>
+      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Try adjusting your filters or check back later.
+      </p>
+    </div>
+  )
+}
+
+{/* Token Detail Modal */ }
+{
+  selectedToken && (
+    <TokenDetailModal
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      tokenData={selectedToken}
+    />
+  )
+}
+
+{/* Trade Config Prompt */ }
+<TradeConfigPrompt
+  isOpen={showTradeConfigPrompt}
+  onClose={handleTradeConfigPromptClose}
+  tokenSymbol={pendingBuyToken?.token?.symbol || pendingBuyToken?.token?.name}
+/>
+    </div >
   );
 };
 

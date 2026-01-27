@@ -319,6 +319,18 @@ export const useEnhancedWebSocket = (
         }
       });
 
+      // User Events (PnL, Trade Status)
+      socket.on('user_event', (event: any) => {
+          // Dispatch global event for components to listen to
+          // This allows OpenPositions to react without direct socket dependency if needed,
+          // though using socket directly is better.
+          // For now, we mainly rely on components using the socket instance.
+          console.debug('User Event:', event);
+          
+          // Emit a custom event for decoupling
+          window.dispatchEvent(new CustomEvent('kolplay_user_event', { detail: event }));
+      });
+
       // Enhanced connection monitoring events
       socket.on(
         'connection_quality_update',

@@ -25,6 +25,120 @@ const JUPITER_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const priceCache = new Map<string, { price: number; timestamp: number }>();
 const PRICE_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
+// Cache for trending tokens
+const trendingTokensCache = {
+  data: [] as any[],
+  timestamp: 0,
+  duration: 5 * 60 * 1000 // 5 minutes
+};
+
+// Cache for high volume tokens
+const highVolumeTokensCache = {
+  data: [] as any[],
+  timestamp: 0,
+  duration: 5 * 60 * 1000 // 5 minutes
+};
+
+// Cache for new tokens
+const newTokensCache = {
+  data: [] as any[],
+  timestamp: 0,
+  duration: 1 * 60 * 1000 // 1 minute
+};
+
+interface JupiterToken {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  logoURI: string;
+  tags: string[];
+  daily_volume?: number;
+}
+
+interface GeckoPool {
+  id: string;
+  type: string;
+  attributes: {
+    address: string;
+    name: string;
+    pool_created_at: string;
+    base_token_price_usd: string;
+    quote_token_price_usd: string;
+    reserve_in_usd: string;
+    volume_usd: {
+      h24: string;
+    };
+    price_change_percentage: {
+      h1: string;
+      h24: string;
+    };
+  };
+  relationships: {
+    base_token: {
+      data: {
+        id: string; // network_address
+      };
+    };
+    quote_token: {
+      data: {
+        id: string;
+      };
+    };
+  };
+}
+
+interface DexScreenerPair {
+  chainId: string;
+  dexId: string;
+  url: string;
+  pairAddress: string;
+  baseToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  quoteToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  priceNative: string;
+  priceUsd: string;
+  txns: {
+    m5: { buys: number; sells: number };
+    h1: { buys: number; sells: number };
+    h6: { buys: number; sells: number };
+    h24: { buys: number; sells: number };
+  };
+  volume: {
+    h24: number;
+    h6: number;
+    h1: number;
+    m5: number;
+  };
+  priceChange: {
+    m5: number;
+    h1: number;
+    h6: number;
+    h24: number;
+  };
+  liquidity: {
+    usd: number;
+    base: number;
+    quote: number;
+  };
+  fdv: number;
+  marketCap: number;
+  pairCreatedAt: number;
+  info: {
+    imageUrl: string;
+    websites: { label: string; url: string }[];
+    socials: { type: string; url: string }[];
+  };
+}
+
+
 /**
  * Fetch Jupiter token list with caching
  * @returns Promise<Map<string, any>> - Map of token addresses to token data
@@ -102,7 +216,8 @@ async function fetchJupiterTokenList(): Promise<Map<string, any>> {
 }
 
 /**
- * Fetch token prices from Jupiter Price API V3
+ * Fetch token prices from Jupiter Price API V2
+ * Note: This API now requires authentication and may return 401
  * @param mintAddresses - Array of mint addresses to get prices for
  * @returns Promise<Map<string, number>> - Map of mint address to USD price
  */
@@ -114,11 +229,16 @@ async function fetchJupiterPrices(mintAddresses: string[]): Promise<Map<string, 
   }
 
   try {
-    // Jupiter Price API V3 - supports batch requests
+    // Jupiter Price API V2 - supports batch requests but requires auth
     const mints = mintAddresses.join(',');
     const response = await fetch(`https://api.jup.ag/price/v2?ids=${mints}`);
     
     if (!response.ok) {
+      // 401 means authentication required - skip silently
+      if (response.status === 401) {
+        console.log('Jupiter Price API requires authentication, skipping price fetch');
+        return priceMap;
+      }
       console.warn(`Jupiter Price API returned ${response.status}: ${response.statusText}`);
       return priceMap;
     }
@@ -136,7 +256,7 @@ async function fetchJupiterPrices(mintAddresses: string[]): Promise<Map<string, 
       }
     }
     
-    void 0 && (`✅ Fetched ${priceMap.size} prices from Jupiter API`);
+    console.log(`✅ Fetched ${priceMap.size} prices from Jupiter API`);
     return priceMap;
   } catch (error) {
     console.warn('Failed to fetch prices from Jupiter API:', error);
@@ -953,7 +1073,257 @@ export class SolanaService {
       throw new Error(`Failed to fetch wallet balance with enriched tokens: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  /**
+   * Get trending tokens using existing Jupiter token list cache
+   * Falls back to Solana Token Registry
+   */
+  static async getTrendingTokens(): Promise<any[]> {
+    try {
+      const now = Date.now();
+      if (trendingTokensCache.data.length > 0 && (now - trendingTokensCache.timestamp) < trendingTokensCache.duration) {
+        return trendingTokensCache.data;
+      }
+
+      console.log('🔄 Fetching trending tokens...');
+      
+      // Try to use the existing Jupiter token list function
+      try {
+        const jupiterMap = await fetchJupiterTokenList();
+        if (jupiterMap && jupiterMap.size > 0) {
+          // Convert map to array and take first 100
+          const tokens = Array.from(jupiterMap.entries())
+            .slice(0, 100)
+            .map(([address, token]) => ({
+              name: token.name,
+              symbol: token.symbol,
+              mint: address,
+              decimals: token.decimals,
+              image: token.logoURI,
+              logoURI: token.logoURI,
+              tags: ['verified'],
+              priceUsd: 0,
+              risk: { jupiterVerified: true }
+            }));
+
+          if (tokens.length > 0) {
+            trendingTokensCache.data = tokens;
+            trendingTokensCache.timestamp = now;
+            console.log(`✅ Fetched ${tokens.length} tokens from Jupiter cache`);
+            return tokens;
+          }
+        }
+      } catch (jupiterError) {
+        console.warn('Jupiter token list failed, trying SPL Token Registry:', jupiterError);
+      }
+
+      // Fallback to SPL Token Registry
+      try {
+        const tokenListContainer = await new TokenListProvider().resolve();
+        const tokenList = tokenListContainer
+          .filterByClusterSlug('mainnet-beta')
+          .getList();
+
+        const tokens = tokenList
+          .filter(t => t.address && t.symbol && t.name)
+          .slice(0, 100)
+          .map(token => ({
+            name: token.name,
+            symbol: token.symbol,
+            mint: token.address,
+            decimals: token.decimals,
+            image: token.logoURI || '',
+            logoURI: token.logoURI || '',
+            tags: token.tags || [],
+            priceUsd: 0,
+            risk: { tokenRegistry: true }
+          }));
+
+        trendingTokensCache.data = tokens;
+        trendingTokensCache.timestamp = now;
+        console.log(`✅ Fetched ${tokens.length} tokens from SPL Token Registry`);
+        return tokens;
+      } catch (registryError) {
+        console.error('SPL Token Registry failed:', registryError);
+        return [];
+      }
+    } catch (error) {
+      console.error('Failed to get trending tokens:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get high volume tokens/pools from GeckoTerminal
+   * Limited to ~30 req/min
+   */
+  static async getHighVolumeTokens(): Promise<any[]> {
+    try {
+      const now = Date.now();
+      if (highVolumeTokensCache.data.length > 0 && (now - highVolumeTokensCache.timestamp) < highVolumeTokensCache.duration) {
+        return highVolumeTokensCache.data;
+      }
+
+      void 0 && ('🔄 Fetching high volume pools from GeckoTerminal...');
+      // Fetch trending pools on Solana
+      const response = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/trending_pools?include=base_token,quote_token');
+      
+      if (!response.ok) {
+        console.warn(`GeckoTerminal API returned ${response.status}`);
+        return [];
+      }
+
+      const data = await response.json();
+      const pools: GeckoPool[] = data.data;
+
+      // Transform to standardized format
+      const transformed = pools.map(pool => {
+        const attr = pool.attributes;
+        // Try to find the mint address from relationships if possible, 
+        // otherwise we might need to rely on the pool address or extended data
+        // For GeckoTerminal, relationships.base_token.data.id contains the token address usually
+        const mint = pool.relationships?.base_token?.data?.id; // This is usually "network_tokenaddress"
+
+        return {
+          name: attr.name,
+          symbol: attr.name.split('/')[0]?.trim() || 'Unknown',
+          mint: mint?.replace('solana_', '') || '', // Remove network prefix if present
+          decimals: 6, // Default
+          priceUsd: parseFloat(attr.base_token_price_usd || '0'),
+          liquidityUsd: parseFloat(attr.reserve_in_usd || '0'),
+          marketCapUsd: 0, // Not always available directly in this endpoint
+          volume_24h: parseFloat(attr.volume_usd?.h24 || '0'),
+          poolAddress: attr.address,
+          createdOn: attr.pool_created_at,
+          events: {
+            priceChange: {
+              h1: parseFloat(attr.price_change_percentage?.h1 || '0'),
+              h24: parseFloat(attr.price_change_percentage?.h24 || '0'),
+            }
+          }
+        };
+      }).filter(t => t.mint); // Filter out any where we couldn't parse mint
+
+      // Update cache
+      highVolumeTokensCache.data = transformed;
+      highVolumeTokensCache.timestamp = now;
+
+      return transformed;
+    } catch (error) {
+      console.error('Failed to get high volume tokens:', error);
+      return [];
+    }
+  }
+
+
+  /**
+   * Get new tokens from PumpPortal and GeckoTerminal
+   * PumpPortal tracks Pump.fun launches in real-time
+   */
+  static async getNewTokens(): Promise<any[]> {
+    try {
+      const now = Date.now();
+      if (newTokensCache.data.length > 0 && (now - newTokensCache.timestamp) < newTokensCache.duration) {
+        return newTokensCache.data;
+      }
+
+      console.log('🔄 Fetching new tokens from PumpPortal...');
+      
+      // Try PumpPortal API first (best for new Pump.fun tokens)
+      try {
+        const response = await fetch('https://pumpportal.fun/api/data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'getNewTokens',
+            limit: 100
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (Array.isArray(data) && data.length > 0) {
+            const transformed = data.map((token: any) => ({
+              name: token.name || token.symbol,
+              symbol: token.symbol,
+              mint: token.mint || token.address,
+              image: token.image || token.uri,
+              decimals: token.decimals || 6,
+              priceUsd: parseFloat(token.priceUsd || token.price || '0'),
+              liquidityUsd: parseFloat(token.liquidityUsd || '0'),
+              marketCapUsd: parseFloat(token.marketCap || token.fdv || '0'),
+              createdOn: token.created_timestamp || token.timestamp || Date.now(),
+              isPumpFun: true,
+              tags: ['pump.fun', 'new']
+            }));
+
+            newTokensCache.data = transformed;
+            newTokensCache.timestamp = now;
+            console.log(`✅ Fetched ${transformed.length} new tokens from PumpPortal`);
+            return transformed;
+          }
+        }
+      } catch (pumpError) {
+        console.warn('PumpPortal API failed, trying GeckoTerminal:', pumpError);
+      }
+
+      // Fallback to GeckoTerminal new pools
+      try {
+        const response = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/new_pools?page=1');
+        
+        if (response.ok) {
+          const data = await response.json();
+          const pools = data.data || [];
+
+          if (pools.length > 0) {
+            const transformed = pools.slice(0, 100).map((pool: any) => {
+              const attr = pool.attributes;
+              const mint = pool.relationships?.base_token?.data?.id?.replace('solana_', '');
+
+              return {
+                name: attr.name,
+                symbol: attr.name.split('/')[0]?.trim() || 'Unknown',
+                mint: mint || '',
+                decimals: 6,
+                priceUsd: parseFloat(attr.base_token_price_usd || '0'),
+                liquidityUsd: parseFloat(attr.reserve_in_usd || '0'),
+                marketCapUsd: 0,
+                volume_24h: parseFloat(attr.volume_usd?.h24 || '0'),
+                poolAddress: attr.address,
+                createdOn: attr.pool_created_at,
+                events: {
+                  priceChange: {
+                    h1: parseFloat(attr.price_change_percentage?.h1 || '0'),
+                    h24: parseFloat(attr.price_change_percentage?.h24 || '0'),
+                  }
+                },
+                tags: ['new-pool']
+              };
+            }).filter((t: any) => t.mint);
+
+            newTokensCache.data = transformed;
+            newTokensCache.timestamp = now;
+            console.log(`✅ Fetched ${transformed.length} new tokens from GeckoTerminal`);
+            return transformed;
+          }
+        }
+      } catch (geckoError) {
+        console.warn('GeckoTerminal new pools failed:', geckoError);
+      }
+
+      console.warn('All new token APIs failed, returning empty list');
+      return [];
+    } catch (error) {
+      console.error('Failed to get new tokens:', error);
+      return [];
+    }
+  }
 }
+
+
 
 export default SolanaService; 
 

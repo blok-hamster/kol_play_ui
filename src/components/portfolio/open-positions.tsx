@@ -3,10 +3,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  TrendingUp,
   Clock,
   Target,
-  Shield,
   RefreshCw,
   AlertCircle,
   ChevronDown,
@@ -14,10 +12,13 @@ import {
 import { PortfolioService } from '@/services/portfolio.service';
 import { SolanaService } from '@/services/solana.service';
 import { useNotifications } from '@/stores/use-ui-store';
+import AuthService from '@/services/auth.service';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
+import { useEnhancedWebSocket } from '@/hooks/use-enhanced-websocket';
 import {
   formatCurrency,
   formatPercentage,
+  safeFormatAmount,
   cn,
 } from '@/lib/utils';
 import type { TradeHistoryEntry } from '@/types';
@@ -41,9 +42,106 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [solPrice, setSolPrice] = useState<number>(0);
 
-  const { showError } = useNotifications();
+  const token = AuthService.getToken();
+  const { connect, disconnect } = useEnhancedWebSocket({
+    auth: {
+      token: token || undefined
+    }
+  });
 
-  // Fetch SOL price
+  // Connect WebSocket on mount (ONCE)
+  useEffect(() => {
+    console.log('🔌 [OpenPositions] Mounting and connecting WebSocket...');
+    connect();
+
+    return () => {
+      console.log('🔌 [OpenPositions] Unmounting and disconnecting...');
+      disconnect();
+    };
+  }, []); // Empty dependency array is CRITICAL to avoid loops
+
+  // Paper Balance State
+  const [paperBalance, setPaperBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  const { showError, showSuccess } = useNotifications();
+  const [sellingTradeId, setSellingTradeId] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+
+  // Helper: Fetch Balance
+  const fetchPaperBalance = async () => {
+    try {
+      setBalanceLoading(true);
+      setBalanceError(null);
+      const res = await PortfolioService.getPaperBalance();
+      console.log('💰 Paper Balance Response:', res);
+
+      if (res.data && res.data.SOL !== undefined) {
+        setPaperBalance(res.data.SOL);
+      } else {
+        // Fallback or just ignore if structure is weird, but log it
+        console.warn('Paper Balance response missing SOL key:', res.data);
+      }
+    } catch (e: any) {
+      console.error('Failed to fetch paper balance', e);
+      setBalanceError('Failed to load');
+      setPaperBalance(null);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  const handleResetPaper = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to reset your Paper Trading wallet to 100 SOL? This cannot be undone.')) return;
+
+    setIsResetting(true);
+    try {
+      await PortfolioService.resetPaperAccount();
+      showSuccess('Reset Successful', 'Paper wallet reset to 100 SOL.');
+      fetchPaperBalance();
+    } catch (err: any) {
+      showError('Reset Failed', err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleInstantSell = async (trade: TradeHistoryEntry) => {
+    try {
+      setSellingTradeId(trade.id);
+
+      // Calculate amount to sell (sell entire position)
+      // Note: In real scenarios, might want a modal to choose amount. For now: 100%.
+      const amountToSell = trade.entryAmount; // Or current token balance if tracked differently
+
+      await PortfolioService.performSwap({
+        tradeType: 'sell',
+        mint: trade.tokenMint,
+        amount: amountToSell, // Sell 100%
+        tradeId: trade.id,
+      });
+
+      showSuccess('Order Placed', `Sell order for ${trade.tokenMint.slice(0, 4)}... sent successfully.`);
+
+      // Optimistically remove from list or wait for refresh? 
+      // Waiting for refresh is safer for sync.
+      // But let's trigger a refresh after a short delay
+      setTimeout(() => {
+        fetchOpenTrades();
+        fetchPaperBalance();
+      }, 2000);
+
+    } catch (err: any) {
+      console.error('Failed to sell:', err);
+      showError('Sell Failed', err.message || 'Could not execute sell order');
+    } finally {
+      setSellingTradeId(null);
+    }
+  };
+
+  // Fetch SOL price & Paper Balance
   useEffect(() => {
     const fetchSolPrice = async () => {
       try {
@@ -54,6 +152,8 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
       }
     };
     fetchSolPrice();
+    // Intentionally delay balance fetch slightly to let auth settle if needed
+    setTimeout(fetchPaperBalance, 500);
   }, []);
 
   // Token lazy loading for metadata
@@ -70,14 +170,22 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
 
       const response = await PortfolioService.getOpenTrades();
       const trades = response.data || [];
+      console.log('📥 [API] Initial trades:', { count: trades.length, firstTrade: trades[0] });
 
-      setOpenTrades(trades);
+      // Dedup trades based on ID
+      const uniqueTrades = Array.from(new Map(trades.map((t: TradeHistoryEntry) => [t.id, t])).values());
+
+      setOpenTrades(uniqueTrades as TradeHistoryEntry[]);
 
       // Load token metadata
       const tokenMints = trades.map(trade => trade.tokenMint).filter(Boolean);
       if (tokenMints.length > 0) {
         loadTokens(tokenMints);
       }
+
+      // Also refresh balance when trades update
+      fetchPaperBalance();
+
     } catch (err: any) {
       console.error('Failed to fetch open trades:', err);
       setError(err.message || 'Failed to load open positions');
@@ -91,14 +199,118 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
     fetchOpenTrades();
   }, []);
 
+  // Listen for Real-Time Updates
+  useEffect(() => {
+    console.log('🔌 [WebSocket] Setting up event listener for kolplay_user_event');
+
+    const handleUserEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const event = customEvent.detail;
+
+      if (!event || !event.type) return;
+
+      console.log('📡 [WebSocket] Event received:', event.type);
+      console.log('📊 [WebSocket] Full data:', JSON.stringify(event.data, null, 2));
+
+      if (event.type === 'POSITION_UPDATE') {
+        const { tradeId, pnl, pnlPercent, currentPrice } = event.data;
+        console.log(`🔄 [POSITION_UPDATE] Detailed:`, {
+          tradeId,
+          pnl,
+          pnlPercent,
+          currentPrice,
+          dataType: typeof currentPrice
+        });
+        setOpenTrades(prev => prev.map(t => {
+          if (t.id === tradeId || t.originalTradeId === tradeId) {
+            console.log(`✅ [POSITION_UPDATE] Matched trade ${tradeId}! Updating from:`, {
+              oldPrice: t.currentPrice,
+              newPrice: currentPrice,
+              oldPnL: t.unrealizedPnL,
+              newPnL: pnl
+            });
+            return {
+              ...t,
+              currentPrice: currentPrice,
+              unrealizedPnL: pnl, // Backend sends absolute PnL
+              unrealizedPnLPercentage: pnlPercent,
+              // Note: enrichedTrades will recalculate based on these
+            };
+          }
+          return t;
+        }));
+      } else if (event.type === 'TRADE_OPENED') {
+        // Add new trade to list from WebSocket (real-time)
+        const { trade } = event.data;
+        console.log(`✨ [TRADE_OPENED] Trade details:`, {
+          id: trade.id,
+          tokenMint: trade.tokenMint,
+          entryPrice: trade.entryPrice,
+          currentPrice: trade.currentPrice,
+          entryAmount: trade.entryAmount
+        });
+
+        // Check if trade already exists to prevent duplicates
+        setOpenTrades(prev => {
+          const exists = prev.some(t => t.id === trade.id);
+          if (exists) {
+            console.log(`  Trade ${trade.id} already in list, skipping`);
+            return prev;
+          }
+
+          // Add new trade to the beginning of the list
+          const newTrade: TradeHistoryEntry = {
+            ...trade,
+            openedAt: new Date(trade.openedAt), // Convert string to Date
+          };
+
+          return [newTrade, ...prev];
+        });
+
+        // Load token metadata for the new trade
+        if (trade.tokenMint) {
+          loadTokens([trade.tokenMint]);
+        }
+
+        // Refresh balance
+        fetchPaperBalance();
+
+      } else if (event.type === 'POSITION_CLOSED') {
+        const { tradeId } = event.data;
+        console.log(`🔒 [POSITION_CLOSED] Removing trade:`, tradeId);
+        setOpenTrades(prev => {
+          const before = prev.length;
+          const filtered = prev.filter(t => t.id !== tradeId && t.originalTradeId !== tradeId);
+          console.log(`   ✅ Removed. Trades: ${before} → ${filtered.length}`);
+          return filtered;
+        });
+        showSuccess('Position Closed', 'Trade closed successfully via automation.');
+        fetchPaperBalance();
+      } else if (event.type === 'TRADE_SUBMITTED') {
+        // Optional: Refresh list or add optimistic trade
+        // For now, let's just refresh to be safe and avoid "double calling" logic
+        // fetchOpenTrades(); 
+        // But simpler to ignore if we trust fetchOpenTrades works on mount
+        setTimeout(fetchPaperBalance, 1000);
+      }
+    };
+
+    window.addEventListener('kolplay_user_event', handleUserEvent);
+    return () => window.removeEventListener('kolplay_user_event', handleUserEvent);
+  }, []);
+
   // Calculate unrealized P&L and enrich with token data
   const enrichedTrades = useMemo(() => {
     return openTrades.map(trade => {
       const tokenDetail = getToken(trade.tokenMint);
+
+      // Use values directly from trade if updated via WebSocket, otherwise calculate
       const currentPrice = trade.currentPrice || trade.entryPrice;
-      const currentValue = trade.entryAmount * currentPrice;
-      const unrealizedPnL = currentValue - trade.entryValue;
-      const unrealizedPnLPercentage = (unrealizedPnL / trade.entryValue) * 100;
+      const currentValue = trade.currentValue || (trade.entryAmount * currentPrice);
+
+      // Prioritize the PnL from the backend/WebSocket as it's the source of truth
+      const unrealizedPnL = trade.unrealizedPnL !== undefined ? trade.unrealizedPnL : (currentValue - trade.entryValue);
+      const unrealizedPnLPercentage = trade.unrealizedPnLPercentage !== undefined ? trade.unrealizedPnLPercentage : ((unrealizedPnL / trade.entryValue) * 100);
 
       // Calculate hold time
       const openedAt = new Date(trade.openedAt);
@@ -127,6 +339,66 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
   }, [openTrades, tokenDetails]);
 
   const displayedTrades = limit ? enrichedTrades.slice(0, limit) : enrichedTrades;
+
+  // Header Logic
+  const renderHeader = () => (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+        >
+          <h3 className="text-lg font-semibold text-foreground">
+            Open Positions
+            <span className="ml-2 text-sm text-muted-foreground font-normal">
+              ({displayedTrades.length})
+            </span>
+          </h3>
+          <ChevronDown
+            className={cn(
+              'h-5 w-5 text-muted-foreground transition-transform',
+              isExpanded && 'rotate-180'
+            )}
+          />
+        </button>
+
+        <div className="flex items-center space-x-2 bg-muted/30 px-2 py-1 rounded-md border border-border/50">
+          <span className="text-xs font-medium text-muted-foreground">
+            Paper Bal: <span className="text-foreground font-bold">
+              {balanceLoading ? (
+                <RefreshCw className="h-3 w-3 animate-spin inline ml-1" />
+              ) : paperBalance !== null ? (
+                formatCurrency(paperBalance)
+              ) : balanceError ? (
+                <span className="text-destructive">Err</span>
+              ) : (
+                '...'
+              )}
+            </span>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetPaper}
+            disabled={isResetting || balanceLoading}
+            className="h-5 px-1.5 text-[10px] hover:bg-muted"
+            title="Reset Paper Wallet to 100 SOL"
+          >
+            {isResetting ? <RefreshCw className="h-3 w-3 animate-spin" /> : 'Reset'}
+          </Button>
+        </div>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => { fetchOpenTrades(); fetchPaperBalance(); }}
+        className="text-muted-foreground hover:text-foreground"
+      >
+        <RefreshCw className="h-4 w-4 mr-2" />
+        Refresh
+      </Button>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -181,45 +453,19 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
 
   if (displayedTrades.length === 0) {
     return (
-      <div className="text-center py-6">
-        <Target className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">No open positions</p>
+      <div className="space-y-2">
+        {showHeader && renderHeader()}
+        <div className="text-center py-6">
+          <Target className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">No open positions</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      {showHeader && (
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
-          >
-            <h3 className="text-lg font-semibold text-foreground">
-              Open Positions
-              <span className="ml-2 text-sm text-muted-foreground font-normal">
-                ({displayedTrades.length})
-              </span>
-            </h3>
-            <ChevronDown
-              className={cn(
-                'h-5 w-5 text-muted-foreground transition-transform',
-                isExpanded && 'rotate-180'
-              )}
-            />
-          </button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchOpenTrades}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      )}
+      {showHeader && renderHeader()}
 
       {isExpanded && (
         <div className="space-y-1">
@@ -270,13 +516,16 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                      <span>{formatCurrency(trade.entryPrice)} → {formatCurrency(trade.currentPrice)}</span>
+                    <div className="flex items-center space-x-2 text-xs text-muted-foreground font-mono">
+                      <span>${(trade.entryPrice || 0).toFixed(8)} → ${(trade.currentPrice || 0).toFixed(8)}</span>
                       <span>•</span>
                       <span className="flex items-center">
                         <Clock className="w-3 h-3 mr-1" />
                         {trade.holdTime}
                       </span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-0.5 font-mono">
+                      <span>Val: {safeFormatAmount(trade.entryValue, 4)} SOL → {safeFormatAmount(trade.currentValue || (trade.entryAmount * (trade.currentPrice || trade.entryPrice)), 4)} SOL</span>
                     </div>
                   </div>
                 </div>
@@ -295,30 +544,50 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
                   )}
                 </div>
 
-                {/* Right: P&L */}
-                <div className="text-right flex-shrink-0">
-                  <div
-                    className={cn(
-                      'text-sm font-bold',
-                      trade.unrealizedPnL >= 0
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-red-600 dark:text-red-400'
-                    )}
-                  >
-                    {trade.unrealizedPnL >= 0 ? '+' : ''}
-                    {formatCurrency(trade.unrealizedPnL * solPrice)}
+                {/* Right: P&L & Actions */}
+                <div className="text-right flex-shrink-0 flex items-center gap-3">
+                  <div>
+                    <div
+                      className={cn(
+                        'text-sm font-bold',
+                        trade.unrealizedPnL >= 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      )}
+                    >
+                      {trade.unrealizedPnL >= 0 ? '+' : ''}
+                      {formatCurrency(trade.unrealizedPnL * solPrice)}
+                    </div>
+                    <div
+                      className={cn(
+                        'text-xs',
+                        trade.unrealizedPnL >= 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      )}
+                    >
+                      {trade.unrealizedPnL >= 0 ? '+' : ''}
+                      {formatPercentage(trade.unrealizedPnLPercentage)}
+                    </div>
                   </div>
-                  <div
-                    className={cn(
-                      'text-xs',
-                      trade.unrealizedPnL >= 0
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-red-600 dark:text-red-400'
-                    )}
+
+                  {/* Sell Button */}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-8 px-3"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent row click
+                      handleInstantSell(trade);
+                    }}
+                    disabled={sellingTradeId === trade.id}
                   >
-                    {trade.unrealizedPnL >= 0 ? '+' : ''}
-                    {formatPercentage(trade.unrealizedPnLPercentage)}
-                  </div>
+                    {sellingTradeId === trade.id ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      "Sell"
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>

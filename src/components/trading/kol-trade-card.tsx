@@ -5,10 +5,10 @@ import { formatDistanceToNow } from 'date-fns';
 import { formatCurrency, formatWalletAddress, cn, safeFormatAmount, safeToFixed } from '@/lib/utils';
 import { KOLTrade as SocketKOLTrade } from '@/hooks/use-kol-trade-socket';
 import { KOLTrade as TypesKOLTrade } from '@/types';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Users, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
   ExternalLink,
   Copy,
   Clock,
@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '@/stores/use-ui-store';
 import { Button } from '@/components/ui/button';
-import { useKOLStore } from '@/stores';
+import { useKOLStore, useSubscriptions } from '@/stores';
 import type { KOLWallet } from '@/types';
 
 // Local helpers to derive Twitter avatar URL similar to other components
@@ -77,17 +77,18 @@ interface KOLTradeCardProps {
   compact?: boolean;
 }
 
-export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({ 
-  trade, 
+export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
+  trade,
   onClick,
   className,
   variant = 'card',
   hideKOLInfo = false,
   compact = false
 }) => {
-  
+
   const { showSuccess, showError } = useNotifications();
   const { getKOL } = useKOLStore();
+  const { isSubscribedToKOL, subscriptions } = useSubscriptions();
 
   // Helper function to check if trade has nested tradeData structure
   const hasNestedTradeData = (trade: KOLTradeUnion): trade is SocketKOLTrade => {
@@ -188,17 +189,17 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   // Helper function to get the correct display amounts based on trade type
   const getTradeAmounts = (tradeData: any) => {
     const isBuy = (tradeData.tradeType ?? 'sell') === 'buy';
-    
+
     // Convert lamports to SOL if needed (amounts > 1000000 are likely in lamports)
     const convertIfLamports = (amount: number) => {
       if (typeof amount !== 'number' || isNaN(amount)) return 0;
       return amount > 1000000 ? amount / 1_000_000_000 : amount;
     };
-    
+
     // Based on the WebSocket data structure:
     // Sell: tokenIn=SOL, tokenOut=token, amountIn=SOL_received, amountOut=tokens_sold
     // Buy: tokenIn=SOL, tokenOut=token, amountIn=SOL_spent, amountOut=tokens_bought
-    
+
     if (isBuy) {
       // For buy trades: amountIn = SOL spent, amountOut = tokens bought
       return {
@@ -253,7 +254,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
       };
     }
   }, [tradeData]);
-  
+
   // Convert fee from lamports to SOL if it exists
   const feeInSol = React.useMemo(() => {
     return tradeData.fee ? lamportsToSol(tradeData.fee) : 0;
@@ -261,7 +262,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
 
   // Get the prediction from the extracted trade data
   const prediction = tradeData.prediction;
-  
+
   // Only show prediction for buy trades
   const shouldShowPrediction = prediction && (tradeData.tradeType === 'buy');
 
@@ -287,7 +288,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     return { level: 'New', color: 'bg-gray-500', textColor: 'text-gray-500' };
   };
 
-  const influence = React.useMemo(() => 
+  const influence = React.useMemo(() =>
     additionalData.mindmapContribution ? getInfluenceLevel(additionalData.mindmapContribution.kolInfluenceScore) : null,
     [additionalData.mindmapContribution]
   );
@@ -299,11 +300,17 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   }, [trade, kolWallet, getKOL]);
 
   const displayName = React.useMemo(() => {
+    // Check if we have a custom label from subscription
+    const subscription = subscriptions.find(s => s.kolWallet === kolWallet);
+    if (subscription?.label && subscription.label !== kolWallet) {
+      return subscription.label;
+    }
+
     const nameFromStore = kolDetails?.name;
     const nameFromTrade = (trade as any)?.kolName as string | undefined;
     return nameFromStore || nameFromTrade || `KOL ${formatWalletAddress(kolWallet)}`;
-  }, [kolDetails, trade, kolWallet]);
- 
+  }, [kolDetails, trade, kolWallet, subscriptions]);
+
   const avatarUrl = React.useMemo(() => {
     const avatarFromTrade = (trade as any)?.kolAvatar as string | undefined;
     const storeAvatar = kolDetails?.avatar;
@@ -311,9 +318,9 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     if (storeAvatar && storeAvatar.trim().length > 0) return storeAvatar;
     const twitterHelperArg = kolDetails
       ? {
-          ...(kolDetails.socialLinks?.twitter ? { socialLinks: { twitter: kolDetails.socialLinks.twitter } } : {}),
-          ...(kolDetails.description ? { description: kolDetails.description } : {}),
-        }
+        ...(kolDetails.socialLinks?.twitter ? { socialLinks: { twitter: kolDetails.socialLinks.twitter } } : {}),
+        ...(kolDetails.description ? { description: kolDetails.description } : {}),
+      }
       : undefined;
     const twitterUrl = findTwitterUrlFromKOL(twitterHelperArg);
     const twitterAvatar = getTwitterAvatarUrl(twitterUrl, displayName || kolWallet);
@@ -361,7 +368,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     if (!classLabel) {
       return <Target className="w-3 h-3" />;
     }
-    
+
     switch (classLabel.toLowerCase()) {
       case 'bullish':
       case 'buy':
@@ -408,7 +415,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
                       if (name && symbol) return `${name} (${symbol})`;
                       if (name) return name;
                       if (symbol) return symbol;
-                      return tradeData.mint ? `${tradeData.mint.slice(0,6)}...${tradeData.mint.slice(-4)}` : 'Token';
+                      return tradeData.mint ? `${tradeData.mint.slice(0, 6)}...${tradeData.mint.slice(-4)}` : 'Token';
                     })()}
                   </span>
                 </div>
@@ -460,7 +467,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     }
 
     return (
-      <div 
+      <div
         className={cn(
           'bg-background border border-border rounded-lg p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer border-l-4',
           (tradeData.tradeType ?? 'sell') === 'buy' ? 'border-l-green-500' : 'border-l-red-500',
@@ -523,7 +530,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
                   if (name && symbol) return `${name} (${symbol})`;
                   if (name) return name;
                   if (symbol) return symbol;
-                  return tradeData.mint ? `${tradeData.mint.slice(0,6)}...${tradeData.mint.slice(-4)}` : 'Token';
+                  return tradeData.mint ? `${tradeData.mint.slice(0, 6)}...${tradeData.mint.slice(-4)}` : 'Token';
                 })()}
               </span>
             </div>
@@ -661,7 +668,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
                     if (name && symbol) return `${name} (${symbol})`;
                     if (name) return name;
                     if (symbol) return symbol;
-                    return tradeData.mint ? `${tradeData.mint.slice(0,8)}...${tradeData.mint.slice(-4)}` : 'Token';
+                    return tradeData.mint ? `${tradeData.mint.slice(0, 8)}...${tradeData.mint.slice(-4)}` : 'Token';
                   })()}
                 </span>
               </div>
@@ -790,7 +797,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
                 if (name && symbol) return `${name} (${symbol})`;
                 if (name) return name;
                 if (symbol) return symbol;
-                return tradeData.mint ? `${tradeData.mint.slice(0,6)}...${tradeData.mint.slice(-4)}` : 'Token';
+                return tradeData.mint ? `${tradeData.mint.slice(0, 6)}...${tradeData.mint.slice(-4)}` : 'Token';
               })()}
             </span>
           </div>
@@ -816,7 +823,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   }
 
   return (
-    <div 
+    <div
       className={cn(
         'bg-background border border-border rounded-lg p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group border-l-4',
         (tradeData.tradeType ?? 'sell') === 'buy' ? 'border-l-green-500' : 'border-l-red-500',

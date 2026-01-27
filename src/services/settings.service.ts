@@ -10,6 +10,7 @@ export interface UpdateSettingParams {
     minSpend?: number;
     maxSpend?: number;
     useWatchConfig?: boolean;
+    paperTrading?: boolean;
   };
   watchConfig: {
     takeProfitPercentage?: number;
@@ -48,6 +49,7 @@ export interface UpdateSettingParamsEditing {
     minSpend?: number | string;
     maxSpend?: number | string;
     useWatchConfig?: boolean;
+    paperTrading?: boolean;
   };
   watchConfig: {
     takeProfitPercentage?: number | string;

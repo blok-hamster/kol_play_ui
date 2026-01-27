@@ -10,6 +10,10 @@ import { isGoogleAuthDisabled } from '@/lib/feature-flags';
 
 export class OAuthService {
   /**
+   * Track codes currently being exchanged to prevent duplicate requests
+   */
+  static pendingExchanges: Set<string> = new Set();
+  /**
    * Get Google OAuth authorization URL
    */
   static async getGoogleAuthUrl(): Promise<{ url: string }> {
@@ -28,11 +32,20 @@ export class OAuthService {
   /**
    * Exchange Google authorization code for JWT token
    */
-  static async googleCallback(code: string): Promise<OAuthResponse> {
+  static async googleCallback(code: string, redirectUri?: string): Promise<OAuthResponse> {
+    // Prevent duplicate exchange for the same code
+    if (this.pendingExchanges.has(code)) {
+      console.warn('🔐 Code exchange already in progress for this code:', code);
+      return { success: false, error: 'Exchange already in progress' };
+    }
+
     try {
+      this.pendingExchanges.add(code);
+      console.log('🔐 Exchanging Google code:', { code, redirectUri });
+
       const response = await apiClient.post<
         AuthResponse['data'] & { isNewUser: boolean }
-      >(API_ENDPOINTS.OAUTH.GOOGLE_CALLBACK, { code });
+      >(API_ENDPOINTS.OAUTH.GOOGLE_CALLBACK, { code, redirectUri });
 
       // Set the token for future requests
       if (response.data.token) {
@@ -51,6 +64,8 @@ export class OAuthService {
         success: false,
         error: apiClient.handleError(error),
       };
+    } finally {
+      this.pendingExchanges.delete(code);
     }
   }
 
@@ -197,6 +212,9 @@ export class OAuthService {
               return;
             }
 
+            // Track the wrapped listener so we can remove it
+            let activeListener: any = null;
+
             // Listen for messages from popup
             const messageListener = (event: MessageEvent) => {
               console.log('🔐 Received message from popup:', event);
@@ -211,7 +229,7 @@ export class OAuthService {
 
               if (event.data.type === 'OAUTH_SUCCESS') {
                 console.log('🔐 OAuth success message received:', event.data);
-                window.removeEventListener('message', messageListener);
+                if (activeListener) window.removeEventListener('message', activeListener);
                 popup.close();
 
                 // Set the token immediately
@@ -227,25 +245,13 @@ export class OAuthService {
                 });
               } else if (event.data.type === 'OAUTH_CODE') {
                 console.log('🔐 OAuth code message received:', event.data);
-                window.removeEventListener('message', messageListener);
+                if (activeListener) window.removeEventListener('message', activeListener);
                 popup.close();
 
                 // Exchange the code for a token
-                this.googleCallback(event.data.code)
+                this.googleCallback(event.data.code, popupCallbackUrl)
                   .then(result => {
-                    if (result.success) {
-                      resolve({
-                        success: true,
-                        token: result.token,
-                        user: result.user,
-                        isNewUser: result.isNewUser,
-                      });
-                    } else {
-                      resolve({
-                        success: false,
-                        error: result.error || 'Failed to exchange OAuth code',
-                      });
-                    }
+                    resolve(result);
                   })
                   .catch(error => {
                     console.error('🔐 Failed to exchange OAuth code:', error);
@@ -256,7 +262,7 @@ export class OAuthService {
                   });
               } else if (event.data.type === 'OAUTH_ERROR') {
                 console.error('🔐 OAuth error message received:', event.data);
-                window.removeEventListener('message', messageListener);
+                if (activeListener) window.removeEventListener('message', activeListener);
                 popup.close();
 
                 resolve({
@@ -266,14 +272,12 @@ export class OAuthService {
               }
             };
 
-            window.addEventListener('message', messageListener);
-
             // Check if popup was closed manually
             const checkClosed = setInterval(() => {
               try {
                 if (popup.closed) {
                   clearInterval(checkClosed);
-                  window.removeEventListener('message', messageListener);
+                  if (activeListener) window.removeEventListener('message', activeListener);
 
                   resolve({
                     success: false,
@@ -290,7 +294,7 @@ export class OAuthService {
             // Add a timeout to prevent hanging indefinitely
             const timeout = setTimeout(() => {
               clearInterval(checkClosed);
-              window.removeEventListener('message', messageListener);
+              if (activeListener) window.removeEventListener('message', activeListener);
               
               try {
                 popup.close();
@@ -312,7 +316,7 @@ export class OAuthService {
               originalListener(event);
             };
 
-            window.removeEventListener('message', messageListener);
+            activeListener = wrappedListener;
             window.addEventListener('message', wrappedListener);
           })
           .catch(error => {

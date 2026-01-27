@@ -183,6 +183,7 @@ export interface TradingSettings {
   minSpend?: number;
   maxSpend?: number;
   useWatchConfig?: boolean;
+  paperTrading?: boolean;
   watchConfig?: WatchConfig;
 }
 
@@ -717,6 +718,31 @@ export interface EnhancedUnifiedLink {
   averageTradeSize?: number;
 }
 
+// Enhanced Mindmap Types for unified enhancement
+// ... existing types ...
+
+export interface UnifiedNode extends EnhancedUnifiedNode {
+  // Add simplified D3 node properties to fix typing
+  // EnhancedUnifiedNode already covers most, but we ensure explicit compatibility here
+  symbol?: string;
+  decimals?: number;
+  metadataUri?: string;
+  website?: string;
+  twitter?: string;
+  displayName: string;
+}
+
+export interface UnifiedLink {
+  source: string | EnhancedUnifiedNode;
+  target: string | EnhancedUnifiedNode;
+  value: number;
+  tradeCount: number;
+  volume: number;
+  strength?: number;
+  frequency?: number;
+  lastActivity?: Date;
+}
+
 // Cache management types
 export interface CacheStats {
   size: number;
@@ -864,6 +890,15 @@ export interface TradeHistoryEntry {
   exitValue?: number;
   sellTransactionId?: string;
   sellReason?: string;
+  // On-Chain High Fidelity Data
+  onChainEntryPrice?: number;
+  onChainEntryValue?: number;
+  onChainExitPrice?: number;
+  onChainExitValue?: number;
+  exactNetworkFee?: number;
+  reconciledStatus?: 'pending' | 'verified' | 'failed_reconciliation';
+  isSimulation?: boolean;
+  
   realizedPnL?: number;
   realizedPnLPercentage?: number;
   highestPrice?: number;

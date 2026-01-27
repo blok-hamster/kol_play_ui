@@ -114,12 +114,32 @@ export const useTradingStore = create<TradingState>()(
 
       addSubscription: subscription => {
         const current = get().subscriptions;
+        
+        // If an array is passed, it's likely the full authoritative list from the backend
+        if (Array.isArray(subscription)) {
+          const validSubscriptions = subscription
+            .filter(sub => sub && sub.kolWallet)
+            .map(sub => ({
+              ...sub,
+              createdAt: sub.createdAt ? new Date(sub.createdAt) : new Date(),
+              updatedAt: sub.updatedAt ? new Date(sub.updatedAt) : new Date(),
+            }));
+          set({ subscriptions: validSubscriptions });
+          return;
+        }
+
         const existing = current.find(
           s => s.kolWallet === subscription.kolWallet
         );
 
         if (!existing) {
-          set({ subscriptions: [...current, subscription] });
+          set({ 
+            subscriptions: [...current, {
+              ...subscription,
+              createdAt: subscription.createdAt ? new Date(subscription.createdAt) : new Date(),
+              updatedAt: subscription.updatedAt ? new Date(subscription.updatedAt) : new Date(),
+            }] 
+          });
         }
       },
 
@@ -314,10 +334,19 @@ export const useTradingStore = create<TradingState>()(
           void 0 && ('Store Update Subscription API Response:', response);
 
           if (response.data) {
+            // Robustly handle if response.data is an array (which some backend methods do)
+            const updatedData = Array.isArray(response.data) 
+              ? response.data.find(s => s.kolWallet === kolWallet) || response.data[0]
+              : response.data;
+
+            if (!updatedData) {
+               throw new Error('Updated subscription data not found in response');
+            }
+
             // Update the subscription in the store with the response data
             const updatedSubscriptions = current.map(sub =>
               sub.kolWallet === kolWallet 
-                ? { ...sub, ...response.data, updatedAt: new Date() }
+                ? { ...sub, ...updatedData, updatedAt: new Date() }
                 : sub
             );
             set({ subscriptions: updatedSubscriptions, error: null });

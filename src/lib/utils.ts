@@ -117,6 +117,35 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 /**
+ * Throttle function
+ */
+export function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle: boolean;
+  let lastFunc: NodeJS.Timeout;
+  let lastRan: number;
+  
+  return function(this: any, ...args: Parameters<T>) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      lastRan = Date.now();
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    } else {
+      clearTimeout(lastFunc);
+      lastFunc = setTimeout(function(this: any) {
+        if (Date.now() - lastRan >= limit) {
+          func.apply(this, args);
+          lastRan = Date.now();
+        }
+      }, limit - (Date.now() - lastRan));
+    }
+  };
+}
+
+/**
  * Copy text to clipboard
  */
 export async function copyToClipboard(text: string): Promise<boolean> {

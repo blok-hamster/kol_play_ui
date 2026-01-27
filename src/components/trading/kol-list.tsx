@@ -110,9 +110,9 @@ export default function KOLList({
   viewMode = 'grid',
 }: KOLListProps) {
   void 0 && ('🚀 KOLList component initialized');
-  
+
   const router = useRouter();
-  const { isSubscribedToKOL } = useSubscriptions();
+  const { isSubscribedToKOL, subscriptions } = useSubscriptions();
   const { isLoading, setLoading } = useLoading();
   const { showError } = useNotifications();
 
@@ -176,99 +176,99 @@ export default function KOLList({
 
       // Only fetch on initial load, page change, search change, or limit change
       // Don't fetch for sort changes (handled client-side)
-      const shouldFetch = !hasLoadedInitialData.current || 
-                         (filters.page && filters.page > 1) || 
-                         searchQuery !== '';
+      const shouldFetch = !hasLoadedInitialData.current ||
+        (filters.page && filters.page > 1) ||
+        searchQuery !== '';
 
       if (!shouldFetch) {
         return;
       }
 
-    const fetchKOLWallets = async () => {
-      isCurrentlyFetching.current = true;
+      const fetchKOLWallets = async () => {
+        isCurrentlyFetching.current = true;
 
-      try {
-        stableSetLoading('kolList', true);
+        try {
+          stableSetLoading('kolList', true);
 
-        // Check if requests should be blocked due to authentication
-        const { requestManager } = await import('@/lib/request-manager');
-        if (requestManager.shouldBlockRequest()) {
-          console.log('🚫 KOL List - Fetch blocked during authentication');
-          return;
+          // Check if requests should be blocked due to authentication
+          const { requestManager } = await import('@/lib/request-manager');
+          if (requestManager.shouldBlockRequest()) {
+            console.log('🚫 KOL List - Fetch blocked during authentication');
+            return;
+          }
+
+          // Build search filters - only include what's necessary
+          const searchFilters: Partial<SearchFilters> = {};
+
+          if (filters.page) {
+            searchFilters.page = filters.page;
+          }
+
+          if (filters.limit) {
+            searchFilters.limit = filters.limit;
+          }
+
+          if (searchQuery.trim()) {
+            searchFilters.query = searchQuery.trim();
+          }
+
+          // Use authenticated request wrapper
+          const { authenticatedRequest } = await import('@/lib/request-manager');
+          const response = await authenticatedRequest(
+            () => TradingService.getKOLWallets(searchFilters as SearchFilters),
+            { priority: 'medium', timeout: 15000 }
+          );
+
+          let newKOLs: KOLWithTrades[];
+          if (filters.page === 1) {
+            newKOLs = response.data.map(kol => {
+              const twitterUrl = findTwitterUrlFromKOL(kol);
+              const twitterAvatar = getTwitterAvatarUrl(
+                twitterUrl,
+                kol.name || kol.walletAddress || 'KOL'
+              );
+              const preferredAvatar = twitterAvatar ?? kol.avatar;
+              return {
+                ...kol,
+                ...(preferredAvatar ? { avatar: preferredAvatar } as Partial<KOLWithTrades> : {}),
+                recentTrades: [],
+                tradesLoading: false,
+              } as KOLWithTrades;
+            });
+
+            // Prime store with fetched KOLs (use original response to preserve exact shape)
+            try { setKOLs(response.data); } catch { }
+
+            setKolWallets(newKOLs);
+          } else {
+            newKOLs = response.data.map(kol => {
+              const twitterUrl = findTwitterUrlFromKOL(kol);
+              const twitterAvatar = getTwitterAvatarUrl(
+                twitterUrl,
+                kol.name || kol.walletAddress || 'KOL'
+              );
+              const preferredAvatar = twitterAvatar ?? kol.avatar;
+              return {
+                ...kol,
+                ...(preferredAvatar ? { avatar: preferredAvatar } as Partial<KOLWithTrades> : {}),
+                recentTrades: [],
+                tradesLoading: false,
+              } as KOLWithTrades;
+            });
+            try { setKOLs(response.data); } catch { }
+            setKolWallets(prev => [...prev, ...newKOLs]);
+          }
+
+          setHasMore(response.data.length === filters.limit);
+          hasLoadedInitialData.current = true;
+        } catch (error: any) {
+          stableShowError('Load Error', error.message || 'Failed to load KOL wallets');
+          console.error('Failed to fetch KOL wallets:', error);
+        } finally {
+          stableSetLoading('kolList', false);
+          isCurrentlyFetching.current = false;
         }
-
-        // Build search filters - only include what's necessary
-        const searchFilters: Partial<SearchFilters> = {};
-        
-        if (filters.page) {
-          searchFilters.page = filters.page;
-        }
-        
-        if (filters.limit) {
-          searchFilters.limit = filters.limit;
-        }
-        
-        if (searchQuery.trim()) {
-          searchFilters.query = searchQuery.trim();
-        }
-
-        // Use authenticated request wrapper
-        const { authenticatedRequest } = await import('@/lib/request-manager');
-        const response = await authenticatedRequest(
-          () => TradingService.getKOLWallets(searchFilters as SearchFilters),
-          { priority: 'medium', timeout: 15000 }
-        );
-
-        let newKOLs: KOLWithTrades[];
-        if (filters.page === 1) {
-          newKOLs = response.data.map(kol => {
-            const twitterUrl = findTwitterUrlFromKOL(kol);
-            const twitterAvatar = getTwitterAvatarUrl(
-              twitterUrl,
-              kol.name || kol.walletAddress || 'KOL'
-            );
-            const preferredAvatar = twitterAvatar ?? kol.avatar;
-            return {
-            ...kol,
-              ...(preferredAvatar ? { avatar: preferredAvatar } as Partial<KOLWithTrades> : {}),
-            recentTrades: [],
-            tradesLoading: false,
-            } as KOLWithTrades;
-          });
-          
-          // Prime store with fetched KOLs (use original response to preserve exact shape)
-          try { setKOLs(response.data); } catch {}
-          
-          setKolWallets(newKOLs);
-        } else {
-          newKOLs = response.data.map(kol => {
-            const twitterUrl = findTwitterUrlFromKOL(kol);
-            const twitterAvatar = getTwitterAvatarUrl(
-              twitterUrl,
-              kol.name || kol.walletAddress || 'KOL'
-            );
-            const preferredAvatar = twitterAvatar ?? kol.avatar;
-            return {
-            ...kol,
-              ...(preferredAvatar ? { avatar: preferredAvatar } as Partial<KOLWithTrades> : {}),
-            recentTrades: [],
-            tradesLoading: false,
-            } as KOLWithTrades;
-          });
-          try { setKOLs(response.data); } catch {}
-          setKolWallets(prev => [...prev, ...newKOLs]);
-        }
-
-        setHasMore(response.data.length === filters.limit);
-        hasLoadedInitialData.current = true;
-      } catch (error: any) {
-        stableShowError('Load Error', error.message || 'Failed to load KOL wallets');
-        console.error('Failed to fetch KOL wallets:', error);
-      } finally {
-        stableSetLoading('kolList', false);
-        isCurrentlyFetching.current = false;
-      }
-    };
+      };
 
       fetchKOLWallets();
     };
@@ -287,24 +287,24 @@ export default function KOLList({
   // Separate effect for sorting existing KOLs when subscription status might change
   const sortedKolWallets = useMemo(() => {
     const sorted = [...kolWallets];
-    
+
     // Sort KOLs: subscribed first, then by selected criteria
     sorted.sort((a, b) => {
       const aIsSubscribed = isSubscribedToKOL(a.walletAddress || '');
       const bIsSubscribed = isSubscribedToKOL(b.walletAddress || '');
-      
+
       // If subscription status is different, prioritize subscribed
       if (aIsSubscribed !== bIsSubscribed) {
         return bIsSubscribed ? 1 : -1;
       }
-      
+
       // If both have same subscription status, sort by selected criteria
       const sortBy = filters.sortBy || 'subscriberCount';
       const sortOrder = filters.sortOrder || 'desc';
-      
+
       let aValue: number = 0;
       let bValue: number = 0;
-      
+
       switch (sortBy) {
         case 'subscriberCount':
           aValue = a.subscriberCount || 0;
@@ -326,10 +326,10 @@ export default function KOLList({
           aValue = a.subscriberCount || 0;
           bValue = b.subscriberCount || 0;
       }
-      
+
       return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
     });
-    
+
     return sorted;
   }, [kolWallets, filters.sortBy, filters.sortOrder, isSubscribedToKOL]);
 
@@ -416,17 +416,19 @@ export default function KOLList({
   const renderKOLCard = useCallback(
     (kol: KOLWithTrades) => {
       const isSubscribed = isSubscribedToKOL(kol.walletAddress || '');
+      // Find subscription to get custom label
+      const subscription = subscriptions.find(s => s.kolWallet === kol.walletAddress);
+
       const recentTrades = kol.walletAddress ? getKOLRecentTrades(kol.walletAddress) : [];
       const twitterUrl = findTwitterUrlFromKOL(kol);
 
       return (
         <div
           key={kol.walletAddress || `kol-${Math.random()}`}
-          className={`bg-background border rounded-xl p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group ${
-            isSubscribed 
-              ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' 
-              : 'border-border'
-          }`}
+          className={`bg-background border rounded-xl p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group ${isSubscribed
+            ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
+            : 'border-border'
+            }`}
           onClick={() => kol.walletAddress && handleKOLClick(kol)}
         >
           {/* Subscribed badge */}
@@ -452,19 +454,18 @@ export default function KOLList({
               {kol.avatar ? (
                 <img
                   src={kol.avatar}
-                  alt={kol.name || 'KOL Avatar'}
-                  className={`w-12 h-12 rounded-full flex-shrink-0 border-2 ${
-                    isSubscribed ? 'border-primary' : 'border-muted'
-                  }`}
+                  alt={subscription?.label || kol.name || 'KOL Avatar'}
+                  className={`w-12 h-12 rounded-full flex-shrink-0 border-2 ${isSubscribed ? 'border-primary' : 'border-muted'
+                    }`}
                 />
               ) : (
-                <div className={`w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 ${
-                  isSubscribed ? 'border-primary' : 'border-muted'
-                }`}>
+                <div className={`w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 ${isSubscribed ? 'border-primary' : 'border-muted'
+                  }`}>
                   <span className="text-primary-foreground font-bold text-sm">
                     {(
-                      kol.name ||
-                      (kol.walletAddress ? kol.walletAddress.slice(0, 2) : 'KO')
+                      (subscription?.label && subscription.label !== kol.walletAddress)
+                        ? subscription.label.slice(0, 2)
+                        : (kol.name || (kol.walletAddress ? kol.walletAddress.slice(0, 2) : 'KO'))
                     ).toUpperCase()}
                   </span>
                 </div>
@@ -474,10 +475,10 @@ export default function KOLList({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2 mb-1">
                   <h3 className="font-bold text-foreground text-lg truncate">
-                    {kol.name ||
-                      (kol.walletAddress
-                        ? `${kol.walletAddress.slice(0, 6)}...${kol.walletAddress.slice(-4)}`
-                        : 'Unknown KOL')}
+                    {(subscription?.label && subscription.label !== kol.walletAddress)
+                      ? subscription.label
+                      : (kol.name || (kol.walletAddress ? `${kol.walletAddress.slice(0, 6)}...${kol.walletAddress.slice(-4)}` : 'Unknown KOL'))
+                    }
                   </h3>
                   {isSubscribed && (
                     <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
@@ -536,9 +537,8 @@ export default function KOLList({
                   <div key={`${trade.id}-${idx}`} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${
-                          (trade.tradeData?.tradeType ?? 'sell') === 'buy' ? 'bg-green-500' : 'bg-red-500'
-                        }`} />
+                        <div className={`w-1.5 h-1.5 rounded-full ${(trade.tradeData?.tradeType ?? 'sell') === 'buy' ? 'bg-green-500' : 'bg-red-500'
+                          }`} />
                         {/* Token pill: image + symbol/name fallback to mint */}
                         {(trade.tradeData?.symbol || trade.tradeData?.name || trade.tradeData?.image || trade.tradeData?.mint) && (
                           <div className="flex items-center space-x-1">
@@ -552,7 +552,7 @@ export default function KOLList({
                                 if (name && symbol) return `${name} (${symbol})`;
                                 if (name) return name;
                                 if (symbol) return symbol;
-                                return trade.tradeData?.mint ? `${trade.tradeData.mint.slice(0,4)}...${trade.tradeData.mint.slice(-4)}` : 'Token';
+                                return trade.tradeData?.mint ? `${trade.tradeData.mint.slice(0, 4)}...${trade.tradeData.mint.slice(-4)}` : 'Token';
                               })()}
                             </span>
                           </div>
@@ -574,8 +574,8 @@ export default function KOLList({
                         </span>
                       </div>
                       <span className="text-muted-foreground">
-                        {trade.timestamp ? 
-                          new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                        {trade.timestamp ?
+                          new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
                           'Now'
                         }
                       </span>
@@ -585,7 +585,7 @@ export default function KOLList({
                       const prediction = trade.prediction || (trade.tradeData as any)?.prediction;
                       const isBuyTrade = (trade.tradeData?.tradeType ?? 'sell') === 'buy';
                       const shouldShowPrediction = prediction && isBuyTrade;
-                      
+
                       return shouldShowPrediction ? (
                         <div className="flex items-center justify-between text-xs bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded">
                           <div className="flex items-center space-x-1">
@@ -784,10 +784,9 @@ export default function KOLList({
                 onClick={() => handleSort('subscriberCount')}
                 className={`
                   flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors
-                  ${
-                    filters.sortBy === 'subscriberCount'
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ${filters.sortBy === 'subscriberCount'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }
                 `}
               >
@@ -804,10 +803,9 @@ export default function KOLList({
                 onClick={() => handleSort('totalPnL')}
                 className={`
                   flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors
-                  ${
-                    filters.sortBy === 'totalPnL'
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ${filters.sortBy === 'totalPnL'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }
                 `}
               >
