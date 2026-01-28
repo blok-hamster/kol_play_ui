@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 
+const PUMPPORTAL_WS_URL = 'wss://pumpportal.fun/api/data';
+
 // PumpPortal WebSocket message types
 export interface PumpPortalNewToken {
   signature: string;
@@ -40,13 +42,6 @@ interface UsePumpPortalStreamOptions {
   maxReconnectAttempts?: number;
 }
 
-interface StreamStatus {
-  isConnected: boolean;
-  isConnecting: boolean;
-  reconnectAttempts: number;
-  error: Error | null;
-}
-
 export const usePumpPortalStream = (options: UsePumpPortalStreamOptions = {}) => {
   const {
     autoConnect = false,
@@ -55,44 +50,49 @@ export const usePumpPortalStream = (options: UsePumpPortalStreamOptions = {}) =>
   } = options;
 
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-  const reconnectAttemptsRef = useRef(0);
-  const subscribedTokensRef = useRef<Set<string>>(new Set());
-  const isSubscribedToNewTokensRef = useRef(false);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
+  const connectingRef = useRef<boolean>(false);
 
-  // Callback refs to avoid stale closures
+  const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [currentReconnectAttempts, setReconnectAttempts] = useState(0);
+  const [error, setError] = useState<Error | null>(null);
+
   const newTokenCallbacksRef = useRef<Array<(token: PumpPortalNewToken) => void>>([]);
   const tradeCallbacksRef = useRef<Map<string, Array<(trade: PumpPortalTrade) => void>>>(
     new Map()
   );
+  const isSubscribedToNewTokensRef = useRef(false);
+  const subscribedTokensRef = useRef<Set<string>>(new Set());
 
-  const [status, setStatus] = useState<StreamStatus>({
-    isConnected: false,
-    isConnecting: false,
-    reconnectAttempts: 0,
-    error: null,
-  });
 
   // Connect to WebSocket
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN || status.isConnecting) {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
 
-    setStatus(prev => ({ ...prev, isConnecting: true, error: null }));
+    // Prevent multiple simultaneous connection attempts
+    if (connectingRef.current) {
+      return;
+    }
+
     console.log('🔌 Connecting to PumpPortal WebSocket...');
+    connectingRef.current = true;
+    setIsConnecting(true);
+    setError(null); // Clear previous errors on new connection attempt
 
     try {
-      const ws = new WebSocket('wss://pumpportal.fun/api/data');
+      const ws = new WebSocket(PUMPPORTAL_WS_URL);
+      wsRef.current = ws;
 
       ws.onopen = () => {
         console.log('✅ PumpPortal WebSocket connected');
-        setStatus({
-          isConnected: true,
-          isConnecting: false,
-          reconnectAttempts: 0,
-          error: null,
-        });
+        connectingRef.current = false;
+        setIsConnected(true);
+        setIsConnecting(false);
+        setReconnectAttempts(0);
         reconnectAttemptsRef.current = 0;
 
         // Resubscribe to channels after reconnection
@@ -154,70 +154,64 @@ export const usePumpPortalStream = (options: UsePumpPortalStreamOptions = {}) =>
               callbacks.forEach(callback => callback(trade));
             }
           }
-        } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('❌ PumpPortal WebSocket error:', error);
-        setStatus(prev => ({
-          ...prev,
-          error: new Error('WebSocket connection error'),
-        }));
+      ws.onerror = (err) => {
+        console.error('❌ PumpPortal WebSocket error:', err);
+        connectingRef.current = false;
+        // Don't call setError here to avoid infinite loop, onclose will handle reconnection logic
       };
 
       ws.onclose = () => {
         console.log('🔌 PumpPortal WebSocket disconnected');
-        setStatus(prev => ({
-          ...prev,
-          isConnected: false,
-          isConnecting: false,
-        }));
+        connectingRef.current = false;
+        setIsConnected(false);
+        setIsConnecting(false);
 
-        wsRef.current = null;
-
-        // Attempt reconnection
-        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-          reconnectAttemptsRef.current += 1;
-          setStatus(prev => ({
-            ...prev,
-            reconnectAttempts: reconnectAttemptsRef.current,
-          }));
-
+        // Attempt reconnection with exponential backoff
+        const currentAttempt = reconnectAttemptsRef.current;
+        if (currentAttempt < maxReconnectAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, currentAttempt), 30000); // Max 30 seconds delay
           console.log(
-            `🔄 Reconnecting... (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`
+            `🔄 Reconnecting in ${delay / 1000}s (attempt ${currentAttempt + 1}/${maxReconnectAttempts})...`
           );
+          reconnectAttemptsRef.current = currentAttempt + 1;
+          setReconnectAttempts(currentAttempt + 1);
 
-          reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectTimeoutRef.current = window.setTimeout(() => {
             connect();
-          }, reconnectInterval);
+          }, delay);
         } else {
           console.error('❌ Max reconnection attempts reached');
-          setStatus(prev => ({
-            ...prev,
-            error: new Error('Max reconnection attempts reached'),
-          }));
+          setError(new Error('Failed to connect. PumpPortal API may be unavailable.'));
         }
       };
-
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('Failed to create WebSocket:', error);
-      setStatus(prev => ({
-        ...prev,
-        isConnecting: false,
-        error: error instanceof Error ? error : new Error('Connection failed'),
-      }));
+    } catch (err) {
+      console.error('❌ Failed to create WebSocket:', err);
+      connectingRef.current = false;
+      setIsConnecting(false);
+      setError(err instanceof Error ? err : new Error('Failed to create WebSocket connection'));
     }
-  }, [status.isConnecting, reconnectInterval, maxReconnectAttempts]);
+  }, [maxReconnectAttempts]);
 
   // Disconnect from WebSocket
   const disconnect = useCallback(() => {
+    console.log('🔌 Disconnecting PumpPortal WebSocket...');
+
+    // Reset reconnection attempts
+    reconnectAttemptsRef.current = 0;
+    setReconnectAttempts(0);
+
+    // Clear reconnection timeout
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
 
+    // Close WebSocket
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -228,12 +222,10 @@ export const usePumpPortalStream = (options: UsePumpPortalStreamOptions = {}) =>
     newTokenCallbacksRef.current = [];
     tradeCallbacksRef.current.clear();
 
-    setStatus({
-      isConnected: false,
-      isConnecting: false,
-      reconnectAttempts: 0,
-      error: null,
-    });
+    setIsConnected(false);
+    setIsConnecting(false);
+    setReconnectAttempts(0);
+    setError(null);
   }, []);
 
   // Subscribe to new token events
@@ -312,9 +304,9 @@ export const usePumpPortalStream = (options: UsePumpPortalStreamOptions = {}) =>
     disconnect,
     subscribeNewTokens,
     subscribeTokenTrades,
-    status,
-    isConnected: status.isConnected,
-    isConnecting: status.isConnecting,
-    error: status.error,
+    isConnected,
+    isConnecting,
+    reconnectAttempts: currentReconnectAttempts,
+    error,
   };
 };

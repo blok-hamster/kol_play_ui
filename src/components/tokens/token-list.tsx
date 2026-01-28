@@ -662,157 +662,199 @@ const TokenList: React.FC<TokenListProps> = ({
     [category, handleTokenClick, handleQuickBuy, buyingTokens]
   );
 
-  const getTimeframeText = (tf: string): string => {
-    const map: Record<string, string> = {
-      '5m': '5 minutes',
-      '15m': '15 minutes',
-      '30m': '30 minutes',
-      '1h': '1 hour',
-      '6h': '6 hours',
-      '12h': '12 hours',
-      '24h': '24 hours',
-      '7d': '7 days',
-      '30d': '30 days',
-    };
-    return map[tf] || tf;
-  };
-
   return (
     <div className={cn('space-y-6', className)}>
-      filters.timeframe &&
-      ` (${getTimeframeText(filters.timeframe)})`}
-    </span>
-    </div >
-
-  <div>
-    {category === 'trending' && <span>Updated every 5 minutes</span>}
-    {category === 'volume' && <span>Real-time volume tracking</span>}
-    {category === 'latest' && <span>Newest tokens on Solana</span>}
-  </div>
-  </div >
-
-  {/* Loading State */ }
-{
-  isLoading(`tokens-${category}`) && tokens.length === 0 && (
-    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="bg-background rounded-lg border border-border p-6 animate-pulse"
-        >
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-12 h-12 bg-muted rounded-full"></div>
-            <div className="flex-1">
-              <div className="h-4 bg-muted rounded mb-2"></div>
-              <div className="h-3 bg-muted rounded w-2/3"></div>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-            {Array.from({ length: 3 }).map((_, j) => (
-              <div key={j}>
-                <div className="h-3 bg-muted rounded mb-1"></div>
-                <div className="h-4 bg-muted rounded"></div>
-              </div>
-            ))}
-          </div>
-          <div className="h-8 bg-muted rounded"></div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">{title}</h2>
+          {description && (
+            <p className="text-muted-foreground mt-1">{description}</p>
+          )}
         </div>
-      ))}
-    </div>
-  )
-}
 
-{/* Token Grid */ }
-{
-  filteredTokens.length > 0 && (
-    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-      {filteredTokens.map(renderTokenCard)}
-    </div>
-  )
-}
-
-{/* Load More */ }
-{
-  hasMore && filteredTokens.length > 0 && (
-    <div className="flex justify-center">
-      <Button
-        onClick={handleLoadMore}
-        disabled={isLoading(`tokens-${category}`)}
-        className="px-6 py-3"
-      >
-        {isLoading(`tokens-${category}`) && (
-          <svg
-            className="animate-spin h-4 w-4 mr-2"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
+        {/* Live Mode Toggle for Latest Category */}
+        {category === 'latest' && (
+          <div className="flex items-center gap-3">
+            {isLiveEnabled && pumpPortal.isConnected && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <Radio className="w-4 h-4 text-red-500 animate-pulse" />
+                <span className="text-sm font-medium text-red-500">LIVE</span>
+                {newTokensCount > 0 && (
+                  <span className="ml-1 px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                    +{newTokensCount}
+                  </span>
+                )}
+              </div>
+            )}
+            <Button
+              variant={isLiveEnabled ? 'destructive' : 'default'}
+              size="sm"
+              onClick={toggleLiveMode}
+              disabled={pumpPortal.isConnecting}
+              className={cn(
+                'min-w-[100px]',
+                isLiveEnabled
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-green-600 hover:bg-green-700'
+              )}
+            >
+              {pumpPortal.isConnecting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Connecting...
+                </>
+              ) : isLiveEnabled ? (
+                'Stop Live'
+              ) : (
+                'Go Live'
+              )}
+            </Button>
+          </div>
         )}
-        {isLoading(`tokens-${category}`)
-          ? 'Loading...'
-          : 'Load More Tokens'}
-      </Button>
-    </div>
-  )
-}
+      </div>
 
-{/* Empty State */ }
-{
-  filteredTokens.length === 0 && !isLoading(`tokens-${category}`) && (
-    <div className="text-center py-12">
-      <svg
-        className="mx-auto h-12 w-12 text-gray-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-        />
-      </svg>
-      <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-        No tokens found
-      </h3>
-      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        Try adjusting your filters or check back later.
-      </p>
-    </div>
-  )
-}
+      {/* Results Summary */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div>
+          <span>
+            {isLoading(`tokens-${category}`)
+              ? 'Loading...'
+              : `${filteredTokens.length} tokens found`}
+            {(category === 'trending' || category === 'volume') &&
+              filters.timeframe &&
+              ` (${getTimeframeText(filters.timeframe)})`}
+          </span>
+        </div>
 
-{/* Token Detail Modal */ }
-{
-  selectedToken && (
-    <TokenDetailModal
-      isOpen={isModalOpen}
-      onClose={() => setIsModalOpen(false)}
-      tokenData={selectedToken}
-    />
-  )
-}
+        <div>
+          {category === 'trending' && <span>Updated every 5 minutes</span>}
+          {category === 'volume' && <span>Real-time volume tracking</span>}
+          {category === 'latest' && <span>Newest tokens on Solana</span>}
+        </div>
+      </div>
 
-{/* Trade Config Prompt */ }
-<TradeConfigPrompt
-  isOpen={showTradeConfigPrompt}
-  onClose={handleTradeConfigPromptClose}
-  tokenSymbol={pendingBuyToken?.token?.symbol || pendingBuyToken?.token?.name}
-/>
+      {/* Loading State */}
+      {isLoading(`tokens-${category}`) && tokens.length === 0 && (
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-background rounded-lg border border-border p-6 animate-pulse"
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-muted rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-muted rounded mb-2"></div>
+                  <div className="h-3 bg-muted rounded w-2/3"></div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                {Array.from({ length: 3 }).map((_, j) => (
+                  <div key={j}>
+                    <div className="h-3 bg-muted rounded mb-1"></div>
+                    <div className="h-4 bg-muted rounded"></div>
+                  </div>
+                ))}
+              </div>
+              <div className="h-8 bg-muted rounded"></div>
+            </div>
+          ))}
+        </div>
+      )
+      }
+
+      {/* Token Grid */}
+      {
+        filteredTokens.length > 0 && (
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {filteredTokens.map(renderTokenCard)}
+          </div>
+        )
+      }
+
+      {/* Load More */}
+      {
+        hasMore && filteredTokens.length > 0 && (
+          <div className="flex justify-center">
+            <Button
+              onClick={handleLoadMore}
+              disabled={isLoading(`tokens-${category}`)}
+              className="px-6 py-3"
+            >
+              {isLoading(`tokens-${category}`) && (
+                <svg
+                  className="animate-spin h-4 w-4 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              )}
+              {isLoading(`tokens-${category}`)
+                ? 'Loading...'
+                : 'Load More Tokens'}
+            </Button>
+          </div>
+        )
+      }
+
+      {/* Empty State */}
+      {
+        filteredTokens.length === 0 && !isLoading(`tokens-${category}`) && (
+          <div className="text-center py-12">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+              No tokens found
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Try adjusting your filters or check back later.
+            </p>
+          </div>
+        )
+      }
+
+      {/* Token Detail Modal */}
+      {
+        selectedToken && (
+          <TokenDetailModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            tokenData={selectedToken}
+          />
+        )
+      }
+
+      {/* Trade Config Prompt */}
+      <TradeConfigPrompt
+        isOpen={showTradeConfigPrompt}
+        onClose={handleTradeConfigPromptClose}
+        tokenSymbol={pendingBuyToken?.token?.symbol || pendingBuyToken?.token?.name}
+      />
     </div >
   );
 };
