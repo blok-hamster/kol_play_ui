@@ -76,22 +76,22 @@ export default function AgentPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-transparent overflow-hidden">
-        <div className="max-w-[1700px] mx-auto p-4 md:p-6 lg:p-8 h-[calc(100vh-140px)]">
-          <div className="flex gap-6 h-full relative">
+      <div className="h-[calc(100vh-120px)] lg:h-[calc(100vh-160px)] bg-transparent overflow-hidden flex flex-col">
+        <div className="mx-auto p-4 md:p-6 lg:p-4 w-full flex-1 min-h-0 flex flex-col">
+          <div className="flex gap-4 md:gap-6 flex-1 min-h-0 relative overflow-hidden">
 
             {/* 1. History Sidebar (Collapsible) */}
             <aside className={cn(
-              "hidden xl:flex flex-col shrink-0 transition-all duration-300 ease-in-out origin-left",
-              showHistory ? "w-72 opacity-100" : "w-0 opacity-0 pointer-events-none -ml-6"
+              "hidden xl:flex flex-col shrink-0 transition-all duration-300 ease-in-out",
+              showHistory ? "w-72 opacity-100 mr-2" : "w-0 opacity-0 pointer-events-none"
             )}>
-              <div className="w-72 h-full">
+              <div className="w-72 h-full overflow-hidden">
                 <AgentHistory
                   threads={threads}
                   currentThreadId={currentThreadId}
                   onSelectThread={handleSelectThread}
                   onNewChat={handleNewChat}
-                  className="h-full border-r-0 rounded-r-none shadow-none"
+                  className="h-full border-r-0 rounded-2xl shadow-none"
                 />
               </div>
             </aside>
@@ -117,7 +117,7 @@ export default function AgentPage() {
               </div>
 
               {/* Mobile/Small Screen Header */}
-              <div className="xl:hidden mb-4 flex items-center justify-between">
+              <div className="xl:hidden mb-2 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary">
                     SWARM {status.toUpperCase()}

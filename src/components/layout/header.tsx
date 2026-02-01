@@ -9,14 +9,14 @@ import Image from 'next/image';
 import {
   Menu,
   X,
-  TrendingUp,
-  Search,
-  PieChart,
-  Settings,
-  Users,
-  Zap,
+  Compass,
+  Radar,
+  Repeat,
+  Coins,
+  Wallet,
+  Sliders,
+  Brain,
   HelpCircle,
-  Activity,
 } from 'lucide-react';
 import WalletDropdown from './wallet-dropdown';
 import UserMenu from './user-menu';
@@ -40,37 +40,37 @@ const navigationItems: NavigationItem[] = [
   {
     name: 'KOLs',
     href: '/kols',
-    icon: TrendingUp,
+    icon: Compass,
     description: 'Copy trading leaders',
   },
   {
     name: 'Live Trades',
     href: '/kol-trades',
-    icon: Activity,
+    icon: Radar,
     description: 'Real-time KOL trades & network maps',
   },
   {
     name: 'Subscriptions',
     href: '/subscriptions',
-    icon: Users,
+    icon: Repeat,
     description: 'Manage your copy trades',
   },
   {
     name: 'Tokens',
     href: '/tokens',
-    icon: Search,
+    icon: Coins,
     description: 'Discover and analyze tokens',
   },
   {
     name: 'Portfolio',
     href: '/portfolio',
-    icon: PieChart,
+    icon: Wallet,
     description: 'Track your performance',
   },
   {
     name: 'Settings',
     href: '/settings',
-    icon: Settings,
+    icon: Sliders,
     description: 'Account and preferences',
   },
 ];
@@ -79,7 +79,7 @@ const secondaryItems: NavigationItem[] = [
   {
     name: 'AI Assistant',
     href: '/agent',
-    icon: Zap,
+    icon: Brain,
     description: 'Trading insights and help',
   },
   {
@@ -129,13 +129,11 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
         key={item.name}
         href={isDisabled ? '#' : item.href}
         className={cn(
-          'group relative flex items-center rounded-lg px-2 py-1 text-sm md:text-[15px] font-medium transition-all duration-200',
-          'hover:bg-muted focus:bg-muted focus:outline-none',
-          isActive && 'bg-accent-gradient text-white shadow-sm',
+          'group relative flex items-center rounded-lg px-3 py-1.5 text-sm md:text-[15px] font-semibold transition-all duration-300',
+          'hover:bg-primary/5 focus:outline-none',
+          isActive && 'text-primary',
           isDisabled && 'opacity-50 cursor-not-allowed',
-          isMobile ? 'justify-start' : 'justify-center',
-          !isMobile && 'flex-col space-y-0.5 min-w-[64px] md:min-w-[72px] h-12',
-          isMobile && 'h-10'
+          isMobile ? 'justify-start w-full' : 'justify-center flex-col min-w-[80px] h-12',
         )}
         onClick={e => {
           if (isDisabled) {
@@ -146,22 +144,18 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       >
         <IconComponent
           className={cn(
-            'flex-shrink-0 transition-colors',
-            isMobile ? 'h-5 w-5' : 'h-4 w-4 md:h-5 md:w-5',
-            isActive
-              ? 'text-white'
-              : 'text-muted-foreground group-hover:text-foreground',
-            isMobile ? 'mr-3' : 'mb-0.5'
+            'flex-shrink-0 transition-all duration-300 transform',
+            isMobile ? 'h-5 w-5 mr-3' : 'h-4 w-4 mb-1',
+            !isMobile && !isActive && 'opacity-0 -translate-y-2 scale-75 group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100',
+            isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-primary',
           )}
         />
 
         <span
           className={cn(
-            'transition-colors',
-            isActive
-              ? 'text-white'
-              : 'text-foreground group-hover:text-foreground',
-            !isMobile && 'text-xs md:text-sm text-center whitespace-nowrap'
+            'transition-all duration-300',
+            isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-primary',
+            !isMobile && 'text-xs md:text-[13px] text-center whitespace-nowrap uppercase tracking-wider'
           )}
         >
           {item.name}
@@ -190,7 +184,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       )}
     >
       {/* Top Bar */}
-      <div className="flex items-center justify-between h-14 px-4 lg:px-6">
+      <div className="flex items-center justify-between h-14 px-4 lg:px-6 relative z-[60]">
         {/* Left Section - Logo */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
@@ -262,24 +256,27 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
         </div>
       </div>
 
-      {/* Navigation Bar - Desktop Only */}
-      <div className="border-t border-border bg-muted/30 hidden lg:block relative z-50 pointer-events-auto">
-        <div className="container mx-auto px-6 py-1">
-          <nav className="flex items-center justify-between gap-6">
+      {/* Navigation Bar - Desktop Only - Static Text-First */}
+      <div className="hidden lg:block border-t border-border bg-background/50 backdrop-blur-md relative z-[55]">
+        <div className="container mx-auto px-6 h-12 flex items-center justify-center">
+          <nav className="flex items-center gap-10">
             {/* Main Navigation Items */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               {navigationItems.map(item => renderNavigationItem(item))}
             </div>
 
-            {/* Separator */}
-            <div className="h-5 w-px bg-border" />
+            {/* Premium Separator */}
+            <div className="h-4 w-px bg-gradient-to-b from-transparent via-border to-transparent mx-2" />
 
             {/* Secondary Navigation Items */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               {secondaryItems.map(item => renderNavigationItem(item))}
             </div>
           </nav>
         </div>
+
+        {/* Full-Width Persistent Gradient Line */}
+        <div className="h-[2px] w-full bg-accent-gradient opacity-90 shadow-[0_0_10px_rgba(20,241,149,0.2)]" />
       </div>
 
       {/* Mobile Menu Dropdown */}

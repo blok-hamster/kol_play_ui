@@ -1405,3 +1405,285 @@ bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
  ✓ Compiled in 4.1s (3741 modules)
  ✓ Compiled in 3.3s (3741 modules)
  ✓ Compiled in 3.2s (3741 modules)
+ ✓ Compiled in 8.6s (3741 modules)
+ ✓ Compiled in 1483ms (3741 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 5.9s (3741 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T02:35:06.671Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ ⨯ src/components/layout/app-layout.tsx (79:15) @ pathname
+ ⨯ ReferenceError: pathname is not defined
+    at AppLayout (./src/components/layout/app-layout.tsx:89:148)
+digest: "1992374110"
+[0m [90m 77 |[39m             className[33m=[39m{cn([0m
+[0m [90m 78 |[39m               [32m"flex-1 focus:outline-none transition-all duration-300"[39m[33m,[39m[0m
+[0m[31m[1m>[22m[39m[90m 79 |[39m               pathname [33m===[39m [32m'/agent'[39m [33m?[39m [32m"pt-16 lg:pt-20 lg:pb-12"[39m [33m:[39m [32m"pt-24 lg:pt-36 lg:pb-16"[39m[0m
+[0m [90m    |[39m               [31m[1m^[22m[39m[0m
+[0m [90m 80 |[39m             )}[0m
+[0m [90m 81 |[39m           [33m>[39m[0m
+[0m [90m 82 |[39m             [33m<[39m[33mdiv[39m className[33m=[39m[32m"h-full"[39m[33m>[39m{children}[33m<[39m[33m/[39m[33mdiv[39m[33m>[39m[0m
+ GET /agent 500 in 3204ms
+ ✓ Compiled in 3.1s (3654 modules)
+ ○ Compiling /_error ...
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled /_error in 1539ms (3642 modules)
+ GET /favicon.ico 500 in 2241ms
+ GET /favicon.ico 500 in 56ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T02:35:16.058Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ ⨯ src/components/layout/app-layout.tsx (12:21) @ useTheme
+ ⨯ ReferenceError: useTheme is not defined
+    at AppLayout (./src/components/layout/app-layout.tsx:16:23)
+digest: "3574000740"
+[0m [90m 10 |[39m[0m
+[0m [90m 11 |[39m [36mconst[39m [33mAppLayout[39m[33m:[39m [33mReact[39m[33m.[39m[33mFC[39m[33m<[39m[33mAppLayoutProps[39m[33m>[39m [33m=[39m ({ children[33m,[39m className }) [33m=>[39m {[0m
+[0m[31m[1m>[22m[39m[90m 12 |[39m   [36mconst[39m { theme } [33m=[39m useTheme()[33m;[39m[0m
+[0m [90m    |[39m                     [31m[1m^[22m[39m[0m
+[0m [90m 13 |[39m   [36mconst[39m pathname [33m=[39m usePathname()[33m;[39m[0m
+[0m [90m 14 |[39m   [36mconst[39m [solPrice[33m,[39m setSolPrice] [33m=[39m useState[33m<[39m[33mnumber[39m [33m|[39m [36mnull[39m[33m>[39m([36mnull[39m)[33m;[39m[0m
+[0m [90m 15 |[39m   [36mconst[39m [priorityFee[33m,[39m setPriorityFee] [33m=[39m useState[33m<[39m[33mnumber[39m [33m|[39m [36mnull[39m[33m>[39m([36mnull[39m)[33m;[39m[0m
+ GET /agent 500 in 1649ms
+ ✓ Compiled in 14.6s (3729 modules)
+ GET /favicon.ico 500 in 1159ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /favicon.ico 500 in 39ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T02:35:32.605Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 795ms
+ GET /favicon.ico 500 in 23ms
+ ✓ Compiled in 4.4s (3741 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.8s (3743 modules)
+ GET /favicon.ico 500 in 3356ms
+ ✓ Compiled in 18.9s (3743 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T02:41:46.147Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3192ms
+ GET /favicon.ico 500 in 105ms
+ ✓ Compiled in 14.7s (3750 modules)
+ ✓ Compiled in 7.2s (3750 modules)
+ ✓ Compiled in 6.8s (3750 modules)
+ ✓ Compiled in 6.6s (3750 modules)
+ ✓ Compiled in 5.5s (3750 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T03:03:12.162Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1891ms
+ ✓ Compiled in 26.1s (3750 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 25.5s (3738 modules)
+ GET /favicon.ico 500 in 26004ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T03:05:20.152Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1014ms
+ GET /favicon.ico 500 in 24ms
+ ○ Compiling /portfolio ...
+ ✓ Compiled /portfolio in 5.8s (1865 modules)
+ ○ Compiling /subscriptions ...
+ ✓ Compiled /subscriptions in 3s (1893 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/kols',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T03:06:03.794Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /kols 200 in 1018ms
+ GET /favicon.ico 500 in 111ms
+ ○ Compiling /tokens ...
+ ✓ Compiled /tokens in 6.9s (1870 modules)
+ ○ Compiling /portfolio ...
+ ✓ Compiled /portfolio in 967ms (1871 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/portfolio',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T03:09:32.476Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /portfolio 200 in 956ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 3.2s (3724 modules)
+ GET /favicon.ico 500 in 4030ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/portfolio',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T03:10:14.140Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /portfolio 200 in 716ms
+ GET /favicon.ico 500 in 28ms
+ ○ Compiling /kols ...
+ ✓ Compiled /kols in 1264ms (1850 modules)
+ ○ Compiling /help ...
+ ✓ Compiled /help in 2.8s (3742 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/kols',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T03:11:55.295Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /kols 200 in 1090ms
+ ○ Compiling /kol-trades ...
+ ✓ Compiled /kol-trades in 656ms (1857 modules)
+ ○ Compiling /pro-coming-soon ...
+ ✓ Compiled /pro-coming-soon in 6.4s (1853 modules)
+ ○ Compiling /agent ...
+ ✓ Compiled /agent in 8.3s (1872 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T03:13:25.457Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1256ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.1s (3765 modules)
+ GET /favicon.ico 500 in 4279ms
+ ✓ Compiled in 12.2s (3758 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1316ms (3760 modules)
+ GET /favicon.ico 500 in 1377ms
+ ○ Compiling /portfolio ...
+ ✓ Compiled /portfolio in 2.6s (1866 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/portfolio',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T03:22:53.858Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /portfolio 200 in 928ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.1s (3747 modules)
+ GET /favicon.ico 500 in 4173ms
+ ○ Compiling /tokens ...
+ ✓ Compiled /tokens in 4.8s (1865 modules)

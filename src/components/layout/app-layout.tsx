@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 import Header from './header';
 import { SolanaService } from '@/services/solana.service';
-import { ExternalLink, Twitter, Send, MessageCircle, Github } from 'lucide-react';
+import { Twitter, Send, MessageCircle, Github } from 'lucide-react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface AppLayoutProps {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children, className }) => {
   const { theme } = useTheme();
+  const pathname = usePathname();
   const [solPrice, setSolPrice] = useState<number | null>(null);
   const [priorityFee, setPriorityFee] = useState<number | null>(null);
 
@@ -74,7 +76,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, className }) => {
           {/* Main content */}
           <main
             id="main-content"
-            className="flex-1 focus:outline-none pt-24 lg:pt-36 lg:pb-16"
+            className={cn(
+              "flex-1 focus:outline-none transition-all duration-300",
+              pathname === '/agent' ? "pt-20 lg:pt-28 pb-10 lg:pb-12" : "pt-24 lg:pt-36 lg:pb-16"
+            )}
           >
             <div className="h-full">{children}</div>
           </main>
@@ -113,11 +118,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, className }) => {
               <svg width="16" height="16" viewBox="0 0 256 256" className="h-4 w-4" aria-hidden="true">
                 <defs>
                   <linearGradient id="solana-g" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#14f195"/>
-                    <stop offset="100%" stopColor="#9945ff"/>
+                    <stop offset="0%" stopColor="#14f195" />
+                    <stop offset="100%" stopColor="#9945ff" />
                   </linearGradient>
                 </defs>
-                <path fill="url(#solana-g)" d="M64 52c3-3 7-4 11-4h155c5 0 7 6 3 9l-43 43c-3 3-7 4-11 4H24c-5 0-7-6-3-9L64 52zM64 152c3-3 7-4 11-4h155c5 0 7 6 3 9l-43 43c-3 3-7 4-11 4H24c-5 0-7-6-3-9l43-43zM200 96c-3 3-7 4-11 4H34c-5 0-7-6-3-9l43-43c3-3 7-4 11-4h155c5 0 7 6 3 9l-43 43z"/>
+                <path fill="url(#solana-g)" d="M64 52c3-3 7-4 11-4h155c5 0 7 6 3 9l-43 43c-3 3-7 4-11 4H24c-5 0-7-6-3-9L64 52zM64 152c3-3 7-4 11-4h155c5 0 7 6 3 9l-43 43c-3 3-7 4-11 4H24c-5 0-7-6-3-9l43-43zM200 96c-3 3-7 4-11 4H34c-5 0-7-6-3-9l43-43c3-3 7-4 11-4h155c5 0 7 6 3 9l-43 43z" />
               </svg>
               <span>SOL: {solPrice !== null ? `$${solPrice.toFixed(2)}` : '—'}</span>
             </div>
