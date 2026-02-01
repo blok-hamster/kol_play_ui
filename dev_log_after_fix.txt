@@ -1,0 +1,1407 @@
+
+> kol-play-ui@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.30
+  - Local:        http://localhost:3000
+  - Environments: .env
+  - Experiments (use with caution):
+    · missingSuspenseWithCSRBailout
+
+ ✓ Starting...
+ ✓ Ready in 2.4s
+ ○ Compiling / ...
+(node:70886) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ Compiled / in 22.2s (3330 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:24:27.024Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET / 200 in 23617ms
+ ✓ Compiled in 2.5s (3294 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/_next/static/webpack/e78a8dc0418261eb.webpack.hot-update.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:24:28.930Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1504ms (3520 modules)
+ GET /favicon.ico 500 in 1898ms
+ ○ Compiling /agent ...
+ ✓ Compiled /agent in 1015ms (3558 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:24:37.690Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1418ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:33:27.229Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 912ms
+   Reload env: .env
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 16.5s (2995 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:34:07.557Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 6700ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:34:07.859Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 59ms
+ ✓ Compiled in 2.5s (2977 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1910ms (2965 modules)
+ GET /favicon.ico 500 in 1994ms
+ GET /favicon.ico 500 in 11ms
+ ✓ Compiled in 4.9s (2974 modules)
+ ✓ Compiled in 1646ms (2972 modules)
+ ✓ Compiled in 1536ms (2972 modules)
+ ✓ Compiled in 1036ms (2972 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 6.6s (2961 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T16:13:02.914Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 7574ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T16:17:51.864Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1512ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 7s (2960 modules)
+ GET /favicon.ico 500 in 7073ms
+ ○ Compiling /kol-trades ...
+ ✓ Compiled /kol-trades in 13.7s (3605 modules)
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 13.8s (3641 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/settings',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T16:55:16.481Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /settings?tab=account 200 in 1072ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1574ms (3643 modules)
+ GET /favicon.ico 500 in 1662ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T18:11:07.563Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3172ms
+ GET /favicon.ico 500 in 72ms
+ ○ Compiling / ...
+ ✓ Compiled / in 4.9s (1851 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T18:37:29.969Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET / 200 in 5377ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 6.6s (3674 modules)
+ GET /favicon.ico 500 in 6718ms
+ ✓ Compiled in 31.3s (3672 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:08:47.939Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3888ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 7.7s (3674 modules)
+ GET /favicon.ico 500 in 7775ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:13:46.865Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3124ms
+ GET /favicon.ico 500 in 58ms
+ ✓ Compiled in 5.4s (3674 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:15:20.795Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 800ms
+ GET /favicon.ico 500 in 206ms
+ ✓ Compiled in 5.8s (3672 modules)
+ ⨯ ./src/hooks/use-agent-socket.ts
+Error: 
+  [31mx[0m Expected ',', got '?'
+     ,-[[36;1;4m/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/src/hooks/use-agent-socket.ts[0m:174:1]
+ [2m174[0m |             threadId
+ [2m175[0m |         };
+ [2m176[0m |         setHistory(prev => [...prev.filter(m => m.id !== optimisticUserMsg.id), optimisticUserMsg]);
+ [2m177[0m |     }, [isConnected, threadId, user?.id]);
+     : [31;1m                                   ^[0m
+ [2m178[0m | 
+ [2m179[0m |     const stopAgent = useCallback(() => {
+ [2m180[0m |         if (!socketRef.current) return;
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/hooks/use-agent-socket.ts
+./src/app/agent/page.tsx
+ ✓ Compiled in 1263ms (3672 modules)
+ ✓ Compiled in 12.9s (3686 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 5.1s (3674 modules)
+ GET /favicon.ico 500 in 5383ms
+ ✓ Compiled in 3.8s (3672 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:31:30.559Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1255ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 797ms (3674 modules)
+ GET /favicon.ico 500 in 906ms
+ ✓ Compiled in 4.1s (3686 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 518ms (3674 modules)
+ GET /favicon.ico 500 in 541ms
+ ✓ Compiled in 1284ms (3674 modules)
+ ⨯ ./src/hooks/use-agent-socket.ts
+Error: 
+  [31mx[0m Expression expected
+     ,-[[36;1;4m/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/src/hooks/use-agent-socket.ts[0m:236:1]
+ [2m236[0m |         threads
+ [2m237[0m |     };
+ [2m238[0m |     };
+ [2m239[0m | };
+     : [31;1m^[0m
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/hooks/use-agent-socket.ts
+./src/app/agent/page.tsx
+ ✓ Compiled in 21.4s (3672 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:37:34.815Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 12254ms
+ ○ Compiling /_error ...
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled /_error in 100.6s (3686 modules)
+ GET /favicon.ico 500 in 72800ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 153ms (1851 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:39:54.315Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ ⨯ src/components/agent/AgentHistory.tsx (30:10) @ Card
+ ⨯ ReferenceError: Card is not defined
+    at AgentHistory (./src/components/agent/AgentHistory.tsx:18:88)
+digest: "3755760209"
+[0m [90m 28 |[39m }) [33m=>[39m {[0m
+[0m [90m 29 |[39m     [36mreturn[39m ([0m
+[0m[31m[1m>[22m[39m[90m 30 |[39m         [33m<[39m[33mCard[39m className[33m=[39m{cn([32m"bg-card/40 backdrop-blur-md border-border/50 h-full flex flex-col"[39m[33m,[39m className)}[33m>[39m[0m
+[0m [90m    |[39m          [31m[1m^[22m[39m[0m
+[0m [90m 31 |[39m             [33m<[39m[33mCardHeader[39m className[33m=[39m[32m"py-4 px-6 border-b border-border/50 flex flex-row items-center justify-between space-y-0"[39m[33m>[39m[0m
+[0m [90m 32 |[39m                 [33m<[39m[33mCardTitle[39m className[33m=[39m[32m"text-sm font-medium flex items-center gap-2 uppercase tracking-wider text-muted-foreground"[39m[33m>[39m[0m
+[0m [90m 33 |[39m                     [33m<[39m[33mClock[39m className[33m=[39m[32m"w-4 h-4 text-primary"[39m [33m/[39m[33m>[39m[0m
+ GET /agent 500 in 61237ms
+ GET /favicon.ico 500 in 89ms
+ GET /favicon.ico 500 in 26ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:42:44.687Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ ⨯ src/components/agent/AgentHistory.tsx (30:10) @ Card
+ ⨯ ReferenceError: Card is not defined
+    at AgentHistory (./src/components/agent/AgentHistory.tsx:18:88)
+digest: "3755760209"
+[0m [90m 28 |[39m }) [33m=>[39m {[0m
+[0m [90m 29 |[39m     [36mreturn[39m ([0m
+[0m[31m[1m>[22m[39m[90m 30 |[39m         [33m<[39m[33mCard[39m className[33m=[39m{cn([32m"bg-card/40 backdrop-blur-md border-border/50 h-full flex flex-col"[39m[33m,[39m className)}[33m>[39m[0m
+[0m [90m    |[39m          [31m[1m^[22m[39m[0m
+[0m [90m 31 |[39m             [33m<[39m[33mCardHeader[39m className[33m=[39m[32m"py-4 px-6 border-b border-border/50 flex flex-row items-center justify-between space-y-0"[39m[33m>[39m[0m
+[0m [90m 32 |[39m                 [33m<[39m[33mCardTitle[39m className[33m=[39m[32m"text-sm font-medium flex items-center gap-2 uppercase tracking-wider text-muted-foreground"[39m[33m>[39m[0m
+[0m [90m 33 |[39m                     [33m<[39m[33mClock[39m className[33m=[39m[32m"w-4 h-4 text-primary"[39m [33m/[39m[33m>[39m[0m
+ GET /agent 500 in 509ms
+ GET /favicon.ico 500 in 125ms
+ GET /favicon.ico 500 in 21ms
+ ✓ Compiled in 5.6s (3686 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:43:23.009Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:43:23.176Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 2965ms
+ GET /favicon.ico 500 in 238ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:47:43.057Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 2403ms
+ GET /favicon.ico 500 in 60ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:48:14.427Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 279ms
+ GET /favicon.ico 500 in 13ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 8.7s (3675 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:48:32.625Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 9838ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:48:34.638Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 683ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T19:48:35.031Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 141ms
+ GET /favicon.ico 500 in 99ms
+ ✓ Compiled in 27.3s (3670 modules)
+ ✓ Compiled in 2.9s (3670 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:01:46.351Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 6333ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.5s (3672 modules)
+ GET /favicon.ico 500 in 4598ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:03:57.743Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 885ms
+ GET /favicon.ico 500 in 29ms
+ ✓ Compiled in 4.4s (3670 modules)
+ ✓ Compiled in 1010ms (3670 modules)
+ ✓ Compiled in 9.8s (3684 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 949ms (3672 modules)
+ GET /favicon.ico 500 in 1020ms
+ ✓ Compiled in 1248ms (3686 modules)
+ ✓ Compiled in 5s (3684 modules)
+ ✓ Compiled in 1134ms (3684 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:10:33.908Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 2153ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 3.6s (3672 modules)
+ GET /favicon.ico 500 in 3625ms
+ ✓ Compiled in 10.3s (3670 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 11.7s (3684 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:18:59.807Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 14610ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.8s (3672 modules)
+ GET /favicon.ico 500 in 2950ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 5.6s (3686 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:20:09.359Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3447ms
+ GET /favicon.ico 500 in 19ms
+ ✓ Compiled in 7.6s (3684 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:24:34.436Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 12495ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 52.7s (3686 modules)
+ GET /favicon.ico 500 in 17689ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:25:37.121Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 4082ms
+ GET /favicon.ico 500 in 28ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:26:47.397Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 501ms
+ GET /favicon.ico 500 in 66ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:27:23.119Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 853ms
+ GET /favicon.ico 500 in 78ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:27:52.176Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 484ms
+ GET /favicon.ico 500 in 122ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:28:16.145Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 305ms
+ GET /favicon.ico 500 in 23ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:28:36.672Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 283ms
+ GET /favicon.ico 500 in 23ms
+ ✓ Compiled in 4.4s (3670 modules)
+ ○ Compiling /subscriptions ...
+ ✓ Compiled /kols in 17.4s (3755 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:51:24.884Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 9770ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 7.1s (3716 modules)
+ GET /favicon.ico 500 in 7232ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 5.9s (3714 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:53:19.943Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3577ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 3.6s (3716 modules)
+ GET /favicon.ico 500 in 4574ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T20:58:47.304Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 2063ms
+ GET /favicon.ico 500 in 44ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/kol-trades',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T21:20:11.335Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /kol-trades 200 in 3566ms
+ GET /favicon.ico 500 in 207ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T21:20:39.527Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 508ms
+ GET /favicon.ico 500 in 50ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 32.4s (3717 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T21:44:22.025Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 37989ms
+ ○ Compiling /kols ...
+ ✓ Compiled /kols in 42s (1862 modules)
+ ○ Compiling /tokens ...
+ ✓ Compiled /tokens in 8s (3740 modules)
+ ○ Compiling /portfolio ...
+ ✓ Compiled /portfolio in 20.1s (3752 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/portfolio',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T21:56:32.814Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /portfolio 200 in 1914ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.9s (3735 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T21:56:36.496Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 3250ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.2s (3737 modules)
+ GET /favicon.ico 500 in 4320ms
+ ○ Compiling /agent ...
+ ✓ Compiled /agent in 6.3s (1871 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T22:10:29.465Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 14836ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 8.3s (3715 modules)
+ GET /favicon.ico 500 in 10380ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T22:11:44.843Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 47177ms
+ GET /favicon.ico 500 in 240ms
+ ✓ Compiled in 7.4s (3713 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T22:16:18.038Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1298ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.4s (3715 modules)
+ GET /favicon.ico 500 in 2469ms
+ ○ Compiling /kols ...
+ ✓ Compiled /kols in 19.1s (1844 modules)
+ ○ Compiling /subscriptions ...
+ ✓ Compiled /kol-trades in 12.5s (1861 modules)
+ ✓ Compiled (1895 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T22:55:47.863Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3674ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 6.6s (3731 modules)
+ GET /favicon.ico 500 in 6674ms
+ ✓ Compiled in 9.6s (3729 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T23:07:56.479Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3298ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 6.3s (3731 modules)
+ GET /favicon.ico 500 in 6382ms
+ ✓ Compiled in 16.7s (3729 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T00:15:01.423Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 2645ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.6s (3731 modules)
+ GET /favicon.ico 500 in 2760ms
+ ✓ Compiled in 4.3s (3729 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T00:47:17.988Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 10742ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 5.1s (3731 modules)
+ GET /favicon.ico 500 in 5268ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T00:50:13.438Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1173ms
+ GET /favicon.ico 500 in 75ms
+ ✓ Compiled in 6.6s (3729 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T00:57:49.240Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 2832ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 6.2s (3731 modules)
+ GET /favicon.ico 500 in 6303ms
+ ✓ Compiled in 7.9s (3729 modules)
+ ✓ Compiled in 7s (3729 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:10:54.774Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 2363ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 6.2s (3731 modules)
+ GET /favicon.ico 500 in 6433ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 8.4s (3732 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:14:44.515Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 9196ms
+ ✓ Compiled in 4s (3729 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:21:00.844Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 2515ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 8.9s (3731 modules)
+ GET /favicon.ico 500 in 9006ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1209ms (3734 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:21:42.573Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1584ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:23:45.069Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 540ms
+ GET /favicon.ico 500 in 108ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:24:23.009Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 309ms
+ GET /favicon.ico 500 in 28ms
+ ✓ Compiled in 11.2s (3729 modules)
+ ✓ Compiled in 4.2s (3729 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:32:50.274Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1614ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1856ms (3731 modules)
+ GET /favicon.ico 500 in 1969ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:34:44.814Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1321ms
+ GET /favicon.ico 500 in 51ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:34:55.804Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 148ms
+ GET /favicon.ico 500 in 22ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:35:34.408Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 325ms
+ GET /favicon.ico 500 in 31ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:41:24.685Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 1867ms
+ GET /favicon.ico 500 in 107ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T01:47:22.991Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 853ms
+ GET /favicon.ico 500 in 120ms
+ ✓ Compiled in 9.5s (1895 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 25.6s (3751 modules)
+ GET /favicon.ico 500 in 24972ms
+ ✓ Compiled in 6.3s (3751 modules)
+ ✓ Compiled / in 4.6s (3749 modules)
+ ✓ Compiled (3766 modules)
+ ⨯ ./src/components/layout/header.tsx
+Error: 
+  [31mx[0m the name `isMobileMenuOpen` is defined multiple times
+     ,-[[36;1;4m/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/src/components/layout/header.tsx[0m:106:1]
+ [2m106[0m |   const pathname = usePathname();
+ [2m107[0m |   const { isAuthenticated, user } = useUserStore();
+ [2m108[0m |   const { openModal } = useModal();
+ [2m109[0m |   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+     : [31;1m         ^^^^^^^^|^^^^^^^[0m
+     :                  [31;1m`-- [31;1mprevious definition of `isMobileMenuOpen` here[0m[0m
+ [2m110[0m |   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+     : [33;1m         ^^^^^^^^|^^^^^^^[0m
+     :                  [33;1m`-- [33;1m`isMobileMenuOpen` redefined here[0m[0m
+ [2m111[0m | 
+ [2m112[0m |   const toggleMobileMenu = () => {
+ [2m113[0m |     setIsMobileMenuOpen(!isMobileMenuOpen);
+     `----
+
+  [31mx[0m the name `setIsMobileMenuOpen` is defined multiple times
+     ,-[[36;1;4m/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/src/components/layout/header.tsx[0m:106:1]
+ [2m106[0m |   const pathname = usePathname();
+ [2m107[0m |   const { isAuthenticated, user } = useUserStore();
+ [2m108[0m |   const { openModal } = useModal();
+ [2m109[0m |   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+     : [31;1m                           ^^^^^^^^^|^^^^^^^^^[0m
+     :                                     [31;1m`-- [31;1mprevious definition of `setIsMobileMenuOpen` here[0m[0m
+ [2m110[0m |   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+     : [33;1m                           ^^^^^^^^^|^^^^^^^^^[0m
+     :                                     [33;1m`-- [33;1m`setIsMobileMenuOpen` redefined here[0m[0m
+ [2m111[0m | 
+ [2m112[0m |   const toggleMobileMenu = () => {
+ [2m113[0m |     setIsMobileMenuOpen(!isMobileMenuOpen);
+     `----
+
+Import trace for requested module:
+./src/components/layout/header.tsx
+./src/components/layout/app-layout.tsx
+./src/app/page.tsx
+ ✓ Compiled in 200.3s (3744 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T02:11:42.320Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-02-01T02:11:42.421Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET / 200 in 90566ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 6.5s (3732 modules)
+ GET /favicon.ico 500 in 6678ms
+ ✓ Compiled in 7.7s (3746 modules)
+ GET /favicon.ico 500 in 45ms
+ ✓ Compiled in 14.2s (3744 modules)
+ ✓ Compiled in 7.3s (3744 modules)
+ ✓ Compiled in 4.6s (3744 modules)
+ ✓ Compiled in 3.4s (3744 modules)
+ ○ Compiling /pro-coming-soon ...
+ ✓ Compiled /pro-coming-soon in 4.9s (3740 modules)
+ ✓ Compiled in 4.5s (3741 modules)
+ ✓ Compiled in 3.1s (3741 modules)
+ ✓ Compiled in 2.8s (3741 modules)
+ ✓ Compiled in 4.6s (3741 modules)
+ ✓ Compiled in 4.1s (3741 modules)
+ ✓ Compiled in 3.3s (3741 modules)
+ ✓ Compiled in 3.2s (3741 modules)

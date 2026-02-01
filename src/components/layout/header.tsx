@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useUIStore } from '@/stores/use-ui-store';
 import { useUserStore } from '@/stores/use-user-store';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -25,7 +24,7 @@ import ThemeToggle from './theme-toggle';
 import NotificationBell from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
 import { useModal } from '@/stores/use-ui-store';
-import TokenSearch from '@/components/tokens/token-search';
+import { NetworkModeSelector } from './network-mode-selector';
 import type { LucideIcon } from 'lucide-react';
 
 interface NavigationItem {
@@ -43,21 +42,18 @@ const navigationItems: NavigationItem[] = [
     href: '/kols',
     icon: TrendingUp,
     description: 'Copy trading leaders',
-    // requiresAuth: true, // Temporarily removed for development
   },
   {
     name: 'Live Trades',
     href: '/kol-trades',
     icon: Activity,
     description: 'Real-time KOL trades & network maps',
-    // requiresAuth: true, // Temporarily removed for development
   },
   {
     name: 'Subscriptions',
     href: '/subscriptions',
     icon: Users,
     description: 'Manage your copy trades',
-    // requiresAuth: true, // Temporarily removed for development
   },
   {
     name: 'Tokens',
@@ -70,14 +66,12 @@ const navigationItems: NavigationItem[] = [
     href: '/portfolio',
     icon: PieChart,
     description: 'Track your performance',
-    // requiresAuth: true, // Temporarily removed for development
   },
   {
     name: 'Settings',
     href: '/settings',
     icon: Settings,
     description: 'Account and preferences',
-    // requiresAuth: true, // Temporarily removed for development
   },
 ];
 
@@ -87,7 +81,6 @@ const secondaryItems: NavigationItem[] = [
     href: '/agent',
     icon: Zap,
     description: 'Trading insights and help',
-    // requiresAuth: true, // Temporarily removed for development
   },
   {
     name: 'Help & Support',
@@ -103,61 +96,15 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ className }) => {
   const pathname = usePathname();
-  const { isAuthenticated, user } = useUserStore();
+  const { isAuthenticated } = useUserStore();
   const { openModal } = useModal();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   const handleAuthClick = () => {
     openModal('auth');
   };
 
-  const handleMobileSearch = () => {
-    setIsMobileMenuOpen(false); // Close mobile menu if open
-    setIsMobileSearchOpen(true);
-    // Focus on search input after overlay opens
-    setTimeout(() => {
-      const searchInput = document.querySelector(
-        '[placeholder*="Search"]'
-      ) as HTMLInputElement;
-      if (searchInput) {
-        searchInput.focus();
-      }
-    }, 100);
-  };
-
-  const closeMobileSearch = () => {
-    setIsMobileSearchOpen(false);
-  };
-
-  // Close mobile search when token modal opens
-  // useEffect(() => {
-  //   if (!isMobileSearchOpen) return;
-
-  //   const checkForTokenModal = () => {
-  //     // Look for modal elements with high z-index
-  //     const highZElements = document.querySelectorAll('.fixed[class*="z-5"], .fixed[class*="z-[5"]');
-  //     for (const element of Array.from(highZElements)) {
-  //       const computedStyle = window.getComputedStyle(element);
-  //       const rect = element.getBoundingClientRect();
-
-  //       // Check if it's visible and not our search overlay
-  //       if (rect.width > 0 && rect.height > 0 &&
-  //           parseInt(computedStyle.zIndex) >= 50 &&
-  //           !element.textContent?.includes('Search tokens')) {
-  //         setIsMobileSearchOpen(false);
-  //         break;
-  //       }
-  //     }
-  //   };
-
-  //   // Check after a short delay to allow modal to render
-  //   const timeout = setTimeout(checkForTokenModal, 200);
-  //   return () => clearTimeout(timeout);
-  // }, [isMobileSearchOpen]);
-
   const toggleMobileMenu = () => {
-    setIsMobileSearchOpen(false); // Close mobile search if open
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
@@ -268,9 +215,9 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
           </Link>
         </div>
 
-        {/* Center Section - Global Search (Desktop) */}
-        <div className="flex-1 max-w-xl mx-6 hidden lg:block">
-          <TokenSearch />
+        {/* Center Section - Network & Mode Selector (Desktop) */}
+        <div className="flex-1 flex justify-center mx-6 hidden lg:flex">
+          <NetworkModeSelector />
         </div>
 
         {/* Right Section - Actions and User */}
@@ -285,26 +232,6 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             ) : (
               <Menu className="h-5 w-5" />
             )}
-          </button>
-
-          {/* Mobile search button */}
-          <button
-            onClick={handleMobileSearch}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors lg:hidden"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
           </button>
 
           {/* Theme Toggle */}
@@ -355,34 +282,6 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
         </div>
       </div>
 
-      {/* Mobile Search Overlay */}
-      {isMobileSearchOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-x-0 top-14 bottom-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
-            onClick={closeMobileSearch}
-          />
-
-          {/* Search Panel */}
-          <div className="fixed top-14 left-0 right-0 bg-background border-b border-border shadow-2xl z-[60] lg:hidden">
-            <div className="p-4">
-              <div className="flex items-center space-x-3">
-                <div className="flex-1">
-                  <TokenSearch />
-                </div>
-                <button
-                  onClick={closeMobileSearch}
-                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
       {/* Mobile Menu Dropdown */}
       {isMobileMenuOpen && (
         <>
@@ -413,8 +312,8 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                         'hover:bg-muted focus:bg-muted focus:outline-none',
                         isActive && 'bg-accent-gradient text-white shadow-sm',
                         item.requiresAuth &&
-                          !isAuthenticated &&
-                          'opacity-50 cursor-not-allowed'
+                        !isAuthenticated &&
+                        'opacity-50 cursor-not-allowed'
                       )}
                       onClick={e => {
                         if (item.requiresAuth && !isAuthenticated) {
@@ -480,8 +379,8 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                         'hover:bg-muted focus:bg-muted focus:outline-none',
                         isActive && 'bg-accent-gradient text-white shadow-sm',
                         item.requiresAuth &&
-                          !isAuthenticated &&
-                          'opacity-50 cursor-not-allowed'
+                        !isAuthenticated &&
+                        'opacity-50 cursor-not-allowed'
                       )}
                       onClick={e => {
                         if (item.requiresAuth && !isAuthenticated) {
@@ -524,16 +423,6 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
                     </Link>
                   );
                 })}
-              </div>
-
-              {/* Mobile Search */}
-              <div className="pt-4">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">
-                  Search
-                </div>
-                <div className="px-3">
-                  <TokenSearch />
-                </div>
               </div>
 
               {/* Auth Section for Mobile */}

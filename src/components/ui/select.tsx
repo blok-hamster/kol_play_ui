@@ -17,6 +17,7 @@ export interface SelectItemProps {
   value: string;
   children: React.ReactNode;
   className?: string;
+  disabled?: boolean;
 }
 
 export interface SelectTriggerProps {
@@ -40,11 +41,13 @@ const SelectContext = React.createContext<{
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   disabled?: boolean;
+  contentRef: React.RefObject<HTMLDivElement>;
 }>({
   value: '',
-  onValueChange: () => {},
+  onValueChange: () => { },
   isOpen: false,
-  setIsOpen: () => {},
+  setIsOpen: () => { },
+  contentRef: { current: null },
 });
 
 const Select: React.FC<SelectProps> = ({
@@ -54,10 +57,11 @@ const Select: React.FC<SelectProps> = ({
   disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   return (
     <SelectContext.Provider
-      value={{ value, onValueChange, isOpen, setIsOpen, disabled }}
+      value={{ value, onValueChange, isOpen, setIsOpen, disabled, contentRef }}
     >
       <div className="relative">
         {children}
@@ -70,12 +74,15 @@ const SelectTrigger: React.FC<SelectTriggerProps> = ({
   children,
   className,
 }) => {
-  const { isOpen, setIsOpen, disabled } = React.useContext(SelectContext);
+  const { isOpen, setIsOpen, disabled, contentRef } = React.useContext(SelectContext);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (triggerRef.current && !triggerRef.current.contains(event.target as Node)) {
+      const isOutsideTrigger = triggerRef.current && !triggerRef.current.contains(event.target as Node);
+      const isOutsideContent = contentRef.current && !contentRef.current.contains(event.target as Node);
+
+      if (isOutsideTrigger && isOutsideContent) {
         setIsOpen(false);
       }
     };
@@ -113,7 +120,7 @@ const SelectValue: React.FC<SelectValueProps> = ({
   placeholder = 'Select an option...',
 }) => {
   const { value } = React.useContext(SelectContext);
-  
+
   return (
     <span className={cn(!value && 'text-muted-foreground')}>
       {value || placeholder}
@@ -125,12 +132,13 @@ const SelectContent: React.FC<SelectContentProps> = ({
   children,
   className,
 }) => {
-  const { isOpen } = React.useContext(SelectContext);
+  const { isOpen, contentRef } = React.useContext(SelectContext);
 
   if (!isOpen) return null;
 
   return (
     <div
+      ref={contentRef}
       className={cn(
         'absolute top-full left-0 z-50 w-full mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden',
         className
@@ -147,6 +155,7 @@ const SelectItem: React.FC<SelectItemProps> = ({
   value,
   children,
   className,
+  disabled
 }) => {
   const { value: selectedValue, onValueChange, setIsOpen } = React.useContext(SelectContext);
   const isSelected = value === selectedValue;
@@ -154,12 +163,14 @@ const SelectItem: React.FC<SelectItemProps> = ({
   return (
     <div
       onClick={() => {
+        if (disabled) return;
         onValueChange(value);
         setIsOpen(false);
       }}
       className={cn(
         'relative flex w-full cursor-pointer select-none items-center rounded-md py-2 px-2 text-sm outline-none hover:bg-muted focus:bg-muted',
         isSelected && 'bg-muted',
+        disabled && 'opacity-50 cursor-not-allowed grayscale pointer-events-none',
         className
       )}
     >

@@ -1,0 +1,1050 @@
+
+> kol-play-ui@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.30
+  - Local:        http://localhost:3000
+  - Environments: .env
+  - Experiments (use with caution):
+    · missingSuspenseWithCSRBailout
+
+ ✓ Starting...
+ ✓ Ready in 2.6s
+ ○ Compiling / ...
+(node:69591) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ Compiled / in 16.1s (3327 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:12:20.517Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:12:20.573Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET / 200 in 17516ms
+ GET / 200 in 2179ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_error in 23.5s (3520 modules)
+ GET /favicon.ico 500 in 6799ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/.well-known/appspecific/com.chrome.devtools.json',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:12:43.735Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 22931ms
+ GET /favicon.ico 500 in 21ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:12:50.534Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET / 200 in 472ms
+ GET /favicon.ico 500 in 10ms
+ ○ Compiling /agent ...
+ ✓ Compiled /agent in 1019ms (3546 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 4s (3541 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:16:49.096Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3211ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1158ms (3543 modules)
+ GET /favicon.ico 500 in 1211ms
+ ✓ Compiled in 2.1s (3543 modules)
+ ✓ Compiled in 11.4s (1773 modules)
+ GET /favicon.ico 500 in 259ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:18:01.128Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 3916ms
+ GET /favicon.ico 500 in 14ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:18:28.994Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 395ms
+ GET /favicon.ico 500 in 25ms
+ ✓ Compiled in 21.9s (3557 modules)
+ GET /favicon.ico 500 in 417ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:20:01.549Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 37706ms
+ ✓ Compiled in 78s (3569 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.5s (3558 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:21:27.149Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/_next/static/css/app/layout.css',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:21:27.178Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /_next/static/css/app/layout.css?v=1769872883950 404 in 2861ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:21:34.974Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 415ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/_next/static/css/app/layout.css',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:21:35.864Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /_next/static/css/app/layout.css?v=1769872894790 404 in 503ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/_next/static/chunks/main-app.js',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:21:40.576Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/_next/static/chunks/app-pages-internals.js',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:21:40.592Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /_next/static/chunks/main-app.js?v=1769872894790 404 in 1562ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 1421ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/agent',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:22:04.327Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /agent 200 in 113ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/_next/static/css/app/layout.css',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:22:04.565Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /_next/static/css/app/layout.css?v=1769872924310 404 in 113ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/_next/static/chunks/main-app.js',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:22:04.921Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /_next/static/chunks/main-app.js?v=1769872924310 404 in 50ms
+🎫 Checking stage: prod isAlphaOrBeta: false
+🎫 InviteGateWrapper render: {
+  pathname: '/_next/static/chunks/app-pages-internals.js',
+  isOAuthCallback: false,
+  stage: 'prod',
+  isAlphaBeta: false,
+  isInitialized: false,
+  hasInviteCode: false,
+  isAuthenticated: false,
+  user: 'null',
+  inviteCode: 'null',
+  timestamp: '2026-01-31T15:22:04.970Z'
+}
+🎫 Not in alpha/beta stage, showing main app
+ GET /_next/static/chunks/app-pages-internals.js 404 in 41ms
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:340
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:382)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /favicon.ico 500 in 2991ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, lstat '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/vendor-chunks/object-assign.js'
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/object-assign' in /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server for build dependencies doesn't lead to expected result '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/vendor-chunks/object-assign.js', but to 'Error: Can't resolve './vendor-chunks/object-assign' in '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/object-assign (expected /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/vendor-chunks/object-assign.js)
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/handle-externals.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/handle-externals.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+<w>  at resolve commonjs /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/@socket.io' in /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server for build dependencies doesn't lead to expected result '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/vendor-chunks/@socket.io.js', but to 'Error: Can't resolve './vendor-chunks/@socket.io' in '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/@socket.io (expected /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/vendor-chunks/@socket.io.js)
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/handle-externals.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/handle-externals.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+<w>  at resolve commonjs /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/react-qr-code' in /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server for build dependencies doesn't lead to expected result '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/vendor-chunks/react-qr-code.js', but to 'Error: Can't resolve './vendor-chunks/react-qr-code' in '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/react-qr-code (expected /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/vendor-chunks/react-qr-code.js)
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/handle-externals.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/handle-externals.js
+<w>  at file dependencies /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+<w>  at file /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+<w>  at resolve commonjs /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+ ⨯ Error: Cannot find module './948.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/page.js:1:31366
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/page.js:1:31460)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:103:84
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:103:26)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36)
+    at async DevServer.findPageComponents (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:577:20)
+    at async DevServer.renderPageComponent (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:1910:24)
+    at async DevServer.renderToResponseImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:1962:32)
+    at async DevServer.pipeImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:922:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ],
+  page: '/'
+}
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:340
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:382)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET / 500 in 143ms
+ ⨯ Error: Cannot find module './948.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/page.js:1:31366
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/page.js:1:31460)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:103:84
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:103:26)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36)
+    at async DevServer.findPageComponents (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:577:20)
+    at async DevServer.renderPageComponent (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:1910:24)
+    at async DevServer.renderToResponseImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:1962:32)
+    at async DevServer.pipeImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:922:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ],
+  page: '/'
+}
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:340
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:382)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET / 500 in 106ms
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:340
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:382)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /favicon.ico 500 in 21ms
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:340
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:382)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /favicon.ico 500 in 17ms
+ ⨯ Error: Cannot find module './948.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/page.js:1:31366
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/page.js:1:31460)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:103:84
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:103:26)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36)
+    at async DevServer.findPageComponents (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:577:20)
+    at async DevServer.renderPageComponent (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:1910:24)
+    at async DevServer.renderToResponseImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:1962:32)
+    at async DevServer.pipeImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:922:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ],
+  page: '/'
+}
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:340
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:382)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET / 500 in 319ms
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:340
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:382)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /favicon.ico 500 in 23ms
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js
+- /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1409:15)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1060:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1065:22)
+    at Function._load (node:internal/modules/cjs/loader:1214:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at __webpack_require__.f.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:198:28)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js:162:22)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:340
+    at Object.<anonymous> (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/pages/_document.js:1:382)
+    at Module._compile (node:internal/modules/cjs/loader:1739:14)
+    at Object..js (node:internal/modules/cjs/loader:1904:10)
+    at Module.load (node:internal/modules/cjs/loader:1473:32)
+    at Function._load (node:internal/modules/cjs/loader:1285:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1495:12)
+    at mod.require (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+    at requirePage (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js:109:84)
+    at /Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/webpack-runtime.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/.next/server/app/_not-found/page.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/require.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/load-components.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/build/utils.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/joshua/Desktop/KOLPLAY/DEVELOPMENT/kol-play-ui/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /favicon.ico 500 in 17ms
