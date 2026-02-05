@@ -1,6 +1,6 @@
 import apiClient from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/constants';
-import { ApiResponse, SwapData, WatchConfig, TradingSettings } from '@/types';
+import { ApiResponse, WatchConfig, TradingSettings } from '@/types';
 
 // Keep existing interfaces for backward compatibility in other methods
 export interface PerformSwapRequest {
@@ -9,7 +9,24 @@ export interface PerformSwapRequest {
   mint: string;
   slippage?: number;
   priority?: 'low' | 'medium' | 'high';
+  limitPrice?: number;
   watchConfig?: Partial<WatchConfig>;
+}
+
+export interface SwapData {
+	tradeType: 'buy' | 'sell';
+	amount: number;
+	mint: string;
+	slippage?: number;
+	priority?: 'low' | 'medium' | 'high';
+	limitPrice?: number;
+	watchConfig?: {
+		takeProfitPercentage?: number;
+		stopLossPercentage?: number;
+		enableTrailingStop?: boolean;
+		trailingPercentage?: number;
+		maxHoldTimeMinutes?: number;
+	};
 }
 
 export interface SwapQuoteRequest {
@@ -124,21 +141,24 @@ export class SwapService {
   /**
    * Execute a token swap using the SwapData structure
    */
-  static async performSwap(
-    request: SwapData
-  ): Promise<ApiResponse<SwapResult>> {
-    try {
-      const response = await apiClient.post<SwapResult>(
-        API_ENDPOINTS.FEATURES.PERFORM_SWAP,
-        {
-          tradeType: request.tradeType,
-          amount: request.amount,
-          mint: request.mint,
-          watchConfig: request.watchConfig,
-        }
-      );
-      return response;
-    } catch (error: any) {
+  	static async performSwap(
+		request: SwapData
+	): Promise<ApiResponse<SwapResult>> {
+		try {
+			const response = await apiClient.post<SwapResult>(
+				API_ENDPOINTS.FEATURES.PERFORM_SWAP,
+				{
+					tradeType: request.tradeType,
+					amount: request.amount,
+					mint: request.mint,
+					slippage: request.slippage,
+					priority: request.priority,
+					limitPrice: request.limitPrice,
+					watchConfig: request.watchConfig,
+				}
+			);
+			return response;
+		} catch (error: any) {
       // Enhanced mock response for testing
       const isBuy = request.tradeType === 'buy';
       const basePrice = isBuy ? 0.001 : 1000;

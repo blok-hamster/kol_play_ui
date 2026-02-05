@@ -60,7 +60,7 @@ export const useAgentSocket = (threadId: string) => {
         const socket = io(socketUrl, {
             auth: { token },
             path: '/socket.io',
-            transports: ['websocket']
+            transports: ['websocket', 'polling']
         });
 
         socketRef.current = socket;
@@ -170,7 +170,12 @@ export const useAgentSocket = (threadId: string) => {
         });
 
         socket.on('agent:threads:response', (data) => {
-            if (data.threads) setThreads(data.threads);
+            console.log('[useAgentSocket] 📥 Received agent:threads:response:', data);
+            console.log('[useAgentSocket] 📋 Number of threads:', data.threads?.length);
+            if (data.threads) {
+                console.log('[useAgentSocket] 🔍 Sample thread IDs:', data.threads.slice(0, 3).map((t: any) => t.thread_id));
+                setThreads(data.threads);
+            }
         });
 
         socket.on('agent:complete', (data) => {

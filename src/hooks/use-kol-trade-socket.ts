@@ -7,6 +7,7 @@ import { useNotifications } from '@/stores/use-ui-store';
 import { PredictionResult, KOLWallet, UserSubscription } from '@/types';
 import { cacheManager } from '@/lib/cache-manager';
 import { TradingService } from '@/services/trading.service';
+import { TokenMetadataService } from '@/services/token-metadata.service';
 
 export interface KOLTrade {
   id: string;
@@ -175,6 +176,69 @@ function cleanupOldData() {
   }
 }
 
+// Metadata enrichment for trades
+async function enrichTradesMetadata(trades: KOLTrade[]) {
+  // Find mints that need enrichment (missing name, symbol, OR image)
+  const mintsToEnrich = new Set<string>();
+  trades.forEach(trade => {
+    if (trade.tradeData?.mint) {
+      const { name, symbol, image } = trade.tradeData;
+      // Aggressive check: if ANY key field is missing or looks like a placeholder/default
+      const isMissingData = !name || !symbol || !image || 
+                            name === 'Unknown' || name === 'Unknown Token' ||
+                            symbol === 'Unknown' || symbol === 'UNKNOWN' ||
+                            name === trade.tradeData.mint;
+      
+      if (isMissingData) {
+        mintsToEnrich.add(trade.tradeData.mint);
+      }
+    }
+  });
+
+  if (mintsToEnrich.size === 0) return;
+
+  try {
+    const mintList = Array.from(mintsToEnrich);
+    // Use the service to get rich metadata (uses cache internally)
+    const metadataMap = await TokenMetadataService.getMultipleTokenMetadata(mintList);
+
+    if (metadataMap.size === 0) return;
+
+    let hasChanges = false;
+    trades.forEach(trade => {
+      if (trade.tradeData?.mint && metadataMap.has(trade.tradeData.mint)) {
+        const metadata = metadataMap.get(trade.tradeData.mint)!;
+        
+        // Enrich name if missing or placeholder
+        if (!trade.tradeData.name || trade.tradeData.name === 'Unknown' || trade.tradeData.name === 'Unknown Token' || trade.tradeData.name === trade.tradeData.mint) {
+          trade.tradeData.name = metadata.name;
+          hasChanges = true;
+        }
+        
+        // Enrich symbol if missing or placeholder
+        if (!trade.tradeData.symbol || trade.tradeData.symbol === 'N/A' || trade.tradeData.symbol === 'Unknown' || trade.tradeData.symbol === 'UNKNOWN') {
+          trade.tradeData.symbol = metadata.symbol;
+          hasChanges = true;
+        }
+        
+        // Always prefer external high-quality image if available and current is missing or we want to ensure quality
+        if (metadata.image && (!trade.tradeData.image || trade.tradeData.image.includes('dicebear'))) {
+          trade.tradeData.image = metadata.image;
+          hasChanges = true;
+        }
+
+        // Also attach Solscan link if not present? (Optional, but good for data completeness)
+      }
+    });
+
+    if (hasChanges) {
+      notifyListeners();
+    }
+  } catch (error) {
+    console.warn('Failed to enrich trade metadata:', error);
+  }
+}
+
 // Smart subscription management functions
 async function fetchFeaturedKOLs(): Promise<string[]> {
   try {
@@ -189,8 +253,16 @@ async function fetchFeaturedKOLs(): Promise<string[]> {
       return response.data.map((kol: KOLWallet) => kol.walletAddress);
     }
     return [];
-  } catch (error) {
-    console.warn('Failed to fetch featured KOLs:', error);
+  } catch (error: any) {
+    const isNetworkError = 
+      error.message?.includes('Network Error') || 
+      error.message?.includes('Unable to connect') || 
+      error.code === 'ERR_NETWORK' ||
+      error.code === 'ECONNREFUSED';
+    
+    if (!isNetworkError) {
+      console.warn('Failed to fetch featured KOLs:', error);
+    }
     return [];
   }
 }
@@ -204,8 +276,16 @@ async function fetchUserSubscribedKOLs(): Promise<string[]> {
         .map((sub: UserSubscription) => sub.kolWallet);
     }
     return [];
-  } catch (error) {
-    console.warn('Failed to fetch user subscriptions:', error);
+  } catch (error: any) {
+    const isNetworkError = 
+      error.message?.includes('Network Error') || 
+      error.message?.includes('Unable to connect') || 
+      error.code === 'ERR_NETWORK' ||
+      error.code === 'ECONNREFUSED';
+      
+    if (!isNetworkError) {
+      console.warn('Failed to fetch user subscriptions:', error);
+    }
     return [];
   }
 }
@@ -335,6 +415,7 @@ function ensureMindmapSubscriptions() {
 
   // Subscribe to mindmap updates for active tokens that we don't have data for
   activeTokens.forEach(tokenMint => {
+    if (!tokenMint) return;
     if (
       !globalState.data.mindmapData[tokenMint] &&
       !globalState.subscriptions.subscribedTokens.has(tokenMint)
@@ -634,6 +715,9 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         // Cleanup old data periodically
         cleanupOldData();
 
+        // Enrich metadata for the new trade
+        enrichTradesMetadata([trade]);
+
         notifyListeners();
       });
 
@@ -680,6 +764,9 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
 
         // Cleanup old data periodically
         cleanupOldData();
+
+        // Enrich metadata for the new trade
+        enrichTradesMetadata([trade]);
 
         notifyListeners();
       });

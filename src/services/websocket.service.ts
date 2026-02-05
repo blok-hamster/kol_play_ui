@@ -1,5 +1,7 @@
+import { io, Socket } from 'socket.io-client';
 import { APP_CONFIG } from '@/lib/constants';
 import { WebSocketMessage, TradeAlert, KOLTrade } from '@/types';
+import apiClient from '@/lib/api';
 
 export interface WebSocketConfig {
   url: string;
@@ -7,6 +9,7 @@ export interface WebSocketConfig {
   maxReconnectAttempts: number;
   heartbeatInterval: number;
   messageTimeout: number;
+  path?: string;
 }
 
 export interface QueueMessage {
@@ -16,11 +19,12 @@ export interface QueueMessage {
     | 'PRICE_UPDATE'
     | 'BALANCE_UPDATE'
     | 'NOTIFICATION'
-    | 'KOL_TRADE';
+    | 'KOL_TRADE'
+    | 'USER_EVENT';
   payload: any;
   timestamp: number;
-  ttl: number; // Time to live in milliseconds
-  queue: 'trades' | 'notifications';
+  ttl: number;
+  queue?: 'trades' | 'notifications';
 }
 
 export interface WebSocketEventHandlers {
@@ -36,125 +40,178 @@ export interface WebSocketEventHandlers {
   onDisconnect?: () => void;
   onError?: (error: Error) => void;
   onReconnecting?: (attempt: number) => void;
+  onUserEvent?: (event: any) => void;
+  onAgentData?: (data: any) => void;
+  onAgentToken?: (data: any) => void;
+  onAgentStatus?: (data: any) => void;
+  onAgentHistoryResponse?: (data: any) => void;
+  onAgentComplete?: (data: any) => void;
+  onAgentError?: (data: any) => void;
 }
 
 class WebSocketService {
-  private ws: WebSocket | null = null;
+  private socket: Socket | null = null;
   private config: WebSocketConfig;
   private handlers: WebSocketEventHandlers = {};
-  private reconnectAttempts = 0;
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
   private isConnecting = false;
   private isConnected = false;
   private messageQueue: QueueMessage[] = [];
   private messageCleanupTimer: NodeJS.Timeout | null = null;
 
   constructor(config?: Partial<WebSocketConfig>) {
+    // Default URL from env or fallback
+    const defaultUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:5000';
+    
     this.config = {
-      url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws',
-      reconnectInterval: APP_CONFIG.WS_RECONNECT_INTERVAL,
-      maxReconnectAttempts: APP_CONFIG.WS_MAX_RECONNECT_ATTEMPTS,
-      heartbeatInterval: 30000, // 30 seconds
-      messageTimeout: 3600000, // 1 hour TTL
+      url: defaultUrl,
+      reconnectInterval: APP_CONFIG.WS_RECONNECT_INTERVAL || 1000,
+      maxReconnectAttempts: APP_CONFIG.WS_MAX_RECONNECT_ATTEMPTS || 5,
+      heartbeatInterval: 30000,
+      messageTimeout: 3600000,
+      path: '/socket.io',
       ...config,
     };
 
-    // Start message cleanup timer
     this.startMessageCleanup();
   }
 
+  private connectPromise: Promise<void> | null = null;
+
   /**
-   * Connect to the WebSocket server
+   * Connect to the Socket.IO server
    */
   public connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.isConnected || this.isConnecting) {
-        resolve();
-        return;
-      }
+    if (this.isConnected) {
+      return Promise.resolve();
+    }
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
 
-      this.isConnecting = true;
-
+    this.isConnecting = true;
+    this.connectPromise = new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(this.config.url);
+        const token = apiClient.getToken();
+        
+        if (!token) {
+          this.isConnecting = false;
+          this.connectPromise = null; // Reset promise on immediate error
+          const error = new Error('No authentication token available for WebSocket');
+          this.handlers.onError?.(error);
+          reject(error);
+          return;
+        }
 
-        this.ws.onopen = () => {
-          void 0 && ('WebSocket connected');
+        // Initialize Socket.IO connection
+        this.socket = io(this.config.url, {
+          path: this.config.path || '/socket.io', // Ensure string default
+          auth: { token },
+          reconnection: true,
+          reconnectionAttempts: this.config.maxReconnectAttempts,
+          reconnectionDelay: this.config.reconnectInterval,
+          timeout: 20000,
+          transports: ['websocket', 'polling'], // Prefer websocket for stability and to avoid CORS poll errors
+        });
+
+        // Connection events
+        this.socket.on('connect', () => {
+          console.log('✅ Socket.IO connected');
           this.isConnected = true;
           this.isConnecting = false;
-          this.reconnectAttempts = 0;
-
-          this.startHeartbeat();
           this.handlers.onConnect?.();
+          this.connectPromise = null;
           resolve();
-        };
+        });
 
-        this.ws.onmessage = event => {
-          try {
-            const message: QueueMessage = JSON.parse(event.data);
-            this.handleMessage(message);
-          } catch (error) {
-            console.error('Failed to parse WebSocket message:', error);
-          }
-        };
+        this.socket.on('connect_error', (error) => {
+          console.error('❌ Socket.IO connection error:', error);
+          this.isConnecting = false;
+          this.handlers.onError?.(error);
+          this.connectPromise = null;
+          reject(error);
+        });
 
-        this.ws.onclose = event => {
-          void 0 && ('WebSocket disconnected:', event.code, event.reason);
+        this.socket.on('disconnect', (reason) => {
+          console.warn('⚠️ Socket.IO disconnected:', reason);
           this.isConnected = false;
           this.isConnecting = false;
-          this.stopHeartbeat();
-
           this.handlers.onDisconnect?.();
+        });
 
-          // Attempt to reconnect if not manually closed
-          if (
-            event.code !== 1000 &&
-            this.reconnectAttempts < this.config.maxReconnectAttempts
-          ) {
-            this.scheduleReconnect();
+        this.socket.on('reconnect_attempt', (attempt) => {
+          console.log(`🔄 Socket.IO reconnecting (attempt ${attempt})...`);
+          this.handlers.onReconnecting?.(attempt);
+        });
+
+        // Map Backend Events to Handlers
+        
+        // 1. Initial connection receipt
+        this.socket.on('connected', (data) => {
+          console.log('📩 WebSocket confirmed connection:', data);
+        });
+
+        // 2. KOL Trade Updates (Broadcast)
+        this.socket.on('kol_trade_update', (data) => {
+          // Flatten data if it comes in { trade, event, timestamp } format
+          const trade = data.trade?.tradeData || data.trade || data;
+          this.handleMessage({
+            id: trade.id || Math.random().toString(),
+            type: 'KOL_TRADE',
+            payload: trade,
+            timestamp: Date.now(),
+            ttl: this.config.messageTimeout
+          });
+        });
+
+        // 3. Personal Alerts
+        this.socket.on('personal_kol_trade_alert', (data) => {
+          this.handlers.onNotification?.(data);
+        });
+
+        // 4. User Specific Events (Balance, Position Closed, etc.)
+        this.socket.on('user_event', (data) => {
+          this.handlers.onUserEvent?.(data);
+          
+          if (data.type === 'BALANCE_UPDATE') {
+            this.handlers.onBalanceUpdate?.(data);
           }
-        };
+        });
 
-        this.ws.onerror = error => {
-          console.error('WebSocket error:', error);
-          this.isConnecting = false;
-          const wsError = new Error('WebSocket connection failed');
-          this.handlers.onError?.(wsError);
-          reject(wsError);
-        };
+        // 5. Subscription confirmations
+        this.socket.on('subscription_confirmed', (data) => {
+          console.log('✅ Subscription confirmed:', data);
+        });
+
+         // 6. Agent Events (Sentiment, Swarms, etc)
+        this.socket.on('agent:data', (data) => this.handlers.onAgentData?.(data));
+        this.socket.on('agent:token', (data) => this.handlers.onAgentToken?.(data));
+        this.socket.on('agent:status', (data) => this.handlers.onAgentStatus?.(data));
+        this.socket.on('agent:history:response', (data) => this.handlers.onAgentHistoryResponse?.(data));
+        this.socket.on('agent:complete', (data) => this.handlers.onAgentComplete?.(data));
+        this.socket.on('agent:error', (data) => this.handlers.onAgentError?.(data));
+
       } catch (error) {
         this.isConnecting = false;
-        const connectionError =
-          error instanceof Error
-            ? error
-            : new Error('Failed to create WebSocket connection');
+        const connectionError = error instanceof Error ? error : new Error('Failed to initialize Socket.IO');
         this.handlers.onError?.(connectionError);
+        this.connectPromise = null;
         reject(connectionError);
       }
     });
   }
 
   /**
-   * Disconnect from the WebSocket server
+   * Disconnect from the server
    */
   public disconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
     }
 
-    this.stopHeartbeat();
-    this.stopMessageCleanup();
-
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.close(1000, 'Manual disconnect');
-    }
-
-    this.ws = null;
     this.isConnected = false;
     this.isConnecting = false;
-    this.reconnectAttempts = 0;
+    this.stopMessageCleanup();
   }
 
   /**
@@ -174,57 +231,67 @@ class WebSocketService {
   }
 
   /**
-   * Send a message to the server
+   * Send a message to the server (Socket.IO emit)
    */
-  public send(message: any): boolean {
-    if (!this.isConnected || !this.ws) {
-      console.warn('WebSocket not connected, message not sent:', message);
+  public send(event: string, data: any): boolean {
+    if (!this.isConnected || !this.socket) {
+      console.warn(`[WebSocketService] Cannot send event "${event}". Socket not connected. (isConnected: ${this.isConnected}, isConnecting: ${this.isConnecting})`);
       return false;
     }
 
     try {
-      this.ws.send(JSON.stringify(message));
+      console.log(`[WebSocketService] Emitting event: ${event}`, data);
+      this.socket.emit(event, data);
       return true;
     } catch (error) {
-      console.error('Failed to send WebSocket message:', error);
+      console.error(`Failed to emit Socket.IO event "${event}":`, error);
       return false;
     }
   }
 
   /**
-   * Subscribe to specific queues or message types
+   * Legacy method for backward compatibility
+   */
+  public emit(message: any): boolean {
+    if (typeof message === 'object' && message.type) {
+      return this.send(message.type.toLowerCase(), message.payload || message);
+    }
+    return this.send('message', message);
+  }
+
+  /**
+   * Subscribe to trades/notifications
    */
   public subscribe(subscriptions: {
     trades?: boolean;
     notifications?: boolean;
     priceUpdates?: boolean;
     balanceUpdates?: boolean;
+    tokens?: string[];
+    kols?: string[];
   }): boolean {
-    return this.send({
-      type: 'SUBSCRIBE',
-      payload: subscriptions,
-      timestamp: Date.now(),
+    const { tokens = [], kols = [] } = subscriptions;
+    
+    // The backend expect 'subscribe_kol_trades' with tokens and kols
+    return this.send('subscribe_kol_trades', {
+      tokens,
+      kols,
+      limit: 50
     });
   }
 
   /**
-   * Unsubscribe from specific queues or message types
+   * Unsubscribe
    */
   public unsubscribe(subscriptions: {
-    trades?: boolean;
-    notifications?: boolean;
-    priceUpdates?: boolean;
-    balanceUpdates?: boolean;
+    tokens?: string[];
+    kols?: string[];
   }): boolean {
-    return this.send({
-      type: 'UNSUBSCRIBE',
-      payload: subscriptions,
-      timestamp: Date.now(),
-    });
+    return this.send('unsubscribe_kol_trades', subscriptions);
   }
 
   /**
-   * Get connection status
+   * Get Status
    */
   public getStatus(): {
     isConnected: boolean;
@@ -235,32 +302,22 @@ class WebSocketService {
     return {
       isConnected: this.isConnected,
       isConnecting: this.isConnecting,
-      reconnectAttempts: this.reconnectAttempts,
+      reconnectAttempts: (this.socket as any)?.reconnectionAttempts || 0,
       messageQueueSize: this.messageQueue.length,
     };
   }
 
   /**
-   * Handle incoming messages from RabbitMQ queues
+   * Handle incoming messages
    */
   private handleMessage(message: QueueMessage): void {
-    // Check if message has expired (TTL handling)
     const now = Date.now();
     const messageAge = now - message.timestamp;
 
     if (messageAge > message.ttl) {
-      console.warn(
-        'Discarding expired message:',
-        message.id,
-        'Age:',
-        messageAge,
-        'TTL:',
-        message.ttl
-      );
-      return;
+      return; // Expired
     }
 
-    // Add to message queue for tracking
     this.messageQueue.push(message);
 
     // Route message to appropriate handler
@@ -282,73 +339,21 @@ class WebSocketService {
         this.handlers.onNotification?.(message.payload as TradeAlert);
         break;
 
+      case 'USER_EVENT':
+        this.handlers.onUserEvent?.(message.payload);
+        break;
+
       default:
         console.warn('Unknown message type:', message.type);
     }
   }
 
-  /**
-   * Schedule a reconnection attempt with exponential backoff
-   */
-  private scheduleReconnect(): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
-
-    this.reconnectAttempts++;
-    const backoffDelay = Math.min(
-      this.config.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1),
-      30000 // Max 30 seconds
-    );
-
-    void 0 && (
-      `Scheduling reconnect attempt ${this.reconnectAttempts} in ${backoffDelay}ms`
-    );
-    this.handlers.onReconnecting?.(this.reconnectAttempts);
-
-    this.reconnectTimer = setTimeout(() => {
-      this.connect().catch(error => {
-        console.error('Reconnection attempt failed:', error);
-      });
-    }, backoffDelay);
-  }
-
-  /**
-   * Start heartbeat to keep connection alive
-   */
-  private startHeartbeat(): void {
-    this.heartbeatTimer = setInterval(() => {
-      if (this.isConnected) {
-        this.send({
-          type: 'PING',
-          timestamp: Date.now(),
-        });
-      }
-    }, this.config.heartbeatInterval);
-  }
-
-  /**
-   * Stop heartbeat timer
-   */
-  private stopHeartbeat(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
-  }
-
-  /**
-   * Start message cleanup timer to remove expired messages
-   */
   private startMessageCleanup(): void {
     this.messageCleanupTimer = setInterval(() => {
       this.cleanupExpiredMessages();
-    }, 60000); // Clean up every minute
+    }, 60000);
   }
 
-  /**
-   * Stop message cleanup timer
-   */
   private stopMessageCleanup(): void {
     if (this.messageCleanupTimer) {
       clearInterval(this.messageCleanupTimer);
@@ -356,31 +361,18 @@ class WebSocketService {
     }
   }
 
-  /**
-   * Remove expired messages from the queue
-   */
   private cleanupExpiredMessages(): void {
     const now = Date.now();
-    const initialLength = this.messageQueue.length;
-
     this.messageQueue = this.messageQueue.filter(message => {
       const messageAge = now - message.timestamp;
       return messageAge <= message.ttl;
     });
-
-    const removed = initialLength - this.messageQueue.length;
-    if (removed > 0) {
-      void 0 && (`Cleaned up ${removed} expired messages from queue`);
-    }
   }
 }
 
 // Singleton instance
 let webSocketService: WebSocketService | null = null;
 
-/**
- * Get the singleton WebSocket service instance
- */
 export const getWebSocketService = (
   config?: Partial<WebSocketConfig>
 ): WebSocketService => {
@@ -390,15 +382,11 @@ export const getWebSocketService = (
   return webSocketService;
 };
 
-/**
- * Initialize WebSocket service with default configuration
- */
 export const initializeWebSocket = (
   handlers: WebSocketEventHandlers
 ): Promise<WebSocketService> => {
   const service = getWebSocketService();
   service.on(handlers);
-
   return service.connect().then(() => service);
 };
 

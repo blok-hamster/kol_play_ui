@@ -8,6 +8,8 @@ import AuthService from '@/services/auth.service';
 import { SiwsAuthService } from '@/services/siws-auth.service';
 import WalletService from '@/services/wallet.service';
 import { SettingsService } from '@/services/settings.service';
+import useTradingStore from './use-trading-store';
+
 
 interface UserState {
   // Authentication state
@@ -46,7 +48,7 @@ interface UserState {
   connectWallet: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
   updateWalletInfo: (walletInfo: WalletInfo | null) => void;
-  refreshAccountDetails: () => Promise<void>;
+  refreshAccountDetails: (options?: { isPaperMode?: boolean }) => Promise<void>;
 
   // Initialization
   initialize: () => Promise<void>;
@@ -81,10 +83,26 @@ export const useUserStore = create<UserState>()(
           const response = await SettingsService.getUserSettings();
           if (response.data?.accountConfig) {
             const { displayName, avatar } = response.data.accountConfig;
-            get().updateUserProfile({ displayName, avatar });
+            get().updateUserProfile({ 
+              displayName: displayName || '', 
+              avatar: avatar || '' 
+            });
           }
         } catch (error) {
-          console.error('Failed to load user profile:', error);
+          // Import apiClient to check for offline error
+          // We can check if the error message contains specific offline text or use checks similar to api.ts
+          // Since we can't easily import apiClient instance methods here without circular deps risks or if it's not exported as class
+          // We'll trust the error message from api.ts or check properties
+          
+          const isOffline = error instanceof Error && 
+            (error.message.includes('backend may be offline') || 
+             error.message.includes('Network Error'));
+
+          if (isOffline) {
+            console.warn('⚠️ Could not load user profile (backend offline)');
+          } else {
+            console.error('Failed to load user profile:', error);
+          }
           // Don't throw error, just log it as profile loading is not critical
         }
       },
@@ -293,7 +311,7 @@ export const useUserStore = create<UserState>()(
         });
       },
 
-      refreshAccountDetails: async () => {
+      refreshAccountDetails: async (manualOptions) => {
         try {
           set({ isLoading: true, error: null });
 
@@ -305,8 +323,13 @@ export const useUserStore = create<UserState>()(
             throw new Error('User must be authenticated with wallet to refresh account details');
           }
 
-          // Fetch fresh account details - this now throws errors instead of returning null
-          const accountDetails = await SiwsAuthService.refreshAccountDetails();
+          // Use mode from trading store if not explicitly passed
+          const isPaperMode = manualOptions?.isPaperMode !== undefined 
+            ? manualOptions.isPaperMode 
+            : useTradingStore.getState().isPaperTrading;
+
+          // Fetch fresh account details - this now supports paper mode
+          const accountDetails = await SiwsAuthService.refreshAccountDetails({ isPaperMode });
           
           // Update the user object with fresh account details
           set({

@@ -17,13 +17,14 @@ import {
   Sliders,
   Brain,
   HelpCircle,
+  TrendingUp,
 } from 'lucide-react';
 import WalletDropdown from './wallet-dropdown';
 import UserMenu from './user-menu';
 import ThemeToggle from './theme-toggle';
 import NotificationBell from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
-import { useModal } from '@/stores/use-ui-store';
+import { useModal, useUIStore } from '@/stores/use-ui-store';
 import { NetworkModeSelector } from './network-mode-selector';
 import type { LucideIcon } from 'lucide-react';
 
@@ -75,6 +76,39 @@ const navigationItems: NavigationItem[] = [
   },
 ];
 
+const proNavigationItems: NavigationItem[] = [
+  {
+    name: 'The Trenches',
+    href: '/pro-terminal',
+    icon: Radar,
+    description: 'Live market pulse',
+  },
+  {
+    name: 'Trading Terminal',
+    href: '/pro-terminal/trade',
+    icon: TrendingUp,
+    description: 'Advanced execution & charts',
+  },
+  {
+    name: 'Analytics',
+    href: '/pro-terminal/analytics',
+    icon: TrendingUp, // Reusing TrendingUp or could import LineChart
+    description: 'Deep market analysis',
+  },
+  {
+    name: 'Portfolio',
+    href: '/portfolio',
+    icon: Wallet,
+    description: 'Track your performance',
+  },
+  {
+    name: 'Settings',
+    href: '/settings',
+    icon: Sliders,
+    description: 'Configuration',
+  },
+];
+
 const secondaryItems: NavigationItem[] = [
   {
     name: 'AI Assistant',
@@ -98,7 +132,10 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
   const pathname = usePathname();
   const { isAuthenticated } = useUserStore();
   const { openModal } = useModal();
+  const { isProMode } = useUIStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const currentNavItems = isProMode ? proNavigationItems : navigationItems;
 
   const handleAuthClick = () => {
     openModal('auth');
@@ -113,8 +150,8 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
   };
 
   const isActiveRoute = (href: string) => {
-    if (href === '/') {
-      return pathname === '/';
+    if (href === '/' || href === '/pro-terminal') {
+      return pathname === href;
     }
     return pathname.startsWith(href);
   };
@@ -187,7 +224,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       <div className="flex items-center justify-between h-14 px-4 lg:px-6 relative z-[60]">
         {/* Left Section - Logo */}
         <div className="flex items-center">
-          <Link href="/" className="flex items-center">
+          <Link href={isProMode ? "/pro-terminal" : "/"} className="flex items-center">
             {/* Mobile logo */}
             <Image
               src="/6.png"
@@ -262,7 +299,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
           <nav className="flex items-center gap-10">
             {/* Main Navigation Items */}
             <div className="flex items-center gap-4">
-              {navigationItems.map(item => renderNavigationItem(item))}
+              {currentNavItems.map(item => renderNavigationItem(item))}
             </div>
 
             {/* Premium Separator */}
@@ -290,13 +327,21 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
 
           {/* Menu Panel */}
           <div className="fixed top-14 left-0 right-0 bg-background border-b border-border shadow-2xl z-[60] max-h-[calc(100vh-3.5rem)] overflow-y-auto lg:hidden">
-            <div className="p-4 space-y-1">
+            <div className="p-4 space-y-4">
+              {/* Network Mode Selector (Mobile) */}
+              <div className="space-y-3 p-3 bg-muted/20 rounded-xl border border-border/50">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Trading Controls</span>
+                <div className="flex justify-center">
+                  <NetworkModeSelector className="w-full justify-between bg-background shadow-sm border-border/60" />
+                </div>
+              </div>
+
               {/* Main Navigation Items */}
               <div className="space-y-1">
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 py-2">
-                  Main
+                  {isProMode ? 'Pro Terminal' : 'Main'}
                 </div>
-                {navigationItems.map(item => {
+                {currentNavItems.map(item => {
                   const isActive = isActiveRoute(item.href);
                   return (
                     <Link

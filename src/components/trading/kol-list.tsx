@@ -262,8 +262,19 @@ export default function KOLList({
           setHasMore(response.data.length === filters.limit);
           hasLoadedInitialData.current = true;
         } catch (error: any) {
-          stableShowError('Load Error', error.message || 'Failed to load KOL wallets');
-          console.error('Failed to fetch KOL wallets:', error);
+          const errorMessage = error.message || 'Failed to load KOL wallets';
+          stableShowError('Load Error', errorMessage);
+
+          // Suppress console error for offline/network issues to prevent spam
+          const isNetworkError =
+            errorMessage.includes('Unable to connect') ||
+            errorMessage.includes('Network Error') ||
+            errorMessage.includes('ERR_CONNECTION_REFUSED') ||
+            error.code === 'ERR_NETWORK';
+
+          if (!isNetworkError) {
+            console.error('Failed to fetch KOL wallets:', error);
+          }
         } finally {
           stableSetLoading('kolList', false);
           isCurrentlyFetching.current = false;

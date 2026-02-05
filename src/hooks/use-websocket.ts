@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import {
   getWebSocketService,
   WebSocketEventHandlers,
@@ -10,7 +10,7 @@ import { getRealTimeUpdateService } from '@/services/realtime-update.service';
 import {
   useTradingStore,
   useUserStore,
-  useNotifications,
+  useUIStore,
   useNotificationStore,
 } from '@/stores';
 import { KOLTrade, TradeAlert } from '@/types';
@@ -23,6 +23,8 @@ export interface UseWebSocketOptions {
     notifications?: boolean;
     priceUpdates?: boolean;
     balanceUpdates?: boolean;
+    tokens?: string[];
+    kols?: string[];
   };
 }
 
@@ -46,12 +48,23 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       balanceUpdates: true,
     },
   } = options;
+  
+  // Memoize subscriptions and config to avoid identity changes if the parent passes object literals
+  const memoizedSubscriptions = useMemo(() => subscriptions, [
+    subscriptions.trades,
+    subscriptions.notifications,
+    subscriptions.priceUpdates,
+    subscriptions.balanceUpdates
+  ]);
+  
+  const memoizedConfig = useMemo(() => config, [JSON.stringify(config)]);
 
   // Store references
-  const { setError: setTradingError } = useTradingStore();
-  const { isAuthenticated } = useUserStore();
-  const { addNotification } = useNotifications(); // Toast notifications
-  const { addNotification: addBackendNotification } = useNotificationStore(); // Backend notifications
+  // Store references with stable selectors
+  const setTradingError = useTradingStore(s => s.setError);
+  const isAuthenticated = useUserStore(s => s.isAuthenticated);
+  const addNotification = useUIStore(s => s.addNotification);
+  const addBackendNotification = useNotificationStore(s => s.addNotification);
 
   // Local state for connection status
   const [status, setStatus] = useState<WebSocketStatus>({
@@ -64,7 +77,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   });
 
   // Service references
-  const serviceRef = useRef(getWebSocketService(config));
+  const serviceRef = useRef(getWebSocketService(memoizedConfig));
   const updateServiceRef = useRef(getRealTimeUpdateService());
   const isSubscribedRef = useRef(false);
 
@@ -85,25 +98,18 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
   // WebSocket event handlers with real-time update integration
   const handleTradeUpdate = useCallback(
     (trade: KOLTrade) => {
-      void 0 && ('Received trade update:', trade);
+      // console.log('Received trade update:', trade);
 
       // Route through real-time update service for batching
       const updateService = updateServiceRef.current;
       updateService.addTradeUpdate(trade);
-
-      // Still show immediate notification for important trades
-      addNotification({
-        type: 'info',
-        title: 'New Trade Alert',
-        message: `${trade.tradeType.toUpperCase()} ${trade.tokenOut || trade.tokenIn} - ${trade.amountOut || trade.amountIn}`,
-      });
     },
-    [addNotification]
+    []
   );
 
   const handlePriceUpdate = useCallback(
     (data: { mint: string; price: number; change24h: number }) => {
-      void 0 && ('Received price update:', data);
+      // console.log('Received price update:', data);
 
       // Route through real-time update service for batching and change detection
       const updateService = updateServiceRef.current;
@@ -114,7 +120,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   const handleBalanceUpdate = useCallback(
     (data: { balance: number; timestamp: number }) => {
-      void 0 && ('Received balance update:', data);
+      // console.log('Received balance update:', data);
 
       // Route through real-time update service for batching
       const updateService = updateServiceRef.current;
@@ -125,7 +131,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   const handleNotification = useCallback(
     (notification: TradeAlert | any) => {
-      void 0 && ('Received notification:', notification);
+      // console.log('Received notification:', notification);
 
       // Handle different notification formats
       if (notification.id && notification.type && notification.title) {
@@ -155,8 +161,18 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     [addNotification, addBackendNotification]
   );
 
+  const handleUserEvent = useCallback(
+    (event: any) => {
+      // console.log('Received user event:', event);
+      // This is a generic handler for any user-specific events
+      // Specific logic (like balance update) is already handled in service mapping
+      // but we can add more logic here if needed.
+    },
+    []
+  );
+
   const handleConnect = useCallback(() => {
-    void 0 && ('WebSocket connected');
+    // console.log('WebSocket connected');
     setStatus(prev => ({
       ...prev,
       isConnected: true,
@@ -166,15 +182,16 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     }));
 
     // Subscribe to channels after connection
-    if (!isSubscribedRef.current && subscriptions) {
+    if (!isSubscribedRef.current && memoizedSubscriptions) {
       const service = serviceRef.current;
-      service.subscribe(subscriptions);
+      // Use latest subscriptions from a ref to avoid dependency loop
+      service.subscribe(memoizedSubscriptions);
       isSubscribedRef.current = true;
     }
-  }, [subscriptions]);
+  }, [memoizedSubscriptions]); // memoizedSubscriptions is now stable
 
   const handleDisconnect = useCallback(() => {
-    void 0 && ('WebSocket disconnected');
+    // console.log('WebSocket disconnected');
     setStatus(prev => ({
       ...prev,
       isConnected: false,
@@ -185,7 +202,16 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   const handleError = useCallback(
     (error: Error) => {
-      console.error('WebSocket error:', error);
+      // Suppress noisy logs for connection errors (common when backend is down)
+      const isConnectionError = 
+        error.message === 'websocket error' || 
+        error.message === 'xhr poll error' || 
+        error.message?.includes('TransportError');
+
+      if (!isConnectionError) {
+        console.error('WebSocket error:', error);
+      }
+      
       setStatus(prev => ({
         ...prev,
         error,
@@ -193,13 +219,15 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         isConnecting: false,
         isReconnecting: false,
       }));
-      setTradingError(error.message);
+      
+      // Still set the error in the store, but maybe with a friendly message if needed
+      setTradingError(isConnectionError ? 'Connection lost' : error.message);
     },
     [setTradingError]
   );
 
   const handleReconnecting = useCallback((attempt: number) => {
-    void 0 && ('WebSocket reconnecting, attempt:', attempt);
+    // console.log('WebSocket reconnecting, attempt:', attempt);
     setStatus(prev => ({
       ...prev,
       isReconnecting: true,
@@ -209,15 +237,17 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
 
   // Connect function
   const connect = useCallback(async () => {
-    if (status.isConnected || status.isConnecting) {
+    // Check current status without making the effect depend on the whole status object
+    const service = serviceRef.current;
+    const currentStatus = service.getStatus();
+    
+    if (currentStatus.isConnected || currentStatus.isConnecting) {
       return;
     }
 
     setStatus(prev => ({ ...prev, isConnecting: true, error: null }));
 
     try {
-      const service = serviceRef.current;
-
       // Set up event handlers
       const handlers: WebSocketEventHandlers = {
         onTradeUpdate: handleTradeUpdate,
@@ -228,6 +258,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         onDisconnect: handleDisconnect,
         onError: handleError,
         onReconnecting: handleReconnecting,
+        onUserEvent: handleUserEvent,
       };
 
       service.on(handlers);
@@ -238,8 +269,6 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       handleError(connectionError);
     }
   }, [
-    status.isConnected,
-    status.isConnecting,
     handleTradeUpdate,
     handlePriceUpdate,
     handleBalanceUpdate,
@@ -264,6 +293,8 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       notifications?: boolean;
       priceUpdates?: boolean;
       balanceUpdates?: boolean;
+      tokens?: string[];
+      kols?: string[];
     }) => {
       const service = serviceRef.current;
       return service.subscribe(newSubscriptions);
@@ -278,6 +309,8 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       notifications?: boolean;
       priceUpdates?: boolean;
       balanceUpdates?: boolean;
+      tokens?: string[];
+      kols?: string[];
     }) => {
       const service = serviceRef.current;
       return service.unsubscribe(subscriptionsToRemove);
@@ -285,10 +318,13 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     []
   );
 
-  // Send message function
-  const send = useCallback((message: any) => {
+  // Send message function (can take event and data or just data for legacy support)
+  const send = useCallback((eventOrData: any, data?: any) => {
     const service = serviceRef.current;
-    return service.send(message);
+    if (typeof eventOrData === 'string') {
+      return service.send(eventOrData, data);
+    }
+    return service.emit(eventOrData);
   }, []);
 
   // Flush real-time updates (useful for testing or immediate processing)
@@ -308,11 +344,15 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     let cleanup = false;
 
     // Only auto-connect if user is authenticated and autoConnect is enabled
+    // We check the service status directly to avoid depending on 'status' state
+    const service = serviceRef.current;
+    const serviceStatus = service.getStatus();
+
     if (
       autoConnect &&
       isAuthenticated &&
-      !status.isConnected &&
-      !status.isConnecting
+      !serviceStatus.isConnected &&
+      !serviceStatus.isConnecting
     ) {
       connect().catch(error => {
         if (!cleanup) {
@@ -321,21 +361,23 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       });
     }
 
-    // Update status periodically
-    const statusInterval = setInterval(updateStatus, 1000);
-
     return () => {
       cleanup = true;
-      clearInterval(statusInterval);
     };
   }, [
     autoConnect,
     isAuthenticated,
-    status.isConnected,
-    status.isConnecting,
-    connect,
-    updateStatus,
+    connect
   ]);
+
+  // Separate effect for periodic status updates
+  useEffect(() => {
+    const statusInterval = setInterval(() => {
+      // Only update if we are not in a transitional state or if status changed
+      updateStatus();
+    }, 1000);
+    return () => clearInterval(statusInterval);
+  }, [updateStatus]);
 
   // Cleanup on unmount
   useEffect(() => {

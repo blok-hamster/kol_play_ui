@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { TokenMetadataService } from '@/services/token-metadata.service';
 
 export interface LoadingState {
   trades: 'idle' | 'loading' | 'loaded' | 'error';
@@ -197,7 +198,7 @@ export const useProgressiveLoading = (
   }, []);
 
   // Phase 1: Essential data (< 500ms target)
-  const loadEssentialData = useCallback(async () => {
+  const loadEssentialData = useCallback(async (): Promise<void> => {
     // Check if already loaded or loading
     if (loadingState.trades === 'loaded' && loadingState.stats === 'loaded' && loadingState.trending === 'loaded') {
       return;
@@ -238,26 +239,26 @@ export const useProgressiveLoading = (
         retryRequest(
           () => axios.get(`${apiUrl}/api/kol-trades/recent?limit=25`, { 
             headers, 
-            signal: abortControllerRef.current?.signal 
+            signal: abortControllerRef.current?.signal as any 
           }),
           'trades',
-          { data: { success: true, data: { trades: mockData.trades } } }
+          { data: { success: true, data: { trades: mockData.trades } } } as any
         ),
         retryRequest(
           () => axios.get(`${apiUrl}/api/kol-trades/stats`, { 
             headers, 
-            signal: abortControllerRef.current?.signal 
+            signal: abortControllerRef.current?.signal as any 
           }),
           'stats',
-          { data: { success: true, data: { tradingStats: mockData.stats } } }
+          { data: { success: true, data: { tradingStats: mockData.stats } } } as any
         ),
         retryRequest(
           () => axios.get(`${apiUrl}/api/kol-trades/trending-tokens?limit=5`, { 
             headers, 
-            signal: abortControllerRef.current?.signal 
+            signal: abortControllerRef.current?.signal as any 
           }),
           'trending',
-          { data: { success: true, data: { trendingTokens: mockData.trendingTokens.map(t => ({ tokenMint: t })) } } }
+          { data: { success: true, data: { trendingTokens: mockData.trendingTokens.map(t => ({ tokenMint: t })) } } } as any
         ),
       ]);
 
@@ -301,6 +302,43 @@ export const useProgressiveLoading = (
         trendingTokens,
       };
 
+      // Enrich trades with metadata if missing
+      const mintsToEnrich = new Set<string>();
+      trades.forEach((trade: any) => {
+        const tradeData = trade.tradeData || trade;
+        const mint = tradeData.mint || trade.token_mint;
+        const name = tradeData.name || trade.token_name;
+        const symbol = tradeData.symbol || trade.token_symbol;
+        
+        if (mint && (!name || !symbol || name === 'Unknown' || symbol === 'N/A')) {
+          mintsToEnrich.add(mint);
+        }
+      });
+
+      if (mintsToEnrich.size > 0) {
+        try {
+          const metadataMap = await TokenMetadataService.getMultipleTokenMetadata(Array.from(mintsToEnrich));
+          trades.forEach((trade: any) => {
+            const tradeData = trade.tradeData || trade;
+            const mint = tradeData.mint || trade.token_mint;
+            if (mint && metadataMap.has(mint)) {
+              const metadata = metadataMap.get(mint)!;
+              if (trade.tradeData) {
+                if (!trade.tradeData.name || trade.tradeData.name === 'Unknown') trade.tradeData.name = metadata.name;
+                if (!trade.tradeData.symbol || trade.tradeData.symbol === 'N/A') trade.tradeData.symbol = metadata.symbol;
+                if (!trade.tradeData.image) trade.tradeData.image = metadata.image;
+              } else {
+                if (!trade.token_name || trade.token_name === 'Unknown') trade.token_name = metadata.name;
+                if (!trade.token_symbol || trade.token_symbol === 'N/A') trade.token_symbol = metadata.symbol;
+                if (!trade.image) trade.image = metadata.image;
+              }
+            }
+          });
+        } catch (enrichError) {
+          console.warn('Failed to enrich essential trades:', enrichError);
+        }
+      }
+
       setEssentialData(essential);
       setCachedData('essential-data', essential);
 
@@ -334,7 +372,7 @@ export const useProgressiveLoading = (
 
   // Phase 2: Enhanced data (< 2s target)
   // NOTE: Mindmap data is now handled by use-kol-trade-socket hook
-  const loadEnhancedData = useCallback(async () => {
+  const loadEnhancedData = useCallback(async (): Promise<void> => {
     if (!essentialData?.trendingTokens.length) {
       return;
     }
@@ -349,7 +387,7 @@ export const useProgressiveLoading = (
 
   // Phase 3: Background data
   // NOTE: All mindmap data is now handled by use-kol-trade-socket hook
-  const loadBackgroundData = useCallback(async () => {
+  const loadBackgroundData = useCallback(async (): Promise<void> => {
     if (!essentialData?.trendingTokens.length) {
       return;
     }
@@ -358,7 +396,7 @@ export const useProgressiveLoading = (
   }, [essentialData]);
 
   // Check if phase is complete
-  const isPhaseComplete = useCallback((phase: 'essential' | 'enhanced' | 'background') => {
+  const isPhaseComplete = useCallback((phase: 'essential' | 'enhanced' | 'background'): boolean => {
     switch (phase) {
       case 'essential':
         return loadingState.trades === 'loaded' && 
@@ -376,7 +414,7 @@ export const useProgressiveLoading = (
   }, [loadingState]);
 
   // Retry failed requests
-  const retryFailedRequests = useCallback(async () => {
+  const retryFailedRequests = useCallback(async (): Promise<void> => {
     const hasErrors = Object.values(loadingState).some(state => state === 'error');
     if (!hasErrors) return;
 
@@ -395,7 +433,7 @@ export const useProgressiveLoading = (
   }, [loadingState, loadEssentialData, loadEnhancedData]);
 
   // Clear cache
-  const clearCache = useCallback(() => {
+  const clearCache = useCallback((): void => {
     cacheRef.current.clear();
   }, []);
 

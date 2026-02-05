@@ -1,14 +1,13 @@
 'use client';
+// Force re-compile
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import {
   getRealTimeSyncService,
   UpdateBatch,
-  SyncUpdate,
 } from '@/services/realtime-sync.service';
 import { KOLTrade, MindmapUpdate } from '@/types';
-import { cacheManager } from '@/lib/cache-manager';
 
 export interface EnhancedWebSocketConfig {
   url?: string;
@@ -77,6 +76,7 @@ export const useEnhancedWebSocket = (
   });
 
   // Refs
+  const socketRef = useRef<Socket | null>(null);
   const syncServiceRef = useRef(
     getRealTimeSyncService({
       batchInterval,
@@ -91,6 +91,17 @@ export const useEnhancedWebSocket = (
   const batchCallbacksRef = useRef<Map<string, (batch: UpdateBatch) => void>>(
     new Map()
   );
+  
+  // Ref to track health state without triggering re-renders in optimized callbacks
+  const healthRef = useRef<WebSocketHealth>({
+    isConnected: false,
+    isConnecting: false,
+    connectionQuality: 'excellent',
+    latency: 0,
+    missedHeartbeats: 0,
+    lastHeartbeat: Date.now(),
+    isPollingMode: false,
+  });
 
   /**
    * Measure connection latency
@@ -133,6 +144,7 @@ export const useEnhancedWebSocket = (
   const updateHealth = useCallback((updates: Partial<WebSocketHealth>) => {
     setHealth(prev => {
       const newHealth = { ...prev, ...updates };
+      healthRef.current = newHealth; // Keep ref in sync
 
       // Update sync service with connection health
       const syncService = syncServiceRef.current;
@@ -347,8 +359,7 @@ export const useEnhancedWebSocket = (
 
         if (data.recommendedAction === 'reduce_frequency') {
           // Temporarily increase batch intervals
-          const syncService = syncServiceRef.current;
-          // This would require exposing a method to adjust intervals
+          // syncServiceRef.current.updateBatchInterval(...) // Future implementation
         }
       });
 
@@ -361,11 +372,15 @@ export const useEnhancedWebSocket = (
     [updateHealth, startHeartbeat, stopHeartbeat]
   );
 
+  // Extract token for primitive dependency
+  const token = auth?.token;
+
   /**
    * Connect to WebSocket
    */
   const connect = useCallback(async (): Promise<void> => {
-    if (health.isConnected || health.isConnecting) {
+    // Check local ref instead of state to avoid dependency loop
+    if (healthRef.current.isConnected || healthRef.current.isConnecting) {
       return;
     }
 
@@ -401,45 +416,57 @@ export const useEnhancedWebSocket = (
         forceNew: true,
       };
 
-      if (auth?.token) {
-        socketOptions.auth = { token: auth.token };
+      if (token) {
+        socketOptions.auth = { token };
       }
 
       const newSocket = io(socketBaseUrl, socketOptions);
 
       setupEventHandlers(newSocket);
       setSocket(newSocket);
+      socketRef.current = newSocket;
 
-      // Wait for connection
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Connection timeout'));
-        }, 10000);
+      // Wait for connection with a ref safety check
+      const connectionPromise = new Promise<void>((resolve, reject) => {
+        const connectionTimeout = setTimeout(() => {
+          // Instead of a hard reject that crashes the UI, we log and resolve to polling mode
+          console.warn('⚠️ WebSocket connection timed out, fallback to polling should trigger');
+          updateHealth({
+            isConnected: false,
+            isConnecting: false,
+            connectionQuality: 'poor'
+          });
+          resolve(); // Resolve so the await finishes, letting pooling take over
+        }, 15000); // Increased to 15s to be more lenient
 
-        newSocket.on('connect', () => {
-          clearTimeout(timeout);
+        newSocket.once('connect', () => {
+          clearTimeout(connectionTimeout);
           resolve();
         });
 
-        newSocket.on('connect_error', error => {
-          clearTimeout(timeout);
+        newSocket.once('connect_error', error => {
+          clearTimeout(connectionTimeout);
+          console.error('WebSocket internal connect_error:', error);
+          // Don't reject, let the catch handle it or polling take over
+          updateHealth({ isConnecting: false });
           reject(error);
         });
       });
+
+      return connectionPromise;
     } catch (error) {
       console.error('❌ Failed to create WebSocket connection:', error);
       updateHealth({
         isConnecting: false,
         connectionQuality: 'critical',
       });
-      throw error;
+      // Important: don't throw for background connection attempts to avoid crashing the whole UI
     }
   }, [
-    health.isConnected,
-    health.isConnecting,
+    // Removed health dependency and auth object dependency
     url,
     path,
-    auth,
+    token, // Primitive string dependency is stable
     timeout,
     reconnection,
     reconnectionAttempts,
@@ -452,16 +479,17 @@ export const useEnhancedWebSocket = (
    * Disconnect from WebSocket
    */
   const disconnect = useCallback(() => {
-    if (socket) {
-      socket.disconnect();
+    if (socketRef.current) {
+      socketRef.current.disconnect();
       setSocket(null);
+      socketRef.current = null;
     }
     stopHeartbeat();
     updateHealth({
       isConnected: false,
       isConnecting: false,
     });
-  }, [socket, stopHeartbeat, updateHealth]);
+  }, [stopHeartbeat, updateHealth]);
 
   /**
    * Subscribe to channels
@@ -470,12 +498,12 @@ export const useEnhancedWebSocket = (
     (channels: string[]) => {
       channels.forEach(channel => {
         subscribedChannelsRef.current.add(channel);
-        if (socket?.connected) {
-          socket.emit('subscribe', { channel });
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('subscribe', { channel });
         }
       });
     },
-    [socket]
+    []
   );
 
   /**
@@ -485,12 +513,12 @@ export const useEnhancedWebSocket = (
     (channels: string[]) => {
       channels.forEach(channel => {
         subscribedChannelsRef.current.delete(channel);
-        if (socket?.connected) {
-          socket.emit('unsubscribe', { channel });
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('unsubscribe', { channel });
         }
       });
     },
-    [socket]
+    []
   );
 
   /**
@@ -498,13 +526,13 @@ export const useEnhancedWebSocket = (
    */
   const send = useCallback(
     (event: string, data: any): boolean => {
-      if (socket?.connected) {
-        socket.emit(event, data);
+      if (socketRef.current?.connected) {
+        socketRef.current.emit(event, data);
         return true;
       }
       return false;
     },
-    [socket]
+    []
   );
 
   /**
@@ -564,66 +592,71 @@ export const useEnhancedWebSocket = (
               headers,
               //signal: AbortSignal.timeout(5000), // 5 second timeout
               //priority: 'low'
-            }).then(response => ({ status: 'fulfilled' as const, value: response }))
-             .catch(error => ({ status: 'rejected' as const, reason: error })),
+            }),
             authenticatedFetch(`${apiUrl}/api/kol-trades/stats`, {
               headers,
               //signal: AbortSignal.timeout(5000),
               //priority: 'low'
-            }).then(response => ({ status: 'fulfilled' as const, value: response }))
-             .catch(error => ({ status: 'rejected' as const, reason: error })),
+            }),
             authenticatedFetch(`${apiUrl}/api/kol-trades/trending-tokens?limit=10`, {
               headers,
               //signal: AbortSignal.timeout(5000),
               //priority: 'low'
-            }).then(response => ({ status: 'fulfilled' as const, value: response }))
-             .catch(error => ({ status: 'rejected' as const, reason: error })),
+            }),
           ]);
 
         const syncService = syncServiceRef.current;
         let successCount = 0;
 
         // Process trades response
-        if (tradesResponse.status === 'fulfilled' && tradesResponse.value.ok) {
-          const tradesData = await tradesResponse.value.json();
-          if (tradesData.success && tradesData.data?.trades) {
-            tradesData.data.trades.forEach((trade: KOLTrade) => {
-              syncService.addTradeUpdate(trade, 'polling');
-            });
-            successCount++;
+        if (tradesResponse.status === 'fulfilled') {
+          const response = tradesResponse.value;
+          if (response.ok) {
+            const tradesData = await response.json();
+            if (tradesData.success && tradesData.data?.trades) {
+              tradesData.data.trades.forEach((trade: KOLTrade) => {
+                syncService.addTradeUpdate(trade, 'polling');
+              });
+              successCount++;
+            }
           }
         }
 
         // Process stats response
-        if (statsResponse.status === 'fulfilled' && statsResponse.value.ok) {
-          const statsData = await statsResponse.value.json();
-          if (statsData.success && statsData.data) {
-            syncService.addUpdate({
-              type: 'stats',
-              data: statsData.data,
-              source: 'polling',
-              priority: 'medium',
-            });
-            successCount++;
+        if (statsResponse.status === 'fulfilled') {
+          const response = statsResponse.value;
+          if (response.ok) {
+            const statsData = await response.json();
+            if (statsData.success && statsData.data) {
+              syncService.addUpdate({
+                type: 'stats',
+                data: statsData.data,
+                source: 'polling',
+                priority: 'medium',
+              });
+              successCount++;
+            }
           }
         }
 
         // Process trending tokens response
-        if (
-          trendingResponse.status === 'fulfilled' &&
-          trendingResponse.value.ok
-        ) {
-          const trendingData = await trendingResponse.value.json();
-          if (trendingData.success && trendingData.data?.trendingTokens) {
-            syncService.addUpdate({
-              type: 'trending',
-              data: trendingData.data.trendingTokens.map(
-                (t: any) => t.tokenMint || t
-              ),
-              source: 'polling',
-              priority: 'low',
-            });
-            successCount++;
+        if (trendingResponse.status === 'fulfilled') {
+          const response = trendingResponse.value;
+          if (
+            response.ok
+          ) {
+            const trendingData = await response.json();
+            if (trendingData.success && trendingData.data?.trendingTokens) {
+              syncService.addUpdate({
+                type: 'trending',
+                data: trendingData.data.trendingTokens.map(
+                  (t: any) => t.tokenMint || t
+                ),
+                source: 'polling',
+                priority: 'low',
+              });
+              successCount++;
+            }
           }
         }
 

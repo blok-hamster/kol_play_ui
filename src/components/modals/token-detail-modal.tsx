@@ -9,6 +9,7 @@ import { useNotifications } from '@/stores';
 import { executeInstantBuy, executeBuyWithAmount, checkTradeConfig, getBuyAmountLimits } from '@/lib/trade-utils';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 import BuyAmountPrompt from '@/components/ui/buy-amount-prompt';
+import { TokenMetadataService } from '@/services/token-metadata.service';
 
 export interface TokenDetailModalProps {
   isOpen: boolean;
@@ -46,11 +47,11 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   chartHeight = 400,
 }) => {
   const { showSuccess, showError } = useNotifications();
-  
+
   // Chart state
   const [dexPair, setDexPair] = React.useState<string | null>(pairAddress || null);
   const [themeMode, setThemeMode] = React.useState<'dark' | 'light'>('dark');
-  
+
   // Trade state
   const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
   const [showBuyAmountPrompt, setShowBuyAmountPrompt] = useState(false);
@@ -72,7 +73,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
     try {
       const isDark = document.documentElement.classList.contains('dark');
       setThemeMode(isDark ? 'dark' : 'light');
-    } catch {}
+    } catch { }
   }, [isOpen]);
 
   // Resolve DexScreener pair address if only mint is provided
@@ -87,16 +88,11 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
       if (!mint) return;
 
       try {
-        const res = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mint}`);
-        if (!res.ok) return;
-        const pairs: any[] = await res.json();
-        if (Array.isArray(pairs) && pairs.length > 0) {
-          const best = pairs
-            .filter(p => p?.pairAddress)
-            .sort((a, b) => (b?.liquidity?.usd || 0) - (a?.liquidity?.usd || 0))[0];
-          if (!cancelled && best?.pairAddress) setDexPair(best.pairAddress);
+        const metadata = await TokenMetadataService.getTokenMetadata(mint);
+        if (metadata?.pairAddress) {
+          if (!cancelled) setDexPair(metadata.pairAddress);
         }
-      } catch {}
+      } catch { }
     };
 
     resolvePair();
@@ -295,9 +291,9 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                   </>
                 )}
               </Button>
-              
-              <Button 
-                variant="outline" 
+
+              <Button
+                variant="outline"
                 onClick={handleCopyAddress}
                 className="w-full sm:w-auto"
               >
@@ -360,8 +356,8 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                   allow="clipboard-write; encrypted-media"
                 />
               ) : (
-                <div 
-                  className="flex items-center justify-center text-muted-foreground text-sm" 
+                <div
+                  className="flex items-center justify-center text-muted-foreground text-sm"
                   style={{ height: responsiveChartHeight }}
                 >
                   Loading chart...

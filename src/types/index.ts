@@ -111,7 +111,38 @@ export interface PredictionResult {
   value?: number;
   /** Prediction confidence interval - regression only */
   confidenceInterval?: [number, number];
-} 
+}
+
+export interface SocketKOLTrade {
+  id: string;
+  kolWallet: string;
+  signature: string;
+  timestamp: Date | string;
+  tradeData: {
+    tokenIn: string;
+    tokenOut: string;
+    amountIn: number;
+    amountOut: number;
+    tradeType: 'buy' | 'sell';
+    mint?: string;
+    dexProgram: string;
+    fee?: number;
+    name?: string;
+    symbol?: string;
+    image?: string;
+    metadataUri?: string;
+    prediction?: PredictionResult;
+  };
+  affectedUsers?: string[];
+  processed?: boolean;
+  prediction?: PredictionResult;
+  isFeatured?: boolean;
+  label?: string;
+  mindmapContribution?: number;
+}
+
+export type KOLTradeUnion = SocketKOLTrade | KOLTrade;
+ 
 
 export interface KOLTrade {
   id: string;
@@ -135,6 +166,29 @@ export interface KOLTrade {
   blockTime?: number;
   fee?: number;
   prediction?: PredictionResult;
+  mindmapContribution?: number;
+  label?: string;
+}
+
+export interface KOLStats {
+  totalTrades: number;
+  winRate: number;
+  totalPnL: number;
+  totalVolume: number;
+  avgTradeSize: number;
+  lastActive: Date;
+}
+
+export interface KOLLeaderboardItem {
+  address: string;
+  stats: KOLStats;
+  rank: number;
+}
+
+export interface KOLHistoryResponse {
+  trades: KOLTrade[];
+  stats: KOLStats;
+  timeframe: string;
 }
 
 export interface UserSubscription {
@@ -143,8 +197,11 @@ export interface UserSubscription {
   kolWallet: string;
   isActive: boolean;
   copyPercentage?: number; // 0-100%
-  maxAmount?: number;
   minAmount?: number;
+  maxAmount?: number;
+  label?: string;
+  source?: string;
+  maxAmountPerDay?: number;
   privateKey: string; // Encrypted
   walletAddress?: string;
   createdAt?: Date;
@@ -191,6 +248,9 @@ export interface SwapData {
   tradeType: 'buy' | 'sell';
   amount: number;
   mint: string;
+  slippage?: number;
+  priority?: 'low' | 'medium' | 'high';
+  limitPrice?: number;
   watchConfig?: {
     takeProfitPercentage?: number;
     stopLossPercentage?: number;
@@ -403,6 +463,8 @@ export interface SearchTokenResult {
   // Add compatibility properties
   price?: number;
   marketCap?: number;
+  priceChange24h?: number;
+  volume24h?: number;
   liquidity?: number;
   lpBurn: number;
   market: string;
@@ -427,6 +489,7 @@ export interface SearchTokenResult {
 
 // API Response Types
 export interface ApiResponse<T = any> {
+  success?: boolean;
   message: string;
   data: T;
   error?: string;
@@ -901,9 +964,12 @@ export interface TradeHistoryEntry {
   
   realizedPnL?: number;
   realizedPnLPercentage?: number;
+  unrealizedPnL?: number;
+  unrealizedPnLPercentage?: number;
   highestPrice?: number;
   lowestPrice?: number;
   currentPrice?: number;
+  currentValue?: number;
   lastPriceUpdate?: Date | string;
   sellConditions: {
     takeProfitPercentage?: number;

@@ -203,6 +203,8 @@ export const useEnhancedKOLNodes = (
       const totalItems = kolDataArray.length;
       let processedItems = 0;
 
+      console.log(`[useEnhancedKOLNodes] Starting batch process for ${totalItems} KOLs (batchSize: ${batchSize}, maxConcurrent: ${maxConcurrentRequests})`);
+
       // Process in batches to avoid overwhelming the system
       for (let i = 0; i < kolDataArray.length; i += batchSize) {
         const batch = kolDataArray.slice(i, i + batchSize);
@@ -213,12 +215,12 @@ export const useEnhancedKOLNodes = (
         }
 
         const batchPromises = batch.map(async (kolData) => {
+          const walletAddress = kolData.kolWallet || kolData.walletAddress || kolData.id;
           try {
             return await createEnhancedKOLNode(kolData);
           } catch (error) {
-            console.error(`Failed to create KOL node for ${kolData.kolWallet || kolData.id}:`, error);
+            console.error(`[useEnhancedKOLNodes] Failed to create KOL node for ${walletAddress}:`, error);
             // Return fallback node with generated avatar
-            const walletAddress = kolData.kolWallet || kolData.walletAddress || kolData.id;
             const fallbackDisplayName = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
             const fallbackAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackDisplayName)}`;
             
@@ -247,10 +249,11 @@ export const useEnhancedKOLNodes = (
 
         // Small delay between batches to prevent overwhelming the system
         if (i + batchSize < kolDataArray.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, i === 0 ? 50 : 150));
         }
       }
 
+      console.log(`[useEnhancedKOLNodes] Batch process complete. Enhanced ${results.length} nodes.`);
       return results;
     } catch (error) {
       console.error('Failed to batch create enhanced KOL nodes:', error);

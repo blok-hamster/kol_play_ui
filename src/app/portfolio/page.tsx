@@ -26,6 +26,7 @@ import { PortfolioService } from '@/services/portfolio.service';
 import { SolanaService } from '@/services/solana.service';
 import { useUserStore } from '@/stores/use-user-store';
 import { useNotifications } from '@/stores/use-ui-store';
+import { useTradingStore } from '@/stores/use-trading-store';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
 import { formatCurrency, formatNumber, formatRelativeTime, safeFormatAmount, safeToFixed, cn } from '@/lib/utils';
 import { executeInstantSell, checkTradeConfig } from '@/lib/trade-utils';
@@ -36,7 +37,7 @@ import TradeDetailsModal from '@/components/portfolio/trade-details-modal';
 
 const PortfolioPage: React.FC = () => {
   const [newTradeStats, setNewTradeStats] = useState<TradeStats | null>(null);
-  const [enhancedWalletData, setEnhancedWalletData] = useState<(SolanaWalletBalance & { 
+  const [enhancedWalletData, setEnhancedWalletData] = useState<(SolanaWalletBalance & {
     totalValueUsd: number;
     solValueUsd: number;
     enrichedTokens?: boolean;
@@ -77,7 +78,11 @@ const PortfolioPage: React.FC = () => {
   }, [isMobile]);
 
   const { user, isAuthenticated } = useUserStore();
+  const { isPaperTrading } = useTradingStore();
   const { showError, showSuccess } = useNotifications();
+
+  // Paper Trading State
+  const [paperBalance, setPaperBalance] = useState<number | null>(null);
 
   // Initialize token lazy loading for detailed token information
   const {
@@ -105,15 +110,15 @@ const PortfolioPage: React.FC = () => {
     try {
       setIsLoadingWalletData(true);
       void 0 && (`🔄 Fetching enhanced wallet data for ${user.accountDetails.address} (enrichTokens: ${enrichTokens})`);
-      
+
       const walletData = await SolanaService.getWalletBalanceWithEnrichedTokens(
         user.accountDetails.address,
         enrichTokens
       );
-      
+
       setEnhancedWalletData(walletData);
       void 0 && (`✅ Enhanced wallet data loaded:`, walletData);
-      
+
       // Load token details for enrichment if we have tokens
       if (walletData.tokens.length > 0) {
         const tokenMints = walletData.tokens.map(token => token.mintAddress).filter(mint => mint && mint.length > 0);
@@ -122,12 +127,23 @@ const PortfolioPage: React.FC = () => {
           loadTokens(tokenMints);
         }
       }
-      
+
     } catch (err: any) {
       console.error('Failed to fetch enhanced wallet data:', err);
       showError('Error', 'Failed to load enhanced wallet data');
     } finally {
       setIsLoadingWalletData(false);
+    }
+  };
+
+  const fetchPaperData = async () => {
+    try {
+      const res = await PortfolioService.getPaperBalance();
+      if (res.data && res.data.SOL !== undefined) {
+        setPaperBalance(res.data.SOL);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch paper balance:', err);
     }
   };
 
@@ -139,17 +155,21 @@ const PortfolioPage: React.FC = () => {
       setError(null);
 
       // Fetch new trade history stats
-      const newStatsResponse = await PortfolioService.getUserTradeStatsNew();
+      const newStatsResponse = await PortfolioService.getUserTradeStatsNew(undefined, undefined, isPaperTrading);
 
       if (newStatsResponse) {
         setNewTradeStats(newStatsResponse.data);
       }
-      
+
       setLastUpdated(new Date());
-      
-      // Fetch enhanced wallet data separately
-      await fetchEnhancedWalletData(true);
-      
+
+      if (isPaperTrading) {
+        await fetchPaperData();
+      } else {
+        // Fetch enhanced wallet data separately
+        await fetchEnhancedWalletData(true);
+      }
+
     } catch (err: any) {
       console.error('Failed to fetch portfolio data:', err);
       setError(err.message || 'Failed to load portfolio data');
@@ -161,7 +181,7 @@ const PortfolioPage: React.FC = () => {
 
   useEffect(() => {
     fetchPortfolioData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isPaperTrading]);
 
   // Fetch SOL price
   useEffect(() => {
@@ -196,7 +216,7 @@ const PortfolioPage: React.FC = () => {
     try {
       // First check if user has trade config
       const configCheck = await checkTradeConfig();
-      
+
       if (!configCheck.hasConfig) {
         // Show trade config prompt
         setShowTradeConfigPrompt(true);
@@ -251,16 +271,32 @@ const PortfolioPage: React.FC = () => {
 
   // Calculate portfolio metrics from enhanced wallet data and stats
   const portfolioMetrics = useMemo(() => {
+    if (isPaperTrading) {
+      const solBalance = paperBalance || 0;
+      const solValue = solBalance * solPrice;
+
+      return {
+        portfolioValue: solValue,
+        solValue,
+        solBalance,
+        totalPnL: newTradeStats?.totalPnL ? newTradeStats.totalPnL * solPrice : 0,
+        totalPnLSol: newTradeStats?.totalPnL || 0,
+        totalPnLPercent: newTradeStats?.totalPnLPercentage || 0,
+        stats: newTradeStats,
+        hasEnhancedData: false // Paper mode doesn't have real wallet data
+      };
+    }
+
     // Use enhanced wallet data if available, fallback to user account details
-    const portfolioValue = enhancedWalletData?.totalValueUsd || 
-      (user?.accountDetails ? 
-        (user.accountDetails.totalValueUsd || 
-         user.accountDetails.balance + user.accountDetails.tokens.reduce((sum, token) => sum + token.value, 0)
+    const portfolioValue = enhancedWalletData?.totalValueUsd ||
+      (user?.accountDetails ?
+        (user.accountDetails.totalValueUsd ||
+          user.accountDetails.balance + user.accountDetails.tokens.reduce((sum, token) => sum + token.value, 0)
         ) : 0);
-    
+
     const solValue = enhancedWalletData?.solValueUsd || user?.accountDetails?.solValueUsd || 0;
     const solBalance = enhancedWalletData?.solBalance || user?.accountDetails?.balance || 0;
-    
+
     // Use new trade stats
     const stats = newTradeStats;
     const totalPnLSol = newTradeStats?.totalPnL || 0;
@@ -280,7 +316,7 @@ const PortfolioPage: React.FC = () => {
       stats, // Include the stats object for use in the UI
       hasEnhancedData,
     };
-  }, [enhancedWalletData, user?.accountDetails, newTradeStats, solPrice]);
+  }, [enhancedWalletData, user?.accountDetails, newTradeStats, solPrice, isPaperTrading, paperBalance]);
 
   // Enhanced tokens with detailed information
   const enrichedTokens = useMemo(() => {
@@ -288,7 +324,7 @@ const PortfolioPage: React.FC = () => {
 
     return enhancedWalletData.tokens.map(token => {
       const tokenDetail = getToken(token.mintAddress);
-      
+
       return {
         ...token,
         // Enhanced data from token details
@@ -429,8 +465,8 @@ const PortfolioPage: React.FC = () => {
                       <div className="flex items-center space-x-3">
                         <div className={cn(
                           "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                          portfolioMetrics.totalPnL >= 0 
-                            ? "bg-green-100 dark:bg-green-900/20" 
+                          portfolioMetrics.totalPnL >= 0
+                            ? "bg-green-100 dark:bg-green-900/20"
                             : "bg-red-100 dark:bg-red-900/20"
                         )}>
                           {portfolioMetrics.totalPnL >= 0 ? (
@@ -443,8 +479,8 @@ const PortfolioPage: React.FC = () => {
                           <p className="text-sm text-muted-foreground">Total P&L</p>
                           <p className={cn(
                             "text-base sm:text-lg font-bold",
-                            portfolioMetrics.totalPnL >= 0 
-                              ? "text-green-600 dark:text-green-400" 
+                            portfolioMetrics.totalPnL >= 0
+                              ? "text-green-600 dark:text-green-400"
                               : "text-red-600 dark:text-red-400"
                           )}>
                             {portfolioMetrics.totalPnL >= 0 ? '+' : ''}
@@ -452,8 +488,8 @@ const PortfolioPage: React.FC = () => {
                           </p>
                           <p className={cn(
                             "text-xs",
-                            portfolioMetrics.totalPnL >= 0 
-                              ? "text-green-600 dark:text-green-400" 
+                            portfolioMetrics.totalPnL >= 0
+                              ? "text-green-600 dark:text-green-400"
                               : "text-red-600 dark:text-red-400"
                           )}>
                             {portfolioMetrics.totalPnLPercent >= 0 ? '+' : ''}
@@ -533,8 +569,8 @@ const PortfolioPage: React.FC = () => {
                           <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 mx-auto mb-2" />
                           <p className={cn(
                             "text-lg sm:text-2xl font-bold",
-                            (portfolioMetrics.stats?.averagePnL || 0) >= 0 
-                              ? "text-green-600 dark:text-green-400" 
+                            (portfolioMetrics.stats?.averagePnL || 0) >= 0
+                              ? "text-green-600 dark:text-green-400"
                               : "text-red-600 dark:text-red-400"
                           )}>
                             {(portfolioMetrics.stats?.averagePnL || 0) >= 0 ? '+' : ''}
@@ -555,7 +591,7 @@ const PortfolioPage: React.FC = () => {
                         <div className="text-center">
                           <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 mx-auto mb-2" />
                           <p className="text-lg sm:text-2xl font-bold text-foreground">
-                            {portfolioMetrics.stats?.averageHoldTime 
+                            {portfolioMetrics.stats?.averageHoldTime
                               ? `${Math.floor(portfolioMetrics.stats.averageHoldTime / 60)}h ${Math.floor(portfolioMetrics.stats.averageHoldTime % 60)}m`
                               : '0h 0m'}
                           </p>
@@ -608,9 +644,9 @@ const PortfolioPage: React.FC = () => {
 
             {/* Open Positions - NEW */}
             <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
-              <OpenPositions 
-                limit={10} 
-                showHeader={true} 
+              <OpenPositions
+                limit={10}
+                showHeader={true}
                 defaultExpanded={true}
                 onTradeClick={(trade) => {
                   setSelectedTrade(trade);
@@ -631,7 +667,7 @@ const PortfolioPage: React.FC = () => {
                   </span>
                 )}
               </div>
-              
+
               {enrichedTokens.length > 0 ? (
                 <div className="space-y-3">
                   {/* Token Holdings */}
@@ -645,8 +681,8 @@ const PortfolioPage: React.FC = () => {
                           {/* Token Image or Icon */}
                           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 border-2 border-muted">
                             {token.image ? (
-                              <img 
-                                src={token.image} 
+                              <img
+                                src={token.image}
                                 alt={token.detailedSymbol}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -662,13 +698,13 @@ const PortfolioPage: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1">
                               <h3 className="font-bold text-foreground text-base sm:text-lg truncate">
                                 {token.detailedSymbol}
                               </h3>
-                              
+
                               <div className="flex items-center space-x-1 mt-1 sm:mt-0">
                                 {/* Verification badge */}
                                 {token.verified && (
@@ -678,21 +714,21 @@ const PortfolioPage: React.FC = () => {
                                     </svg>
                                   </div>
                                 )}
-                                
+
                                 {/* Risk warning */}
                                 {token.isRugged && (
                                   <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center" title="High Risk Token">
                                     <span className="text-xs font-bold text-white">!</span>
                                   </div>
                                 )}
-                                
+
                                 {/* Info icon for tokens with details */}
                                 {token.hasDetails && (
                                   <Info className="w-3 h-3 text-muted-foreground opacity-50" />
                                 )}
                               </div>
                             </div>
-                            
+
                             <div className="text-sm text-muted-foreground mb-1">
                               <span className="truncate block sm:inline">
                                 {token.detailedName}
@@ -704,7 +740,7 @@ const PortfolioPage: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            
+
                             <div className="text-sm text-muted-foreground">
                               <span>
                                 {safeFormatAmount(token.uiAmount, 4)} {token.detailedSymbol}
@@ -712,7 +748,7 @@ const PortfolioPage: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="text-right flex-shrink-0 ml-2">
                           <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1">
                             <div className="text-base sm:text-lg font-bold text-foreground">
@@ -741,7 +777,7 @@ const PortfolioPage: React.FC = () => {
                           <div className="text-xs sm:text-sm text-muted-foreground">
                             Current
                           </div>
-                          
+
                           {/* Social links on hover */}
                           {token.hasDetails && (token.website || token.twitter) && (
                             <div className="flex items-center justify-end space-x-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -789,7 +825,7 @@ const PortfolioPage: React.FC = () => {
                   )}
                 </div>
               )}
-              
+
               {/* Enhanced data loading indicator */}
               {(isLoadingWalletData || loadingTokenDetails) && (
                 <div className="mt-4 p-3 bg-muted/30 border border-border rounded-xl">
@@ -797,20 +833,20 @@ const PortfolioPage: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <RefreshCw className="h-4 w-4 animate-spin" />
                       <span>
-                        {isLoadingWalletData ? 'Loading wallet data...' : 
-                         loadingTokenDetails ? 'Enriching token details...' : ''}
+                        {isLoadingWalletData ? 'Loading wallet data...' :
+                          loadingTokenDetails ? 'Enriching token details...' : ''}
                       </span>
                     </div>
                     {loadingTokenDetails && tokenProgress.total > 0 && (
                       <span>{tokenProgress.percentage}%</span>
                     )}
                   </div>
-                  
+
                   {/* Progress bar for token loading */}
                   {loadingTokenDetails && tokenProgress.total > 0 && (
                     <div className="mt-2">
                       <div className="w-full bg-muted rounded-full h-1">
-                        <div 
+                        <div
                           className="bg-primary h-1 rounded-full transition-all duration-300"
                           style={{ width: `${tokenProgress.percentage}%` }}
                         />
@@ -819,7 +855,7 @@ const PortfolioPage: React.FC = () => {
                   )}
                 </div>
               )}
-              
+
               {/* Enhanced data status */}
               {portfolioMetrics.hasEnhancedData && (
                 <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
@@ -849,7 +885,7 @@ const PortfolioPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               {/* Token details error state */}
               {tokenDetailsError && (
                 <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
@@ -875,7 +911,7 @@ const PortfolioPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               <Button
                 variant="outline"
                 className="w-full mt-4 border-border hover:bg-muted rounded-xl"
@@ -888,10 +924,10 @@ const PortfolioPage: React.FC = () => {
 
           {/* Closed Trades - NEW */}
           <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
-            <ClosedTrades 
-              limit={5} 
-              showHeader={true} 
-              defaultExpanded={true} 
+            <ClosedTrades
+              limit={5}
+              showHeader={true}
+              defaultExpanded={true}
               showViewAll={true}
               onTradeClick={(trade) => {
                 setSelectedTrade(trade);
@@ -901,54 +937,54 @@ const PortfolioPage: React.FC = () => {
           </div>
 
         </div>
-      
-      {/* Trade Config Prompt Modal */}
-      {showTradeConfigPrompt && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-          <div className="bg-popover border border-border rounded-lg shadow-lg w-full max-w-md mx-4">
-            <div className="p-4 sm:p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                Trade Configuration Required
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                You need to configure your trading settings before you can auto sell tokens. 
-                This includes setting your preferred slippage, trade amounts, and risk management options.
-              </p>
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-                <Link href="/settings?tab=trading" className="flex-1">
+
+        {/* Trade Config Prompt Modal */}
+        {showTradeConfigPrompt && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+            <div className="bg-popover border border-border rounded-lg shadow-lg w-full max-w-md mx-4">
+              <div className="p-4 sm:p-6">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Trade Configuration Required
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  You need to configure your trading settings before you can auto sell tokens.
+                  This includes setting your preferred slippage, trade amounts, and risk management options.
+                </p>
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                  <Link href="/settings?tab=trading" className="flex-1">
+                    <Button
+                      onClick={handleTradeConfigPromptClose}
+                      className="w-full"
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Configure Trading
+                    </Button>
+                  </Link>
                   <Button
+                    variant="outline"
                     onClick={handleTradeConfigPromptClose}
-                    className="w-full"
+                    className="flex-1"
                   >
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    Configure Trading
+                    Cancel
                   </Button>
-                </Link>
-                <Button
-                  variant="outline"
-                  onClick={handleTradeConfigPromptClose}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Trade Details Modal */}
-      {showTradeDetails && selectedTrade && (
-        <TradeDetailsModal
-          trade={selectedTrade}
-          onClose={() => {
-            setShowTradeDetails(false);
-            setSelectedTrade(null);
-          }}
-        />
-      )}
-    </div>
-  </AppLayout>
+        {/* Trade Details Modal */}
+        {showTradeDetails && selectedTrade && (
+          <TradeDetailsModal
+            trade={selectedTrade}
+            onClose={() => {
+              setShowTradeDetails(false);
+              setSelectedTrade(null);
+            }}
+          />
+        )}
+      </div>
+    </AppLayout>
   );
 };
 

@@ -348,6 +348,10 @@ class ApiClient {
 
   // Utility method to handle API errors
   public handleError(error: any): string {
+    // Handle Network Errors gracefully
+    if (this.isOfflineError(error)) {
+      return 'Unable to connect to server. The backend may be offline.';
+    }
     if (error.response?.data?.message) {
       return error.response.data.message;
     }
@@ -358,6 +362,16 @@ class ApiClient {
       return error.message;
     }
     return 'An unexpected error occurred';
+  }
+
+  public isOfflineError(error: any): boolean {
+    return (
+      error.message === 'Network Error' ||
+      error.code === 'ERR_NETWORK' ||
+      error.code === 'ECONNREFUSED' ||
+      // Axios specific offline checks
+      !error.response
+    );
   }
 }
 

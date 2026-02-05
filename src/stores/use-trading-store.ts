@@ -35,11 +35,13 @@ interface TradingState {
 
   // Trading settings
   tradingSettings: TradingSettings;
+  isPaperTrading: boolean;
 
   // Error states
   error: string | null;
 
   // Actions
+  setPaperTrading: (enabled: boolean) => void;
   setError: (error: string | null) => void;
 
   // Subscription actions
@@ -104,9 +106,11 @@ export const useTradingStore = create<TradingState>()(
         maxSpend: 1.0,
         useWatchConfig: false,
       },
+      isPaperTrading: false, // Default to Real execution, user can toggle
       error: null,
 
       // Basic setters
+      setPaperTrading: enabled => set({ isPaperTrading: enabled }),
       setError: error => set({ error }),
 
       // Subscription actions
@@ -424,9 +428,10 @@ export const useTradingStore = create<TradingState>()(
     {
       name: STORAGE_KEYS.TRADING_SETTINGS,
       partialize: state => ({
-        // Only persist settings and subscriptions, not live data
+        // Only persist settings, subscriptions, and paper trading mode
         tradingSettings: state.tradingSettings,
         subscriptions: state.subscriptions,
+        isPaperTrading: state.isPaperTrading,
       }),
     }
   )

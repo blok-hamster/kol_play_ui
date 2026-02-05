@@ -95,13 +95,22 @@ interface UnifiedKOLMindmapProps {
   className?: string;
 }
 
-export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
+export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
   tokensData,
   trendingTokens,
   width = 1400,
   height = 800,
   className,
 }) => {
+  const { allMindmapData, trendingTokens: hookTrendingTokens, recentTrades } = useKOLTradeSocket();
+
+  // Stabilize empty array reference
+  const EMPTY_ARRAY = useMemo(() => [], []);
+
+  // Use props if provided, otherwise fallback to internal hooks/defaults
+  const activeTokensData = tokensData || allMindmapData;
+  // Use stable empty array for fallback
+  const activeTrendingTokens = trendingTokens || hookTrendingTokens || EMPTY_ARRAY;
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -114,7 +123,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
   const { isSubscribedToKOL, subscriptions } = useSubscriptions();
   const { getKOL, loadAllKOLs } = useKOLStore();
   const { getTokenByMint } = useTokenStore();
-  const { recentTrades } = useKOLTradeSocket();
+  // recentTrades already called at top
 
   // Track subscription changes for real-time updates
   const previousSubscriptionsRef = useRef<typeof subscriptions>([]);
@@ -141,19 +150,11 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
   >('none');
   const [showSubscribedOnly, setShowSubscribedOnly] = useState(false);
   const [dimensions, setDimensions] = useState({ width, height });
-  const [networkStats, setNetworkStats] = useState({
-    totalTokens: 0,
-    totalKOLs: 0,
-    subscribedKOLs: 0,
-    filteredTokens: 0,
-    lastUpdate: new Date(),
-  });
   const [interactionErrors, setInteractionErrors] = useState<Error[]>([]);
   const [processedData, setProcessedData] = useState<{
     nodes: UnifiedNode[];
     links: UnifiedLink[];
   }>({ nodes: [], links: [] });
-
 
   // Handle real-time subscription changes
   useEffect(() => {
@@ -173,19 +174,8 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       });
 
     if (subscriptionsChanged && previousSubscriptions.length > 0) {
-      // Subscription changes detected - reduced logging for performance
-
-      // Update the ref for next comparison
       previousSubscriptionsRef.current = [...currentSubscriptions];
-
-      // If we're in subscribed-only mode and subscriptions changed,
-      // we might need to update WebSocket subscriptions
-      if (showSubscribedOnly) {
-        // This will be handled by the WebSocket hook when it detects subscription changes
-        // Subscribed-only mode active - reduced logging for performance
-      }
     } else if (previousSubscriptions.length === 0) {
-      // Initial load, just update the ref
       previousSubscriptionsRef.current = [...currentSubscriptions];
     }
   }, [subscriptions, showSubscribedOnly]);
@@ -219,15 +209,11 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       }
     };
 
-    // Use ResizeObserver for more accurate container size tracking
     const resizeObserver = new ResizeObserver(updateDimensions);
-
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
-      updateDimensions(); // Initial call
+      updateDimensions();
     }
-
-    // Also listen for window resize for mobile orientation changes
     window.addEventListener('resize', updateDimensions);
 
     return () => {
@@ -236,81 +222,69 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     };
   }, []);
 
-  // Enhanced filtering with metadata preservation and relationship validation
+  // Enhanced filtering
   const filteredTokensData = useMemo(() => {
-    // Step 1: Filter out Solana base token while preserving metadata
-    const solanaFiltered = dataFilterManager.filterSolanaBaseToken(tokensData);
-
-    // Step 2: Apply subscription filtering with enhanced metadata support
+    const solanaFiltered = dataFilterManager.filterSolanaBaseToken(activeTokensData);
     const subscriptionFiltered = dataFilterManager.filterBySubscriptionStatus(
       solanaFiltered,
       showSubscribedOnly,
       isSubscribedToKOL
     );
-
-    // Step 3: Validate token-KOL relationships to ensure meaningful connections
     const relationshipValidated =
       dataFilterManager.validateTokenKOLRelationships(subscriptionFiltered, {
         preserveMetadata: true,
         validateConnections: true,
         minConnectionStrength: 0.1,
       });
+    return dataFilterManager.optimizeNetworkData(relationshipValidated);
+  }, [activeTokensData, showSubscribedOnly, isSubscribedToKOL]);
 
-    // Step 4: Optimize network data by removing isolated nodes
-    const optimized = dataFilterManager.optimizeNetworkData(
-      relationshipValidated
-    );
+  // Debouncing for filteredTokensData to prevent layout thrashing
+  const [debouncedFilteredData, setDebouncedFilteredData] = useState(filteredTokensData);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Enhanced data filtering complete - reduced logging for performance
-
-    return optimized;
-  }, [tokensData, showSubscribedOnly]);
-
-  // Calculate network statistics separately to avoid re-render loops
   useEffect(() => {
+    // Shorter debounce for responsiveness, but enough to batch WebSocket bursts
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedFilteredData(filteredTokensData);
+    }, 800);
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [filteredTokensData]);
+
+  // Derived Network Stats (Moved from state/effect to useMemo to prevent loops)
+  const networkStats = useMemo(() => {
     const stats = dataFilterManager.getFilteringStats(
-      tokensData,
+      activeTokensData,
       filteredTokensData
     );
-    const metadataStats =
-      dataFilterManager.getMetadataStats(filteredTokensData);
 
-    const newTotalTokens = Object.keys(filteredTokensData).length;
-    const newTotalKOLs = new Set(
+    const totalKOLs = new Set(
       Object.values(filteredTokensData).flatMap(data =>
         Object.keys(data.kolConnections || {})
       )
     ).size;
-    const newSubscribedKOLs = new Set(
+
+    const subscribedKOLs = new Set(
       Object.values(filteredTokensData).flatMap(data =>
         Object.keys(data.kolConnections || {}).filter(kolWallet =>
           isSubscribedToKOL(kolWallet)
         )
       )
     ).size;
-    const newFilteredTokens = stats.tokensFiltered;
 
-    // Only update state if the values have actually changed
-    setNetworkStats(prevStats => {
-      if (
-        prevStats.totalTokens !== newTotalTokens ||
-        prevStats.totalKOLs !== newTotalKOLs ||
-        prevStats.subscribedKOLs !== newSubscribedKOLs ||
-        prevStats.filteredTokens !== newFilteredTokens
-      ) {
-        return {
-          totalTokens: newTotalTokens,
-          totalKOLs: newTotalKOLs,
-          subscribedKOLs: newSubscribedKOLs,
-          filteredTokens: newFilteredTokens,
-          lastUpdate: new Date(),
-        };
-      }
-      return prevStats; // No change, return previous state
-    });
-
-    // Network stats updated - reduced logging for performance
-  }, [filteredTokensData, isSubscribedToKOL, tokensData]);
+    return {
+      totalTokens: Object.keys(filteredTokensData).length,
+      totalKOLs,
+      subscribedKOLs,
+      filteredTokens: stats.tokensFiltered,
+      lastUpdate: new Date(),
+    };
+  }, [filteredTokensData, isSubscribedToKOL, activeTokensData]);
 
   // Handle interaction errors
   const handleInteractionError = useCallback((error: Error) => {
@@ -357,11 +331,18 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       !gRef.current ||
       !linkGroupRef.current ||
       !nodeGroupRef.current ||
-      !labelGroupRef.current ||
-      processedData.nodes.length === 0
+      !labelGroupRef.current
     ) {
       return;
     }
+
+    // Allow rendering even with empty data to show loading state
+    if (processedData.nodes.length === 0) {
+      console.log('[UnifiedMindmap] No nodes to render');
+      return;
+    }
+
+    console.log('[UnifiedMindmap] Rendering:', processedData.nodes.length, 'nodes,', processedData.links.length, 'links');
 
     const { nodes, links } = processedData;
     const { width: svgWidth, height: svgHeight } = dimensions;
@@ -401,8 +382,21 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     } else {
       // Update nodes and links, keep existing simulation "hot" but not exploding
       simulationRef.current.nodes(nodes);
-      simulationRef.current.force<d3.ForceLink<UnifiedNode, UnifiedLink>>('link')?.links(links);
-      simulationRef.current.alpha(0.3).restart();
+
+      // Update link force with new links
+      const linkForce = simulationRef.current.force<d3.ForceLink<UnifiedNode, UnifiedLink>>('link');
+      if (linkForce) {
+        linkForce.links(links);
+      }
+
+      // Update center force for new dimensions
+      const centerForce = d3.forceCenter(svgWidth / 2, svgHeight / 2);
+      simulationRef.current.force('center', centerForce);
+
+      // Restart with moderate alpha to animate changes
+      simulationRef.current.alpha(0.5).alphaTarget(0).restart();
+
+      console.log('[UnifiedMindmap] Simulation restarted with', nodes.length, 'nodes');
     }
 
     // 2. Define colors (definitions)
@@ -439,10 +433,15 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
 
     // 3. Update Links
     const linkSelection = linkGroupRef.current.selectAll<SVGLineElement, UnifiedLink>('line')
-      .data(links, d => (d.id ? d.id : `${(d.source as any).id || d.source}-${(d.target as any).id || d.target}`));
+      .data(links, d => {
+        // Create stable key from source and target IDs
+        const sourceId = typeof d.source === 'string' ? d.source : (d.source as UnifiedNode).id;
+        const targetId = typeof d.target === 'string' ? d.target : (d.target as UnifiedNode).id;
+        return `${sourceId}-${targetId}`;
+      });
 
     const linkEnter = linkSelection.enter().append('line')
-      .attr('stroke', (d, i) => `url(#linkGradient${i})`)
+      .attr('stroke', (_d, i) => `url(#linkGradient${i})`)
       .attr('stroke-opacity', d => Math.min(0.7, Math.log(d.tradeCount + 1) * 0.15))
       .attr('stroke-width', d => Math.max(1.5, Math.sqrt(d.tradeCount) * 0.8))
       .style('cursor', 'pointer');
@@ -527,91 +526,92 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
       );
 
     // --- Node Visuals Construction (Enter only) ---
+    // Helper for radius calculation
+    const getRadius = (d: UnifiedNode) => {
+      if (d.type === 'token') {
+        const baseSize = 20;
+        const connectionBonus = Math.sqrt(d.connections) * 7;
+        const volumeBonus = Math.log(d.totalVolume || 1) * 2.5;
+        return Math.min(55, baseSize + connectionBonus + volumeBonus);
+      } else {
+        const baseSize = 14;
+        const influenceBonus = Math.sqrt(d.influenceScore || 0) * 2.2;
+        const tradeBonus = Math.sqrt(d.tradeCount || 0) * 1.5;
+        return Math.min(40, baseSize + influenceBonus + tradeBonus);
+      }
+    };
+
     // Background Circle
     nodeEnter.append('circle')
       .attr('class', 'bg-circle')
-      .attr('r', d => {
-        if (d.type === 'token') {
-          const baseSize = 20;
-          const connectionBonus = Math.sqrt(d.connections) * 7;
-          const volumeBonus = Math.log(d.totalVolume || 1) * 2.5;
-          return Math.min(55, baseSize + connectionBonus + volumeBonus);
-        } else {
-          const baseSize = 14;
-          const influenceBonus = Math.sqrt(d.influenceScore || 0) * 2.2;
-          const tradeBonus = Math.sqrt(d.tradeCount || 0) * 1.5;
-          return Math.min(40, baseSize + influenceBonus + tradeBonus);
-        }
-      });
+      .attr('r', d => getRadius(d));
 
     // Token/KOL Images
-    // We need to use .each for specific per-node logic regarding clips and images
-    nodeEnter.each(function (d, i) {
+    nodeEnter.each(function (d) {
       const node = d3.select(this);
-      const hasImage = !!d.image;
+      const radius = getRadius(d);
 
-      if (hasImage) {
-        const r = d3.select(this).select('circle.bg-circle').attr('r');
-        const radius = parseFloat(r);
-        const imageSize = radius * 1.8;
-        const clipId = `node-clip-${d.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      // ALWAYS append image infrastructure so it can be updated later if image arrives
+      const imageSize = radius * 1.8;
+      const clipId = `node-clip-${d.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
+      // Ensure clip path exists - check prevents duplicates
+      if (defs.select(`#${clipId}`).empty()) {
         defs.append('clipPath')
           .attr('id', clipId)
           .append('circle')
           .attr('r', radius - 2);
-
-        node.append('image')
-          .attr('href', d.image!)
-          .attr('x', -imageSize / 2)
-          .attr('y', -imageSize / 2)
-          .attr('width', imageSize)
-          .attr('height', imageSize)
-          .attr('clip-path', `url(#${clipId})`)
-          .style('pointer-events', 'none')
-          .on('error', function () {
-            d3.select(this).style('display', 'none');
-          });
       }
 
-      // Inner patterns for those without images
-      if (d.type === 'kol' && !hasImage) {
+      node.append('image')
+        .attr('class', 'node-image')
+        .attr('href', d.image || '') // Empty string if undefined, will update in merge
+        .attr('x', -imageSize / 2)
+        .attr('y', -imageSize / 2)
+        .attr('width', imageSize)
+        .attr('height', imageSize)
+        .attr('clip-path', `url(#${clipId})`)
+        .style('pointer-events', 'none')
+        .style('display', d.image ? 'block' : 'none') // Initial visibility
+        .on('error', function () {
+          d3.select(this).style('display', 'none');
+          node.select('.fallback-circle').style('display', 'block');
+        });
+
+      // Fallback/Inner Circle (Always append, toggle visibility in merge)
+      const hasImage = !!d.image;
+
+      if (d.type === 'kol') {
         node.append('circle')
-          .attr('r', d => {
-            const baseSize = 14;
-            const influenceBonus = Math.sqrt(d.influenceScore || 0) * 2.2;
-            const tradeBonus = Math.sqrt(d.tradeCount || 0) * 1.5;
-            return Math.min(40, baseSize + influenceBonus + tradeBonus) * 0.6;
-          })
+          .attr('class', 'fallback-circle')
+          .attr('r', radius * 0.6)
           .attr('fill', 'none')
           .attr('stroke', '#ffffff')
           .attr('stroke-width', 1.5)
           .attr('stroke-dasharray', '4,2')
-          .attr('opacity', 0.8);
-
-        // Add star/gold border for Featured KOLs
-        if (d.isFeatured) {
-          node.append('circle')
-            .attr('class', 'featured-indicator')
-            .attr('r', d => {
-              const baseSize = 14;
-              const influenceBonus = Math.sqrt(d.influenceScore || 0) * 2.2;
-              const tradeBonus = Math.sqrt(d.tradeCount || 0) * 1.5;
-              return (Math.min(40, baseSize + influenceBonus + tradeBonus) * 0.6) + 4;
-            })
-            .attr('fill', 'none')
-            .attr('stroke', '#FFD700') // Gold
-            .attr('stroke-width', 2.5)
-            .style('filter', 'drop-shadow(0 0 4px rgba(255, 215, 0, 0.5))');
-        }
+          .attr('opacity', 0.8)
+          .style('display', hasImage ? 'none' : 'block');
       }
 
-      if (d.type === 'token' && !hasImage) {
+      if (d.type === 'token') {
         node.append('circle')
-          .attr('r', d => Math.max(8, Math.sqrt(d.connections) * 3))
+          .attr('class', 'fallback-circle')
+          .attr('r', Math.max(8, Math.sqrt(d.connections) * 3))
           .attr('fill', '#ffffff')
           .attr('fill-opacity', 0.25)
-          .attr('stroke', 'none');
+          .attr('stroke', 'none')
+          .style('display', hasImage ? 'none' : 'block');
+      }
+
+      // Featured indicator
+      if (d.type === 'kol' && d.isFeatured) {
+        node.append('circle')
+          .attr('class', 'featured-indicator')
+          .attr('r', (radius * 0.6) + 4)
+          .attr('fill', 'none')
+          .attr('stroke', '#FFD700')
+          .attr('stroke-width', 2.5)
+          .style('filter', 'drop-shadow(0 0 4px rgba(255, 215, 0, 0.5))');
       }
     });
 
@@ -619,20 +619,8 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
 
     // Update visuals on merge
     nodeMerge.select('circle.bg-circle')
-      .transition().duration(500) // smooth transition for size/color updates
-      .attr('r', d => {
-        if (d.type === 'token') {
-          const baseSize = 20;
-          const connectionBonus = Math.sqrt(d.connections) * 7;
-          const volumeBonus = Math.log(d.totalVolume || 1) * 2.5;
-          return Math.min(55, baseSize + connectionBonus + volumeBonus);
-        } else {
-          const baseSize = 14;
-          const influenceBonus = Math.sqrt(d.influenceScore || 0) * 2.2;
-          const tradeBonus = Math.sqrt(d.tradeCount || 0) * 1.5;
-          return Math.min(40, baseSize + influenceBonus + tradeBonus);
-        }
-      })
+      .transition().duration(500)
+      .attr('r', d => getRadius(d))
       .attr('fill', d => {
         if (d.type === 'kol' && d.image) return 'transparent';
         if (d.type === 'token' && d.image) return '#ffffff20';
@@ -641,13 +629,46 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
         return d.type === 'token' ? (d.isTrending ? accentFrom : tokenColorScale(d.connections)) : kolColorScale(d.influenceScore || 0);
       })
       .attr('fill-opacity', d => d.image ? (d.type === 'kol' ? 0 : 0.3) : 0.7)
-      .attr('stroke', d => (d.type === 'kol' ? (d.image ? '#ffffff80' : '#ffffff') : 'none'))
-      .attr('stroke-width', d => d.type === 'kol' ? (d.image ? 1.5 : 2) : 0)
+      .attr('stroke', d => {
+        if (d.type === 'token') return '#9945FF'; // Purple border for tokens
+        if (d.type === 'kol' && d.image) return '#ffffff80';
+        return '#ffffff';
+      })
+      .attr('stroke-width', d => {
+        if (d.type === 'token') return 2; // Always visible border for tokens
+        return d.type === 'kol' ? (d.image ? 1.5 : 2) : 0;
+      })
       .style('filter', d => {
-        if (d.type === 'token' && d.connections > 5) return `drop-shadow(0 0 12px ${accentTo}40)`;
+        if (d.type === 'token') return `drop-shadow(0 0 8px #9945FF60)`; // Always glow for tokens
         if (d.type === 'kol' && (d.influenceScore || 0) > 70) return `drop-shadow(0 0 15px #FF6B6B60)`;
         return 'none';
       });
+
+    // Update images if data changes
+    nodeMerge.select('image.node-image')
+      .attr('href', d => d.image || '')
+      .attr('x', d => -(getRadius(d) * 1.8) / 2)
+      .attr('y', d => -(getRadius(d) * 1.8) / 2)
+      .attr('width', d => getRadius(d) * 1.8)
+      .attr('height', d => getRadius(d) * 1.8)
+      .style('display', d => d.image ? 'block' : 'none');
+
+    // Update fallback visibility
+    nodeMerge.select('circle.fallback-circle')
+      .style('display', d => d.image ? 'none' : 'block');
+
+    // Update clip paths
+    nodeMerge.each(function (d) {
+      // We only care if image is meant to be shown
+      if (d.image) {
+        const radius = getRadius(d);
+        const clipId = `node-clip-${d.id.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        const clipPathCircle = defs.select(`#${clipId} circle`);
+        if (!clipPathCircle.empty()) {
+          clipPathCircle.attr('r', radius - 2);
+        }
+      }
+    });
 
     // Interaction Listeners (Update on merge to capture latest state/highlightMode)
     let hoverTimeout: NodeJS.Timeout | null = null;
@@ -747,17 +768,32 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     // 6. Simulation Tick
     if (simulationRef.current) {
       simulationRef.current.on('tick', () => {
+        // Update link positions with safety checks
         linkMerge
-          .attr('x1', d => (d.source as UnifiedNode).x!)
-          .attr('y1', d => (d.source as UnifiedNode).y!)
-          .attr('x2', d => (d.target as UnifiedNode).x!)
-          .attr('y2', d => (d.target as UnifiedNode).y!);
+          .attr('x1', d => {
+            const source = d.source as UnifiedNode;
+            return source?.x ?? 0;
+          })
+          .attr('y1', d => {
+            const source = d.source as UnifiedNode;
+            return source?.y ?? 0;
+          })
+          .attr('x2', d => {
+            const target = d.target as UnifiedNode;
+            return target?.x ?? 0;
+          })
+          .attr('y2', d => {
+            const target = d.target as UnifiedNode;
+            return target?.y ?? 0;
+          });
 
-        nodeMerge.attr('transform', d => `translate(${d.x},${d.y})`);
+        // Update node positions
+        nodeMerge.attr('transform', d => `translate(${d.x ?? 0},${d.y ?? 0})`);
 
+        // Update label positions
         labelMerge
-          .attr('x', d => d.x!)
-          .attr('y', d => d.y!);
+          .attr('x', d => d.x ?? 0)
+          .attr('y', d => d.y ?? 0);
       });
     }
 
@@ -772,22 +808,23 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     recentTradesRef.current = recentTrades;
   }, [recentTrades]);
 
+  // Determine device-specific limits for performance optimization
+  const isMobile = dimensions.width < 768;
+
   // Process unified data and update state
   useEffect(() => {
     let isMounted = true;
 
-    // Determine device-specific limits for performance optimization
-    const isMobile = dimensions.width < 768;
-    const deviceLimits = {
-      maxNodes: isMobile ? 50 : 200,
-      maxLinks: isMobile ? 100 : 500,
-    };
-
-    if (Object.keys(filteredTokensData).length > 0) {
+    if (Object.keys(debouncedFilteredData).length > 0) {
       // Use the data filtering manager to process unified network data
+      const deviceLimits = {
+        maxNodes: isMobile ? 50 : 200,
+        maxLinks: isMobile ? 100 : 500,
+      };
+
       const networkData = dataFilterManager.processUnifiedData(
-        filteredTokensData,
-        trendingTokens,
+        debouncedFilteredData,
+        activeTrendingTokens,
         deviceLimits
       );
 
@@ -905,7 +942,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
         try {
           enhancedKOLs = await enhancedKOLNodes.batchCreateEnhancedKOLNodes(kolDataForHook);
         } catch (e) {
-          console.warn("KOL batch processing failed, falling back to basic", e);
+          console.warn("KOL batch processing failed, falling back to basic details. Error:", e);
           enhancedKOLs = [];
         }
 
@@ -1043,15 +1080,32 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
         }));
 
         if (!isMounted) return;
-        setProcessedData({ nodes, links });
+        setProcessedData(prev => {
+          // Prevent infinite loop if data hasn't meaningfully changed
+          // We check counts and top node IDs as a proxy for meaningful change
+          if (prev.nodes.length === nodes.length && prev.links.length === links.length) {
+            const sameNodeIds = prev.nodes.every((n, i) => n.id === nodes[i].id);
+            const sameLinkTargets = prev.links.length > 0 &&
+              prev.links[0].target === links[0].target &&
+              prev.links[0].source === links[0].source;
+
+            if (sameNodeIds && sameLinkTargets) {
+              return prev;
+            }
+          }
+          return { nodes, links };
+        });
       });
     } else {
       // Clear processed data when no filtered data is available
-      setProcessedData({ nodes: [], links: [] });
+      setProcessedData(prev => {
+        if (prev.nodes.length === 0 && prev.links.length === 0) return prev;
+        return { nodes: [], links: [] };
+      });
     }
 
     return () => { isMounted = false; };
-  }, [filteredTokensData, trendingTokens, dimensions.width, dimensions.height, showSubscribedOnly, getTokenByMint, getKOL]);
+  }, [debouncedFilteredData, activeTrendingTokens, isMobile, showSubscribedOnly, getTokenByMint, getKOL]);
 
 
   const isConnected = (
@@ -1113,7 +1167,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
 
   // Calculate all KOLs from original data (but still exclude Solana base token)
   const solanaFilteredOriginal =
-    dataFilterManager.filterSolanaBaseToken(tokensData);
+    dataFilterManager.filterSolanaBaseToken(activeTokensData);
   const allKOLs = new Set(
     Object.values(solanaFilteredOriginal).flatMap(data =>
       Object.keys(data.kolConnections || {})
@@ -1124,7 +1178,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
   if (showSubscribedOnly && Object.keys(filteredTokensData).length === 0) {
     // Get more detailed information about why the view is empty
     const solanaFilteredOriginal =
-      dataFilterManager.filterSolanaBaseToken(tokensData);
+      dataFilterManager.filterSolanaBaseToken(activeTokensData);
     const hasSubscriptions = subscriptions.length > 0;
     const activeSubscriptions = subscriptions.filter(
       sub => sub.isActive
@@ -1272,7 +1326,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        'w-full h-full flex flex-col min-h-[300px] max-h-[600px]',
+        'w-full h-full flex flex-col min-h-[300px]',
         className
       )}
     >
@@ -1296,7 +1350,7 @@ export const UnifiedKOLMindmap: React.FC<UnifiedKOLMindmapProps> = ({
           {/* Real-time update indicator */}
           <span className="flex items-center gap-1 text-xs">
             <Activity className="h-2.5 w-2.5 text-green-500" />
-            <span className="text-muted-foreground/70">
+            <span className="text-muted-foreground/70" suppressHydrationWarning>
               {formatDistanceToNow(networkStats.lastUpdate, {
                 addSuffix: true,
               })}

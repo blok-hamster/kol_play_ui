@@ -12,10 +12,14 @@ import {
   Eye,
   AlertCircle,
   ExternalLink,
+  Activity,
+  Globe,
+  Twitter,
 } from 'lucide-react';
 import { PortfolioService } from '@/services/portfolio.service';
 import { SolanaService } from '@/services/solana.service';
 import { useNotifications } from '@/stores/use-ui-store';
+import { useTradingStore } from '@/stores/use-trading-store';
 import AuthService from '@/services/auth.service';
 import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
 import { useEnhancedWebSocket } from '@/hooks/use-enhanced-websocket';
@@ -49,6 +53,7 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [solPrice, setSolPrice] = useState<number>(0);
+  const { isPaperTrading } = useTradingStore();
   const token = AuthService.getToken();
   const { connect, disconnect } = useEnhancedWebSocket({
     auth: {
@@ -83,7 +88,7 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
       setIsLoading(true);
       setError(null);
 
-      const response = await PortfolioService.getUserTrades('closed');
+      const response = await PortfolioService.getUserTrades('closed', isPaperTrading);
       const trades = response.data || [];
 
       // Sort by closedAt descending (most recent first)
@@ -111,7 +116,9 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
 
   useEffect(() => {
     fetchClosedTrades();
-    connect();
+    connect().catch(err => {
+      console.warn('⚠️ WebSocket initial connection failed in ClosedTrades:', err);
+    });
 
     const handleEvent = (e: Event) => {
       const customEvent = e as CustomEvent;
@@ -129,7 +136,7 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
       window.removeEventListener('kolplay_user_event', handleEvent);
       disconnect();
     };
-  }, []);
+  }, [isPaperTrading]);
 
   // Enrich trades with token data
   const enrichedTrades = useMemo(() => {
@@ -153,6 +160,9 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
         tokenName: tokenDetail?.token?.name || `${trade.tokenMint.slice(0, 8)}...${trade.tokenMint.slice(-8)}`,
         tokenImage: tokenDetail?.token?.image || tokenDetail?.token?.logoURI,
         verified: tokenDetail?.token?.verified || false,
+        marketCap: tokenDetail?.pools?.[0]?.marketCap?.usd || tokenDetail?.token?.marketCapUsd || 0,
+        priceChange24h: tokenDetail?.events?.['24h']?.priceChangePercentage || tokenDetail?.token?.priceChange24h || 0,
+        twitter: tokenDetail?.token?.twitter,
         holdTime,
       };
     });
@@ -351,6 +361,40 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
                   <p className="text-sm text-muted-foreground">
                     {formatRelativeTime(new Date(trade.closedAt || trade.updatedAt))}
                   </p>
+
+                  {/* Metadata Indicators */}
+                  <div className="flex items-center space-x-3 mt-1 text-[10px] text-muted-foreground">
+                    {trade.marketCap > 0 && (
+                      <div className="flex items-center" title="Market Cap">
+                        <Activity className="w-2.5 h-2.5 mr-1 text-blue-500/70" />
+                        <span>${formatNumber(trade.marketCap)}</span>
+                      </div>
+                    )}
+                    {trade.priceChange24h !== 0 && (
+                      <div className={cn(
+                        "flex items-center font-medium",
+                        trade.priceChange24h > 0 ? "text-green-500/70" : "text-red-500/70"
+                      )} title="24h Change">
+                        {trade.priceChange24h > 0 ? <TrendingUp className="w-2.5 h-2.5 mr-0.5" /> : <TrendingDown className="w-2.5 h-2.5 mr-0.5" />}
+                        <span>{trade.priceChange24h > 0 ? '+' : ''}{trade.priceChange24h.toFixed(1)}%</span>
+                      </div>
+                    )}
+
+                    {/* External Quick Links */}
+                    <div className="flex items-center space-x-2 ml-2 pl-2 border-l border-border/50">
+                      <a href={`https://solscan.io/token/${trade.tokenMint}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="hover:text-foreground">
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                      <a href={`https://dexscreener.com/solana/${trade.tokenMint}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="hover:text-foreground">
+                        <Globe className="w-2.5 h-2.5" />
+                      </a>
+                      {trade.twitter && (
+                        <a href={trade.twitter} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="hover:text-foreground">
+                          <Twitter className="w-2.5 h-2.5 text-blue-400" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 

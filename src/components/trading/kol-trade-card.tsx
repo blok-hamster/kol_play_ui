@@ -3,26 +3,22 @@
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { formatCurrency, formatWalletAddress, cn, safeFormatAmount, safeToFixed } from '@/lib/utils';
-import { KOLTrade as SocketKOLTrade } from '@/hooks/use-kol-trade-socket';
-import { KOLTrade as TypesKOLTrade } from '@/types';
+import { KOLTrade, SocketKOLTrade, KOLTradeUnion, KOLWallet } from '@/types';
 import {
   TrendingUp,
   TrendingDown,
-  Users,
   ExternalLink,
   Copy,
   Clock,
   DollarSign,
   ArrowRightLeft,
   Zap,
-  Link,
   Brain,
   Target
 } from 'lucide-react';
 import { useNotifications } from '@/stores/use-ui-store';
 import { Button } from '@/components/ui/button';
 import { useKOLStore, useSubscriptions } from '@/stores';
-import type { KOLWallet } from '@/types';
 
 // Local helpers to derive Twitter avatar URL similar to other components
 function extractTwitterUsername(profileUrl?: string): string | null {
@@ -65,12 +61,12 @@ function findTwitterUrlFromKOL(kol?: { socialLinks?: { twitter?: string }; descr
   return kol.socialLinks?.twitter || findTwitterUrlFromText(kol.description);
 }
 
-// Union type to handle both interface structures
-type KOLTradeUnion = SocketKOLTrade | TypesKOLTrade;
+// helper function for twitter extraction
 
 interface KOLTradeCardProps {
   trade: KOLTradeUnion;
   onClick?: (trade: KOLTradeUnion) => void;
+  onTradeClick?: (trade: KOLTradeUnion, type: 'buy' | 'sell') => void;
   className?: string;
   variant?: 'card' | 'list';
   hideKOLInfo?: boolean;
@@ -80,6 +76,7 @@ interface KOLTradeCardProps {
 export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   trade,
   onClick,
+  onTradeClick,
   className,
   variant = 'card',
   hideKOLInfo = false,
@@ -88,7 +85,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
 
   const { showSuccess, showError } = useNotifications();
   const { getKOL } = useKOLStore();
-  const { isSubscribedToKOL, subscriptions } = useSubscriptions();
+  const { subscriptions } = useSubscriptions();
 
   // Helper function to check if trade has nested tradeData structure
   const hasNestedTradeData = (trade: KOLTradeUnion): trade is SocketKOLTrade => {
@@ -412,7 +409,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
                     {(() => {
                       const name = tradeData.name?.trim();
                       const symbol = tradeData.symbol?.trim();
-                      if (name && symbol) return `${name} (${symbol})`;
+                      if (name && symbol && symbol !== 'UNK' && symbol !== 'Unknown') return `${name} (${symbol})`;
                       if (name) return name;
                       if (symbol) return symbol;
                       return tradeData.mint ? `${tradeData.mint.slice(0, 6)}...${tradeData.mint.slice(-4)}` : 'Token';
@@ -527,7 +524,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
                 {(() => {
                   const name = tradeData.name?.trim();
                   const symbol = tradeData.symbol?.trim();
-                  if (name && symbol) return `${name} (${symbol})`;
+                  if (name && symbol && symbol !== 'UNK' && symbol !== 'Unknown') return `${name} (${symbol})`;
                   if (name) return name;
                   if (symbol) return symbol;
                   return tradeData.mint ? `${tradeData.mint.slice(0, 6)}...${tradeData.mint.slice(-4)}` : 'Token';
@@ -665,7 +662,7 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
                   {(() => {
                     const name = tradeData.name?.trim();
                     const symbol = tradeData.symbol?.trim();
-                    if (name && symbol) return `${name} (${symbol})`;
+                    if (name && symbol && symbol !== 'UNK' && symbol !== 'Unknown') return `${name} (${symbol})`;
                     if (name) return name;
                     if (symbol) return symbol;
                     return tradeData.mint ? `${tradeData.mint.slice(0, 8)}...${tradeData.mint.slice(-4)}` : 'Token';
@@ -747,13 +744,17 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     );
   }
 
-  // Card variant
+  // Card variant (Compact/List)
   if (hideKOLInfo) {
     return (
       <div
         className={cn(
-          'bg-background border border-border rounded-lg p-3 hover:border-muted-foreground transition-all duration-200 cursor-pointer group border-l-4',
-          (tradeData.tradeType ?? 'sell') === 'buy' ? 'border-l-green-500' : 'border-l-red-500',
+          'group relative overflow-hidden rounded-lg border transition-all duration-300 cursor-pointer',
+          'bg-card/40 hover:bg-card/60 backdrop-blur-md',
+          'border-l-4 p-3 shadow-sm hover:shadow-md',
+          (tradeData.tradeType ?? 'sell') === 'buy'
+            ? 'border-l-green-500 border-y-border border-r-border'
+            : 'border-l-red-500 border-y-border border-r-border',
           className
         )}
         onClick={() => onClick?.(trade)}
@@ -761,8 +762,10 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
         {/* Top row: Type and Time */}
         <div className="flex items-center justify-between mb-2">
           <div className={cn(
-            'inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium text-white',
-            (tradeData.tradeType ?? 'sell') === 'buy' ? 'bg-green-500' : 'bg-red-500'
+            'inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border shadow-sm',
+            (tradeData.tradeType ?? 'sell') === 'buy'
+              ? 'bg-green-500/10 text-green-500 border-green-500/20'
+              : 'bg-red-500/10 text-red-500 border-red-500/20'
           )}>
             {(tradeData.tradeType ?? 'sell') === 'buy' ? (
               <TrendingUp className="h-3 w-3" />
@@ -771,51 +774,99 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
             )}
             <span>{tradeData.tradeType?.toUpperCase() || 'UNKNOWN'}</span>
           </div>
-          <div className="flex items-center text-xs text-muted-foreground">
-            <Clock className="h-3 w-3 mr-1" />
+          <div className="flex items-center text-[10px] text-muted-foreground font-medium">
+            <Clock className="h-3 w-3 mr-1 opacity-70" />
             {tradeDate ? formatDistanceToNow(tradeDate, { addSuffix: true }) : 'Now'}
           </div>
         </div>
 
         {/* Amounts */}
-        <div className="text-center mb-2">
-          <div className="font-semibold text-foreground">
-            {safeFormatAmount(tradeAmounts.solAmount)} SOL
+        <div className="text-center mb-1">
+          <div className="font-bold text-lg text-foreground tracking-tight leading-none">
+            {safeFormatAmount(tradeAmounts.solAmount)} <span className="text-xs text-muted-foreground font-semibold">SOL</span>
           </div>
-          <div className="text-xs text-muted-foreground">
-            {safeFormatAmount(tradeAmounts.tokensAmount)} tokens
+          <div className="text-[10px] font-medium text-muted-foreground mt-0.5">
+            {safeFormatAmount(tradeAmounts.tokensAmount, 0)} tokens
           </div>
         </div>
 
         {/* Token info */}
         {(tradeData.symbol || tradeData.name || tradeData.mint) && (
-          <div className="text-center text-xs">
-            <span className="font-medium">
-              {(() => {
-                const name = tradeData.name?.trim();
-                const symbol = tradeData.symbol?.trim();
-                if (name && symbol) return `${name} (${symbol})`;
-                if (name) return name;
-                if (symbol) return symbol;
-                return tradeData.mint ? `${tradeData.mint.slice(0, 6)}...${tradeData.mint.slice(-4)}` : 'Token';
-              })()}
-            </span>
+          <div className="flex items-center justify-center mt-2 pt-2 border-t border-border/40">
+            <div className="flex items-center space-x-1.5 bg-muted/20 px-2 py-1 rounded-full border border-white/5">
+              {tradeData.image && !tradeData.image.includes('dicebear') ? (
+                <img
+                  src={tradeData.image}
+                  alt="Token"
+                  className="w-4 h-4 rounded-full object-cover shadow-sm"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    ((e.target as HTMLImageElement).nextSibling as HTMLElement).style.display = 'flex';
+                  }}
+                />
+              ) : null}
+
+              <div
+                className={cn(
+                  "w-4 h-4 rounded-full bg-indigo-500/20 flex items-center justify-center text-[8px] font-bold text-indigo-400 border border-indigo-500/30",
+                  (tradeData.image && !tradeData.image.includes('dicebear')) ? "hidden" : "flex"
+                )}
+              >
+                {tradeData.symbol?.slice(0, 1).toUpperCase() || '?'}
+              </div>
+
+              <span className="text-[10px] font-bold text-foreground">
+                {(() => {
+                  const name = tradeData.name?.trim();
+                  const symbol = tradeData.symbol?.trim();
+                  if (name) return name;
+                  if (symbol) return symbol;
+                  return tradeData.mint ? `${tradeData.mint.slice(0, 4)}...` : 'Token';
+                })()}
+              </span>
+            </div>
           </div>
         )}
 
         {/* AI Prediction minimal */}
         {shouldShowPrediction && prediction && (
-          <div className="mt-2 flex items-center justify-center gap-2">
+          <div className="mt-2 flex items-center justify-center gap-1.5">
             <div className={cn(
-              'flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium',
+              'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border',
               getPredictionColor(prediction.probability)
             )}>
               {getPredictionIcon(prediction.classLabel)}
               <span>{prediction.classLabel}</span>
             </div>
-            <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400">
-              {(prediction.probability * 100).toFixed(1)}%
+            <span className="text-[9px] font-bold text-purple-600 dark:text-purple-400">
+              {(prediction.probability * 100).toFixed(0)}%
             </span>
+          </div>
+        )}
+
+        {/* Quick Trade Buttons (Compact) */}
+        {onTradeClick && (
+          <div className="mt-2 grid grid-cols-2 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <Button
+              size="sm"
+              className="h-6 text-[9px] font-bold bg-green-500/10 hover:bg-green-500/20 text-green-600 border border-green-500/20 shadow-none px-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTradeClick(trade, 'buy');
+              }}
+            >
+              Buy
+            </Button>
+            <Button
+              size="sm"
+              className="h-6 text-[9px] font-bold bg-red-500/10 hover:bg-red-500/20 text-red-600 border border-red-500/20 shadow-none px-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTradeClick(trade, 'sell');
+              }}
+            >
+              Sell
+            </Button>
           </div>
         )}
       </div>
@@ -825,201 +876,211 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
   return (
     <div
       className={cn(
-        'bg-background border border-border rounded-lg p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group border-l-4',
-        (tradeData.tradeType ?? 'sell') === 'buy' ? 'border-l-green-500' : 'border-l-red-500',
+        'group relative overflow-hidden rounded-xl border transition-all duration-300 cursor-pointer',
+        'bg-card/40 hover:bg-card/60 backdrop-blur-md',
+        'shadow-sm hover:shadow-lg hover:shadow-primary/5',
+        (tradeData.tradeType ?? 'sell') === 'buy'
+          ? 'border-green-500/20 hover:border-green-500/40'
+          : 'border-red-500/20 hover:border-red-500/40',
         className
       )}
       onClick={() => onClick?.(trade)}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4 gap-3">
-        <div className="flex items-center space-x-3 flex-1 min-w-0">
-          {/* Avatar */}
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={displayName}
-              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-            />
-          ) : (
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-primary-foreground font-bold text-xs">
-                {displayName.slice(0, 2).toUpperCase()}
-              </span>
+      {/* Background Gradient Splash */}
+      <div className={cn(
+        "absolute -right-10 -top-10 w-32 h-32 rounded-full blur-[60px] opacity-10 pointer-events-none transition-opacity group-hover:opacity-20",
+        (tradeData.tradeType ?? 'sell') === 'buy' ? "bg-green-500" : "bg-red-500"
+      )} />
+
+      {/* Content wrapper */}
+      <div className="relative z-10 p-4">
+
+        {/* Header: KOL Info & Time */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center space-x-3 min-w-0">
+            {/* Avatar with Ring */}
+            <div className="relative">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={displayName}
+                  className={cn(
+                    "w-10 h-10 rounded-full object-cover border-2 shadow-sm",
+                    (tradeData.tradeType ?? 'sell') === 'buy' ? "border-green-500/20" : "border-red-500/20"
+                  )}
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-muted to-muted/80 flex items-center justify-center border border-border/50">
+                  <span className="text-xs font-bold text-muted-foreground">
+                    {displayName.slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              {/* Quick Link Overlay */}
+              <div className="absolute -bottom-1 -right-1 flex gap-0.5">
+                <button
+                  onClick={handleViewOnExplorer}
+                  className="p-1 bg-background rounded-full border border-border shadow-sm hover:text-primary transition-colors"
+                >
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center space-x-2">
+                <h3 className="font-bold text-sm text-foreground truncate max-w-[120px]">
+                  {displayName}
+                </h3>
+                {influence && (
+                  <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", influence.color)} title={`Influence: ${influence.level}`} />
+                )}
+              </div>
+              <div className="flex items-center space-x-1.5 text-xs text-muted-foreground">
+                <span className="font-mono bg-muted/30 px-1 rounded">
+                  {kolWallet?.slice(0, 4)}...{kolWallet?.slice(-4)}
+                </span>
+                <button
+                  onClick={handleCopyKOL}
+                  className="hover:text-foreground transition-colors"
+                >
+                  <Copy className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end space-y-1.5">
+            <div className={cn(
+              'flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border shadow-sm backdrop-blur-sm',
+              (tradeData.tradeType ?? 'sell') === 'buy'
+                ? 'bg-green-500/10 text-green-500 border-green-500/20'
+                : 'bg-red-500/10 text-red-500 border-red-500/20'
+            )}>
+              {(tradeData.tradeType ?? 'sell') === 'buy' ? (
+                <TrendingUp className="h-3 w-3" />
+              ) : (
+                <TrendingDown className="h-3 w-3" />
+              )}
+              <span>{tradeData.tradeType?.toUpperCase() || 'UNKNOWN'}</span>
+            </div>
+            <div className="text-[10px] items-center flex text-muted-foreground font-medium">
+              <Clock className="w-3 h-3 mr-1 opacity-70" />
+              {tradeDate ? formatDistanceToNow(tradeDate, { addSuffix: true }) : 'Just now'}
+            </div>
+          </div>
+        </div>
+
+        {/* Amount & Token Info Main Block */}
+        <div className="bg-muted/10 rounded-xl p-3 border border-white/5 backdrop-blur-sm mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-2xl font-black text-foreground tracking-tight flex items-baseline leading-none">
+              {safeFormatAmount(tradeAmounts.solAmount)}
+              <span className="text-xs font-bold text-muted-foreground ml-1.5">SOL</span>
+            </div>
+            <div className="text-xs font-semibold text-muted-foreground/80">
+              ≈ {safeFormatAmount(tradeAmounts.tokensAmount, 0)} Tokens
+            </div>
+          </div>
+
+          {/* Token Pill */}
+          {(tradeData.symbol || tradeData.name || tradeData.mint) && (
+            <div className="flex items-center justify-between pt-2 border-t border-dashed border-border/40">
+              <div className="flex items-center space-x-2">
+                {tradeData.image && !tradeData.image.includes('dicebear') ? (
+                  <img
+                    src={tradeData.image}
+                    alt="Token"
+                    className="w-5 h-5 rounded-full object-cover shadow-sm bg-background/50"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      ((e.target as HTMLImageElement).nextSibling as HTMLElement).style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                {/* Fallback Icon */}
+                <div
+                  className={cn(
+                    "w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center text-[9px] font-bold text-indigo-400 border border-indigo-500/30",
+                    (tradeData.image && !tradeData.image.includes('dicebear')) ? "hidden" : "flex"
+                  )}
+                >
+                  {tradeData.symbol?.slice(0, 1).toUpperCase() || '?'}
+                </div>
+
+                <div className="flex flex-col leading-none">
+                  <span className="text-xs font-bold text-foreground">
+                    {tradeData.name || tradeData.symbol || 'Unknown'}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground font-mono mt-0.5">
+                    {tradeData.mint ? `${tradeData.mint.slice(0, 4)}...${tradeData.mint.slice(-4)}` : ''}
+                  </span>
+                </div>
+              </div>
+
+              {tradeData.mint && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(tradeData.mint);
+                    showSuccess('Copied', 'Mint address copied');
+                  }}
+                  className="p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors"
+                >
+                  <Copy className="w-3 h-3" />
+                </button>
+              )}
             </div>
           )}
-
-          {/* Info */}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center space-x-2 mb-1">
-              <h3 className="font-bold text-foreground text-sm truncate">
-                {displayName}
-              </h3>
-            </div>
-            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <span className="font-mono truncate">
-                {kolWallet?.slice(0, 8)}...{kolWallet?.slice(-4)}
-              </span>
-              <button
-                onClick={handleCopyKOL}
-                className="hover:text-foreground transition-colors flex-shrink-0"
-                title="Copy address"
-              >
-                <Copy className="w-3 h-3" />
-              </button>
-              <button
-                onClick={handleViewOnExplorer}
-                className="hover:text-foreground transition-colors flex-shrink-0"
-                title="View on Solscan"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* Trade Type & Time */}
-        <div className="flex flex-col items-end space-y-1 flex-shrink-0">
-          <div className={cn(
-            'flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium text-white',
-            (tradeData.tradeType ?? 'sell') === 'buy' ? 'bg-green-500' : 'bg-red-500'
-          )}>
-            {(tradeData.tradeType ?? 'sell') === 'buy' ? (
-              <TrendingUp className="h-3 w-3" />
-            ) : (
-              <TrendingDown className="h-3 w-3" />
-            )}
-            <span>{tradeData.tradeType?.toUpperCase() || 'UNKNOWN'}</span>
-          </div>
-          <div className="flex items-center text-xs text-muted-foreground">
-            <Clock className="h-3 w-3 mr-1" />
-            {tradeDate ? formatDistanceToNow(tradeDate, { addSuffix: true }) : 'Unknown time'}
-          </div>
-        </div>
-      </div>
-
-      {/* ML Prediction Section - Card View (with skeleton for sell trades) */}
-      {shouldShowPrediction ? (
-        <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Brain className="w-4 h-4 text-purple-500" />
-              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                AI Prediction (Buy Trade)
-              </span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className={cn(
-                'flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium',
-                getPredictionColor(prediction.probability)
-              )}>
-                {getPredictionIcon(prediction.classLabel)}
+        {/* AI Prediction (If present) */}
+        {shouldShowPrediction && prediction && (
+          <div className="mb-4">
+            <div className={cn(
+              "flex items-center justify-between p-2 rounded-lg border text-xs font-medium",
+              getPredictionColor(prediction.probability)
+            )}>
+              <div className="flex items-center space-x-1.5">
+                <Brain className="w-3.5 h-3.5" />
+                <span>AI Signal</span>
+              </div>
+              <div className="flex items-center space-x-1">
                 <span>{prediction.classLabel}</span>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-bold text-purple-600 dark:text-purple-400">
-                  {(prediction.probability * 100).toFixed(1)}%
-                </div>
-                <div className="text-xs text-muted-foreground">confidence</div>
+                <span className="font-bold ml-1">{(prediction.probability * 100).toFixed(0)}%</span>
               </div>
             </div>
           </div>
-        </div>
-      ) : (
-        // Skeleton placeholder matching buy design (no data)
-        <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 rounded bg-purple-200/60 dark:bg-purple-800/60 animate-pulse" />
-              <div className="w-32 h-4 rounded bg-purple-200/60 dark:bg-purple-800/60 animate-pulse" />
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-24 h-7 rounded-full bg-purple-200/60 dark:bg-purple-800/60 animate-pulse" />
-              <div className="text-right">
-                <div className="w-10 h-4 rounded bg-purple-200/60 dark:bg-purple-800/60 animate-pulse mb-1" />
-                <div className="w-16 h-3 rounded bg-purple-200/60 dark:bg-purple-800/60 animate-pulse" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Trade Details */}
-      <div className="space-y-3">
-        {/* Amounts */}
-        <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center">
-                <DollarSign className="w-3 h-3 mr-1" />
-                {tradeAmounts.description.sol}:
-              </span>
-              <span className="font-semibold text-foreground">
-                {safeFormatAmount(tradeAmounts.solAmount)} SOL
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center">
-                <ArrowRightLeft className="w-3 h-3 mr-1" />
-                {tradeAmounts.description.tokens}:
-              </span>
-              <span className="font-semibold text-foreground">
-                {safeFormatAmount(tradeAmounts.tokensAmount)}
-              </span>
-            </div>
-            {feeInSol > 0 && (
-              <div className="flex items-center justify-between sm:col-span-2">
-                <span className="text-muted-foreground">Fee:</span>
-                <span className="font-semibold text-orange-600">
-                  {safeFormatAmount(feeInSol)} SOL
-                </span>
-              </div>
-            )}
+        {/* Actions Footer */}
+        {onTradeClick && (
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <Button
+              size="sm"
+              className="h-8 text-xs font-bold bg-green-500/10 text-green-600 hover:bg-green-500/20 hover:text-green-500 border border-green-500/20 shadow-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTradeClick(trade, 'buy');
+              }}
+            >
+              <Zap className="w-3 h-3 mr-1.5" />
+              Quick Buy
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs font-bold bg-red-500/10 text-red-600 hover:bg-red-500/20 hover:text-red-500 border border-red-500/20 shadow-none"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTradeClick(trade, 'sell');
+              }}
+            >
+              Quick Sell
+            </Button>
           </div>
-        </div>
+        )}
 
-        {/* Token & Source Info */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-1">
-              <span className="text-muted-foreground">Source:</span>
-              <span className="font-medium text-foreground">
-                {tradeData.source}
-              </span>
-            </div>
-            {/* Token pill with fallback to mint */}
-            {(tradeData.symbol || tradeData.name || tradeData.image || tradeData.mint) && (
-              <div className="flex items-center space-x-2">
-                {tradeData.image && (
-                  <img src={tradeData.image} alt={tradeData.symbol || tradeData.name || 'Token'} className="w-4 h-4 rounded" />
-                )}
-                <span className="text-foreground font-medium">
-                  {(() => {
-                    const name = tradeData.name?.trim();
-                    const symbol = tradeData.symbol?.trim();
-                    if (name && symbol) return `${name} (${symbol})`;
-                    if (name) return name;
-                    if (symbol) return symbol;
-                    return tradeData.mint ? `${tradeData.mint.slice(0, 8)}...${tradeData.mint.slice(-4)}` : 'Token';
-                  })()}
-                </span>
-                {tradeData.mint && (
-                  <button
-                    onClick={handleCopyToken}
-                    className="hover:text-foreground transition-colors"
-                    title="Copy token address"
-                  >
-                    <Copy className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          <span className="font-mono text-xs text-muted-foreground">
-            #{id?.slice(-6) || 'N/A'}
-          </span>
-        </div>
       </div>
     </div>
   );
-}; 
+};

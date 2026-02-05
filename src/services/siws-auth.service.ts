@@ -792,7 +792,12 @@ export class SiwsAuthService {
    * Refresh account details for authenticated user
    * This can be called anytime to update the user's account information
    */
-  static async refreshAccountDetails(): Promise<{
+  /**
+   * Refresh account details for authenticated user
+   * This can be called anytime to update the user's account information
+   * @param options - Optional configuration, e.g. whether to fetch paper balance
+   */
+  static async refreshAccountDetails(options?: { isPaperMode?: boolean }): Promise<{
     address: string;
     balance: number;
     tokens: {
@@ -803,96 +808,99 @@ export class SiwsAuthService {
       balance: number;
       value: number;
     }[];
+    solValueUsd?: number;
+    totalValueUsd?: number;
   }> {
-    void 0 && ('🔄 [SiwsAuthService.refreshAccountDetails] Starting account details refresh');
+    const isPaperMode = options?.isPaperMode || false;
+    void 0 && (`🔄 [SiwsAuthService.refreshAccountDetails] Starting account details refresh (mode: ${isPaperMode ? 'PAPER' : 'REAL'})`);
     
     if (!this.isAuthenticated()) {
       console.error('❌ [SiwsAuthService.refreshAccountDetails] User not authenticated');
       throw new Error('User must be authenticated to refresh account details');
     }
     
-    void 0 && ('✅ [SiwsAuthService.refreshAccountDetails] User is authenticated, proceeding with API call');
-    const currentToken = apiClient.getToken();
-    void 0 && ('🔑 [SiwsAuthService.refreshAccountDetails] Current API client token:', currentToken?.substring(0, 50) + '...');
-    
     try {
-      // First, get the wallet address from the backend
+      // 1. Get the wallet address from the backend (always needed)
       void 0 && ('🔄 Fetching wallet address from backend...');
       const response = await apiClient.get<any>(API_ENDPOINTS.FEATURES.GET_USER_ACCOUNT_DETAILS);
       
-      void 0 && ('🌐 Raw account details response:', response);
-      
-      // Handle different possible response formats to extract the address
-      let accountData = null;
-      
-      if (response?.data?.data) {
-        // Standard API response format: { data: { data: accountDetails } }
-        accountData = response.data.data;
-      } else if (response?.data) {
-        // Direct data format: { data: accountDetails }
-        accountData = response.data;
-      } else {
-        console.warn('⚠️ Unexpected response format from account details endpoint');
-        throw new Error('Unexpected response format from backend');
+      let accountData = response?.data?.data || response?.data;
+      if (!accountData || accountData.error) {
+        throw new Error(accountData?.error || 'Failed to fetch account data from backend');
       }
 
-      if (!accountData) {
-        console.warn('⚠️ No account details returned from features endpoint');
-        throw new Error('No account data returned from backend');
-      }
-
-      // Check if the response contains an error
-      if (accountData.error) {
-        console.error('❌ Account details endpoint returned error:', accountData.error);
-        throw new Error(`Failed to fetch account details: ${accountData.error}`);
-      }
-
-      // Extract the wallet address
       const walletAddress = accountData.address || accountData.walletAddress;
       if (!walletAddress) {
         throw new Error('Account details missing required address field');
       }
 
-      void 0 && ('✅ Wallet address obtained from backend:', walletAddress);
-      
-      // Now use Solana service to get real blockchain data with USD values
-      void 0 && ('🔄 Fetching real blockchain data with USD values using Solana service...');
-      
-      // Initialize Solana service if needed
-      SolanaService.initialize();
-      
-      // Fetch wallet balance with USD values
-      const walletData = await SolanaService.getWalletBalanceWithUsd(walletAddress);
+      if (isPaperMode) {
+        // --- PAPER MODE LOGIC ---
+        void 0 && ('🔄 Fetching Paper Balances from Redis...');
+        const paperResponse = await apiClient.get<Record<string, number>>(API_ENDPOINTS.FEATURES.GET_PAPER_BALANCE);
+        const paperBalances = paperResponse.data || {};
+        
+        // Extract SOL and other mints
+        const solBalance = paperBalances['SOL'] || 0;
+        const mints = Object.keys(paperBalances).filter(m => m !== 'SOL');
+        
+        // Fetch metadata and prices in parallel
+        const [metadataMap, solPrice, tokenPriceMap] = await Promise.all([
+          SolanaService.fetchTokenMetadataBatch(mints),
+          SolanaService.getSolPrice(),
+          SolanaService.getTokenPrices(mints)
+        ]);
+        
+        const solValueUsd = solBalance * solPrice;
+        let totalTokenValueUsd = 0;
 
-      void 0 && ('✅ Blockchain data with USD values fetched:', { 
-        address: walletData.address, 
-        solBalance: walletData.solBalance,
-        solValueUsd: walletData.solValueUsd,
-        totalValueUsd: walletData.totalValueUsd,
-        tokensCount: walletData.tokens.length 
-      });
+        const formattedTokens = mints.map(mint => {
+          const metadata = metadataMap.get(mint);
+          const balance = paperBalances[mint] || 0;
+          const price = tokenPriceMap.get(mint) || 0;
+          const value = balance * price;
+          totalTokenValueUsd += value;
 
-      // Transform tokens to match expected format
-      const formattedTokens = walletData.tokens.map(token => ({
-        mint: token.mintAddress,
-        name: token.name || 'Unknown Token',
-        symbol: token.symbol || 'UNKNOWN',
-        image: token.logoURI,
-        balance: token.uiAmount || 0,
-        value: (token as any).valueUsd || 0, // USD value from pricing API
-      }));
+          return {
+            mint,
+            name: metadata?.name || 'Unknown Token',
+            symbol: metadata?.symbol || 'UNKNOWN',
+            image: metadata?.logoURI,
+            balance,
+            value
+          };
+        });
 
-      const result = {
-        address: walletAddress,
-        balance: walletData.solBalance,
-        tokens: formattedTokens,
-        // Additional USD value fields for better tracking
-        solValueUsd: walletData.solValueUsd,
-        totalValueUsd: walletData.totalValueUsd,
-      };
-      
-      void 0 && ('✅ [SiwsAuthService.refreshAccountDetails] Account details refreshed successfully with Solana data');
-      return result;
+        return {
+          address: walletAddress,
+          balance: solBalance,
+          tokens: formattedTokens,
+          solValueUsd,
+          totalValueUsd: solValueUsd + totalTokenValueUsd
+        };
+      } else {
+        // --- REAL MODE LOGIC ---
+        void 0 && ('🔄 Fetching real blockchain data with USD values using Solana service...');
+        SolanaService.initialize();
+        const walletData = await SolanaService.getWalletBalanceWithUsd(walletAddress);
+
+        const formattedTokens = walletData.tokens.map(token => ({
+          mint: token.mintAddress,
+          name: token.name || 'Unknown Token',
+          symbol: token.symbol || 'UNKNOWN',
+          image: token.logoURI,
+          balance: token.uiAmount || 0,
+          value: (token as any).valueUsd || 0,
+        }));
+
+        return {
+          address: walletAddress,
+          balance: walletData.solBalance,
+          tokens: formattedTokens,
+          solValueUsd: walletData.solValueUsd,
+          totalValueUsd: walletData.totalValueUsd,
+        };
+      }
     } catch (error: any) {
       console.error('❌ [SiwsAuthService.refreshAccountDetails] Failed to refresh account details:', error);
       throw error;

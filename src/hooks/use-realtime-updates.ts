@@ -15,6 +15,7 @@ export interface RealTimeSubscription {
     | {
         condition?: (trade: KOLTrade) => boolean;
         throttle?: number;
+        onTrade?: (trade: KOLTrade) => void;
       };
   prices?:
     | boolean
@@ -79,9 +80,15 @@ export const useRealTimeUpdates = (options: UseRealTimeUpdatesOptions) => {
 
       trades.forEach(trade => {
         addLiveTrade(trade);
+        
+        // Call local callback if provided
+        const tradeConfig = typeof subscriptions.trades === 'object' ? subscriptions.trades : {};
+        if (tradeConfig.onTrade) {
+          tradeConfig.onTrade(trade);
+        }
       });
     },
-    [addLiveTrade]
+    [addLiveTrade, subscriptions.trades]
   );
 
   // Price update handler

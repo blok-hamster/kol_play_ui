@@ -12,6 +12,7 @@ import {
   SolanaTokenMetadata,
   SolanaConnectionConfig,
 } from '@/types';
+import { TokenMetadataService } from './token-metadata.service';
 
 // Token metadata cache to avoid repeated API calls
 const tokenMetadataCache = new Map<string, SolanaTokenMetadata>();
@@ -236,7 +237,7 @@ async function fetchJupiterPrices(mintAddresses: string[]): Promise<Map<string, 
     if (!response.ok) {
       // 401 means authentication required - skip silently
       if (response.status === 401) {
-        console.log('Jupiter Price API requires authentication, skipping price fetch');
+        // console.log('Jupiter Price API requires authentication, skipping price fetch');
         return priceMap;
       }
       console.warn(`Jupiter Price API returned ${response.status}: ${response.statusText}`);
@@ -365,6 +366,8 @@ export class SolanaService {
     return this.connection;
   }
 
+
+
   /**
    * Fetch token metadata using comprehensive token info lookup (batch)
    * @param mintAddresses - Array of mint addresses
@@ -388,94 +391,51 @@ export class SolanaService {
     }
 
     try {
-      // Use the comprehensive getTokenInfo function for each uncached mint
-      const tokenInfoPromises = uncachedMints.map(async (mint) => {
-        try {
-          const tokenInfo = await getTokenInfo(mint, this.getRpcEndpoint());
-          
-          const metadata: SolanaTokenMetadata = {
-            name: tokenInfo.name,
-            symbol: tokenInfo.symbol,
-            logoURI: tokenInfo.logoURI,
-            decimals: tokenInfo.decimals
+      // Use TokenMetadataService for robust fetching (DexScreener + GeckoTerminal fallback)
+      const metadataResults = await TokenMetadataService.getMultipleTokenMetadata(uncachedMints);
+      
+      // Process results from TokenMetadataService
+      for (const mint of uncachedMints) {
+        const extendedMetadata = metadataResults.get(mint);
+        
+        let metadata: SolanaTokenMetadata;
+        
+        if (extendedMetadata) {
+          metadata = {
+            name: extendedMetadata.name,
+            symbol: extendedMetadata.symbol,
+            logoURI: extendedMetadata.image,
+            decimals: extendedMetadata.decimals
           };
-          
-          return { mint, metadata };
-        } catch (error) {
-          console.warn(`Failed to fetch token info for ${mint}:`, error);
-          
-          // Fallback to basic mint account data
-          try {
+        } else {
+          // If TokenMetadataService failed to find it, it might not be indexed yet.
+          // Fallback to basic mint info from RPC (decimals only)
+           try {
             const connection = this.getConnection();
             const mintInfo = await getMint(connection, new PublicKey(mint));
-            return {
-              mint,
-              metadata: {
-                name: undefined,
-                symbol: undefined,
-                logoURI: undefined,
-                decimals: mintInfo.decimals
-              } as SolanaTokenMetadata
-            };
-          } catch (mintError) {
-            console.warn(`Failed to fetch mint account for ${mint}:`, mintError);
-            return {
-              mint,
-              metadata: {
-                name: undefined,
-                symbol: undefined,
-                logoURI: undefined,
-                decimals: 0
-              } as SolanaTokenMetadata
-            };
-          }
-        }
-      });
-
-      // Execute all token info requests in parallel
-      const tokenResults = await Promise.all(tokenInfoPromises);
-      
-      // Cache and add results
-      for (const { mint, metadata } of tokenResults) {
-        tokenMetadataCache.set(mint, metadata);
-        metadataMap.set(mint, metadata);
-      }
-
-    } catch (error) {
-      console.warn('Failed to fetch token metadata batch:', error);
-      
-      // Final fallback: batch fetch all mint accounts for uncached mints
-      const connection = this.getConnection();
-      const mintPromises = uncachedMints.map(async (mint) => {
-        try {
-          const mintInfo = await getMint(connection, new PublicKey(mint));
-          return {
-            mint,
-            metadata: {
+            metadata = {
               name: undefined,
               symbol: undefined,
               logoURI: undefined,
               decimals: mintInfo.decimals
-            } as SolanaTokenMetadata
-          };
-        } catch {
-          return {
-            mint,
-            metadata: {
+            };
+          } catch {
+             metadata = {
               name: undefined,
               symbol: undefined,
               logoURI: undefined,
               decimals: 0
-            } as SolanaTokenMetadata
-          };
+            };
+          }
         }
-      });
-
-      const results = await Promise.all(mintPromises);
-      for (const { mint, metadata } of results) {
+        
         tokenMetadataCache.set(mint, metadata);
         metadataMap.set(mint, metadata);
       }
+    } catch (error) {
+       console.warn('Failed to fetch token metadata via TokenMetadataService:', error);
+       // Error handling generally covered by TokenMetadataService, but if global fail, fallback to empty/decimals
+       // ... (Implementation detail: could iterate uncachedMints and try RPC one last time or just return empty)
     }
 
     return metadataMap;
@@ -818,28 +778,50 @@ export class SolanaService {
     }
 
     try {
-      // Try Jupiter first (better for Solana ecosystem tokens)
-      const jupiterPrices = await fetchJupiterPrices(uncachedMints);
+      // 1. Try TokenMetadataService (DexScreener/GeckoTerminal) first
+      // This is often the most up-to-date for memes and new tokens
+      const metadataMap = await TokenMetadataService.getMultipleTokenMetadata(uncachedMints);
       
-      // Find tokens that Jupiter couldn't price
-      const remainingMints = uncachedMints.filter(mint => !jupiterPrices.has(mint));
+      metadataMap.forEach((metadata, mint) => {
+        if (metadata.priceUsd > 0) {
+           priceMap.set(mint, metadata.priceUsd);
+        }
+      });
       
-      // Try CoinGecko for remaining tokens
-      let coinGeckoPrices = new Map<string, number>();
+      // Find tokens that we still don't have prices for
+      const remainingMints = uncachedMints.filter(mint => !priceMap.has(mint));
+      
       if (remainingMints.length > 0) {
-        void 0 && (`🔄 Falling back to CoinGecko for ${remainingMints.length} tokens...`);
-        coinGeckoPrices = await fetchCoinGeckoPrices(remainingMints);
+        // 2. Try Jupiter for remaining tokens
+        const jupiterPrices = await fetchJupiterPrices(remainingMints);
+        
+        jupiterPrices.forEach((price, mint) => {
+            priceMap.set(mint, price);
+        });
+        
+        // Find tokens that Jupiter couldn't price
+        const finalRemainingMints = remainingMints.filter(mint => !priceMap.has(mint));
+        
+        // 3. Try CoinGecko for anything left
+        if (finalRemainingMints.length > 0) {
+           const coinGeckoPrices = await fetchCoinGeckoPrices(finalRemainingMints);
+           coinGeckoPrices.forEach((price, mint) => {
+                priceMap.set(mint, price);
+           });
+        }
       }
 
-      // Combine results and cache
-      const allPrices = new Map([...Array.from(jupiterPrices), ...Array.from(coinGeckoPrices)]);
+
       
-      for (const [mint, price] of Array.from(allPrices)) {
-        priceMap.set(mint, price);
-        priceCache.set(mint, { price, timestamp: now });
+      // Cache all new results
+      for (const mint of uncachedMints) {
+        const price = priceMap.get(mint);
+        if (price !== undefined) {
+             priceCache.set(mint, { price, timestamp: now });
+        }
       }
 
-      void 0 && (`✅ Fetched prices for ${allPrices.size}/${uncachedMints.length} tokens`);
+      void 0 && (`✅ Fetched prices for ${priceMap.size}/${uncachedMints.length} tokens`);
       
       return priceMap;
     } catch (error) {
@@ -1340,7 +1322,7 @@ const RPC_URL = process.env.NEXT_RPC_URL! || 'https://solana-mainnet.g.alchemy.c
 // import fetch from "node-fetch";
 
 type LookupResult = {
-  source: "token-registry" | "metaplex-on-chain" | "mint-account" | "unknown";
+  source: "token-registry" | "metaplex-on-chain" | "mint-account" | "token-metadata-service" | "unknown";
   name?: string;
   symbol?: string;
   logoURI?: string;
@@ -1364,6 +1346,24 @@ export async function getTokenInfo(
   const connection = new Connection(rpcUrl, "confirmed");
   const mintPub = new PublicKey(mintAddress);
   const mintBase58 = mintPub.toBase58();
+
+  // 0) Try TokenMetadataService (best for live market data and images)
+  try {
+    const metadata = await TokenMetadataService.getTokenMetadata(mintAddress);
+    if (metadata) {
+       return {
+         source: "token-metadata-service",
+         name: metadata.name,
+         symbol: metadata.symbol,
+         logoURI: metadata.image || "",
+         decimals: metadata.decimals,
+         uri: "", // external service doesn't give metadata JSON URI usually
+         raw: metadata
+       };
+    }
+  } catch (err) {
+     console.warn("TokenMetadataService lookup failed:", err);
+  }
 
   // 1) Token Registry (fast, includes logos, symbols, common names)
   try {

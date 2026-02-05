@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import Header from './header';
 import { SolanaService } from '@/services/solana.service';
 import { Twitter, Send, MessageCircle, Github } from 'lucide-react';
+import { ModeSwitchLoading } from '@/components/ui/mode-switch-loading';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -78,11 +79,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, className }) => {
             id="main-content"
             className={cn(
               "flex-1 focus:outline-none transition-all duration-300",
-              pathname === '/agent' ? "pt-20 lg:pt-28 pb-10 lg:pb-12" : "pt-24 lg:pt-36 lg:pb-16"
+              pathname === '/agent' ? "pt-20 lg:pt-28 pb-10 lg:pb-12" :
+                pathname?.startsWith('/pro-terminal') ? "pt-20 lg:pt-24 pb-0" :
+                  "pt-24 lg:pt-36 lg:pb-16"
             )}
           >
             <div className="h-full">{children}</div>
           </main>
+          <ModeSwitchLoading />
         </div>
       </div>
       {/* Desktop Footer (fixed) */}

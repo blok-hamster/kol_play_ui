@@ -7,6 +7,8 @@ import type {
   TopTrader,
   UserSubscription,
   SearchFilters,
+  KOLLeaderboardItem,
+  KOLHistoryResponse,
 } from '@/types';
 
 export interface SubscribeToKOLRequest {
@@ -65,7 +67,7 @@ export interface UpdateUserSubscriptionRequest {
 }
 
 export interface RecentKOLTradesRequest {
-  walletAddress: string;
+  walletAddress?: string;
   limit?: number;
   page?: number;
   sortBy?: string;
@@ -120,6 +122,10 @@ export class TradingService {
       );
       return response;
     } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        console.warn('⚠️ Backend offline, returning empty KOL wallet list');
+        return { success: true, message: 'Backend offline', data: [] };
+      }
       throw new Error(apiClient.handleError(error));
     }
   }
@@ -136,14 +142,71 @@ export class TradingService {
 
       if (request.limit) params.append('limit', request.limit.toString());
       if (request.page) params.append('page', request.page.toString());
-      if (request.sortBy) params.append('sortBy', request.sortBy);
-      if (request.sortOrder) params.append('sortOrder', request.sortOrder);
+      if (request.sortBy) params.append('sortBy', request.sortBy!);
+      if (request.sortOrder) params.append('sortOrder', request.sortOrder!);
 
       const response = await apiClient.get<KOLTrade[]>(
         `${API_ENDPOINTS.FEATURES.GET_RECENT_KOL_TRADES}?${params.toString()}`
       );
       return response;
     } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        console.warn('⚠️ Backend offline, returning empty recent trades');
+        return { success: true, message: 'Backend offline', data: [] };
+      }
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get comprehensive KOL trade history with timeframe filtering
+   */
+  static async getKOLTradeHistory(
+    walletAddress: string,
+    timeframe: string = '7d'
+  ): Promise<ApiResponse<KOLHistoryResponse>> {
+    try {
+      const response = await apiClient.get<KOLHistoryResponse>(
+        `${API_ENDPOINTS.FEATURES.GET_KOL_HISTORY}/${walletAddress}?timeframe=${timeframe}`
+      );
+      return response;
+    } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        console.warn('⚠️ Backend offline, returning empty trade history');
+        return { 
+          success: true, 
+          message: 'Backend offline', 
+          data: { 
+            trades: [], 
+            stats: { 
+              totalTrades: 0, 
+              winRate: 0, 
+              totalPnL: 0, 
+              totalVolume: 0, 
+              avgTradeSize: 0, 
+              lastActive: new Date() 
+            },
+            timeframe 
+          } 
+        };
+      }
+      throw new Error(apiClient.handleError(error));
+    }
+  }
+
+  /**
+   * Get KOL leaderboard
+   */
+  static async getLeaderboard(limit: number = 10): Promise<ApiResponse<KOLLeaderboardItem[]>> {
+    try {
+      const response = await apiClient.get<KOLLeaderboardItem[]>(
+        `${API_ENDPOINTS.FEATURES.GET_LEADERBOARD}?limit=${limit}`
+      );
+      return response;
+    } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        return { success: true, message: 'Backend offline', data: [] };
+      }
       throw new Error(apiClient.handleError(error));
     }
   }
@@ -156,18 +219,21 @@ export class TradingService {
   ): Promise<ApiResponse<KOLTrade[]>> {
     try {
       const params = new URLSearchParams();
-      params.append('walletAddress', request.walletAddress);
+      params.append('walletAddress', request.walletAddress || '');
 
       if (request.limit) params.append('limit', request.limit.toString());
       if (request.page) params.append('page', request.page.toString());
-      if (request.sortBy) params.append('sortBy', request.sortBy);
-      if (request.sortOrder) params.append('sortOrder', request.sortOrder);
+      if (request.sortBy) params.append('sortBy', request.sortBy!);
+      if (request.sortOrder) params.append('sortOrder', request.sortOrder!);
 
       const response = await apiClient.get<KOLTrade[]>(
         `${API_ENDPOINTS.FEATURES.GET_TRADE_HISTORY}?${params.toString()}`
       );
       return response;
     } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        return { success: true, message: 'Backend offline', data: [] };
+      }
       throw new Error(apiClient.handleError(error));
     }
   }
@@ -277,6 +343,9 @@ export class TradingService {
       );
       return response;
     } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        return { success: true, message: 'Backend offline', data: [] };
+      }
       throw new Error(apiClient.handleError(error));
     }
   }
@@ -301,6 +370,16 @@ export class TradingService {
       );
       return response;
     } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        return { 
+          success: true, 
+          message: 'Backend offline', 
+          data: { 
+            transactions: [], 
+            pagination: { hasMore: false } 
+          } 
+        };
+      }
       throw new Error(apiClient.handleError(error));
     }
   }
@@ -317,6 +396,9 @@ export class TradingService {
       );
       return response;
     } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        return { success: true, message: 'Backend offline', data: [] };
+      }
       throw new Error(apiClient.handleError(error));
     }
   }

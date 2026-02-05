@@ -73,6 +73,8 @@ export const API_ENDPOINTS = {
     REMOVE_KOL_FROM_WEBHOOK: '/api/features/remove-kol-from-webhook',
     GET_KOL_WALLETS: '/api/features/get-kol-wallets',
     GET_RECENT_KOL_TRADES: '/api/features/get-recent-kol-trades',
+    GET_KOL_HISTORY: '/api/features/kol-history',
+    GET_LEADERBOARD: '/api/features/leaderboard',
     GET_TRADE_HISTORY: '/api/features/get-trade-history',
     GET_ADDRESS_TRANSACTIONS: '/api/features/get-address-transactions',
     SUBSCRIBE_TO_KOL: '/api/features/subscribe-to-kol',
@@ -109,6 +111,7 @@ export const API_ENDPOINTS = {
     GET_TRENDING_TOKENS: '/api/features/get-trending-tokens',
     GET_TOKENS_BY_VOLUME: '/api/features/get-tokens-by-volume',
     GET_LATEST_TOKENS: '/api/features/get-latest-tokens',
+    UNIFIED_SEARCH: '/api/features/unified-search',
 
     // Paper Trading
     GET_PAPER_BALANCE: '/api/features/paper-trading/balance',

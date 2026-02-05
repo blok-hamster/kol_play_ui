@@ -10,11 +10,12 @@ import AuthModalWrapper from '@/components/modals/auth-modal-wrapper';
 import OnboardingWrapper from '@/components/modals/onboarding-wrapper';
 import NotificationProvider from '@/components/providers/notification-provider';
 import AuthInitProvider from '@/components/providers/auth-init-provider';
+import WebSocketProvider from '@/components/providers/websocket-provider';
 import { InviteProvider } from '@/contexts/invite-context';
 import InviteGateWrapper from '@/components/auth/invite-gate-wrapper';
 import CountdownGateWrapper from '@/components/launch/countdown-gate-wrapper';
 
-const darkerGrotesque = Darker_Grotesque({ subsets: ['latin'], weight: ['300','400','500','600','700','800','900'] });
+const darkerGrotesque = Darker_Grotesque({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700', '800', '900'] });
 
 export const metadata: Metadata = {
   title: 'KOL Play - Copy Trading Platform',
@@ -70,8 +71,10 @@ export default function RootLayout({
                 <CountdownGateWrapper>
                   <InviteGateWrapper>
                     <AuthInitProvider>
-                      {children}
-                      <OnboardingWrapper />
+                      <WebSocketProvider>
+                        {children}
+                        <OnboardingWrapper />
+                      </WebSocketProvider>
                     </AuthInitProvider>
                   </InviteGateWrapper>
                   {/* Auth modal should be available even when invite gate is active */}

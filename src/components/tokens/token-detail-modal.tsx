@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/stores/use-ui-store';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 import { Skeleton } from '@/components/ui/skeleton-loaders';
+import { TokenMetadataService } from '@/services/token-metadata.service';
 
 // Loading skeleton components for better UX
 const ChartLoadingSkeleton = () => (
@@ -50,14 +51,14 @@ const StatCardSkeleton = () => (
   </div>
 );
 
-const ErrorFallback = ({ 
-  title, 
-  message, 
-  onRetry, 
-  icon: Icon = AlertTriangle 
-}: { 
-  title: string; 
-  message: string; 
+const ErrorFallback = ({
+  title,
+  message,
+  onRetry,
+  icon: Icon = AlertTriangle
+}: {
+  title: string;
+  message: string;
   onRetry?: () => void;
   icon?: React.ComponentType<any>;
 }) => (
@@ -213,7 +214,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   }
 
   const { token, pools = [], events = {}, risk, isLoading = {}, errors = {} } = tokenData;
-  
+
   // Validate essential token data BEFORE any hooks
   if (!token) {
     return null;
@@ -236,22 +237,22 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   // Focus management refs
   const modalRef = React.useRef<HTMLDivElement>(null);
   const previousFocusRef = React.useRef<HTMLElement | null>(null);
-  
+
   // Safe fallbacks for all data
-  const safeRisk = risk || { 
-    snipers: { count: 0, totalBalance: 0, totalPercentage: 0, wallets: [] }, 
-    insiders: { count: 0, totalBalance: 0, totalPercentage: 0, wallets: [] }, 
-    rugged: false, 
-    risks: [], 
-    score: 0, 
-    jupiterVerified: false 
+  const safeRisk = risk || {
+    snipers: { count: 0, totalBalance: 0, totalPercentage: 0, wallets: [] },
+    insiders: { count: 0, totalBalance: 0, totalPercentage: 0, wallets: [] },
+    rugged: false,
+    risks: [],
+    score: 0,
+    jupiterVerified: false
   };
-  
+
   const primaryPool = pools.length > 0 ? pools[0] : null;
-  
+
   // Check if we have minimal data to show the modal
   const hasMinimalData = token.symbol || token.name || token.mint;
-  
+
   // Helper function to safely get nested values
   const safeGet = (obj: any, path: string, defaultValue: any = 0) => {
     return path.split('.').reduce((current, key) => current?.[key], obj) ?? defaultValue;
@@ -261,11 +262,11 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   React.useEffect(() => {
     // Only run on client side
     if (typeof window === 'undefined') return;
-    
+
     try {
       const isDark = document.documentElement.classList.contains('dark');
       setThemeMode(isDark ? 'dark' : 'light');
-    } catch {}
+    } catch { }
   }, []);
 
   // Retry chart loading function
@@ -281,9 +282,9 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
     const resolvePair = async () => {
       if (!token?.mint) {
         if (!cancelled) {
-          setLocalErrors(prev => ({ 
-            ...prev, 
-            chart: 'Token address is required to load chart' 
+          setLocalErrors(prev => ({
+            ...prev,
+            chart: 'Token address is required to load chart'
           }));
         }
         return;
@@ -296,53 +297,30 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
           if (!cancelled) setDexPair(poolWithId.poolId);
           return;
         }
-        
-        // Fallback: query DexScreener for pairs by token address
-        const res = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${token.mint}`);
-        if (!res.ok) {
-          if (!cancelled) {
-            setLocalErrors(prev => ({ 
-              ...prev, 
-              chart: `Failed to fetch chart data (${res.status})` 
-            }));
-          }
-          return;
-        }
-        
-        const data = await res.json();
-        const pairs = data?.pairs || data; // Handle different response formats
-        
-        if (Array.isArray(pairs) && pairs.length > 0) {
-          // Pick by highest liquidity.usd
-          const best = pairs
-            .filter(p => p?.pairAddress)
-            .sort((a, b) => (b?.liquidity?.usd || 0) - (a?.liquidity?.usd || 0))[0];
-          if (!cancelled && best?.pairAddress) {
-            setDexPair(best.pairAddress);
-          } else if (!cancelled) {
-            setLocalErrors(prev => ({ 
-              ...prev, 
-              chart: 'No valid trading pairs found for this token' 
-            }));
-          }
+
+        // Use TokenMetadataService to find the best pair
+        const metadata = await TokenMetadataService.getTokenMetadata(token.mint);
+
+        if (!cancelled && metadata?.pairAddress) {
+          setDexPair(metadata.pairAddress);
         } else if (!cancelled) {
-          setLocalErrors(prev => ({ 
-            ...prev, 
-            chart: 'No trading pairs available for this token' 
+          setLocalErrors(prev => ({
+            ...prev,
+            chart: 'No valid trading pairs found for this token'
           }));
         }
       } catch (error) {
         if (!cancelled) {
-          setLocalErrors(prev => ({ 
-            ...prev, 
-            chart: 'Failed to load chart data. Please try again.' 
+          setLocalErrors(prev => ({
+            ...prev,
+            chart: 'Failed to load chart data. Please try again.'
           }));
         }
       }
     };
-    
+
     resolvePair();
-    
+
     return () => {
       cancelled = true;
     };
@@ -374,7 +352,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
 
       // First check if user has trade config
       const configCheck = await checkTradeConfig();
-      
+
       if (!configCheck.hasConfig) {
         // Show trade config prompt instead of redirecting
         setShowTradeConfigPrompt(true);
@@ -463,11 +441,11 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
   React.useEffect(() => {
     // Only run on client side
     if (typeof window === 'undefined') return;
-    
+
     if (isOpen) {
       // Store the previously focused element
       previousFocusRef.current = document.activeElement as HTMLElement;
-      
+
       // Focus the modal
       setTimeout(() => {
         modalRef.current?.focus();
@@ -528,7 +506,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
       />
 
       {/* Modal */}
-      <div 
+      <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
@@ -559,7 +537,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                       if (fallback) fallback.style.display = 'flex';
                     }}
                   />
-                  <div 
+                  <div
                     className="absolute inset-0 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center border-2 border-muted"
                     style={{ display: 'none' }}
                   >
@@ -579,7 +557,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
 
             <div className="min-w-0 flex-1">
               <div className="flex items-start space-x-2 sm:space-x-3">
-                <h2 
+                <h2
                   id="token-modal-title"
                   className="text-lg sm:text-2xl font-bold text-foreground truncate"
                 >
@@ -627,14 +605,14 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
         </div>
 
         {/* Content */}
-        <div 
+        <div
           className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6"
           id="token-modal-description"
         >
           {/* Screen reader description */}
           <div className="sr-only">
-            Token details for {token.symbol || token.name}. 
-            This modal contains live chart data, market statistics, price performance, 
+            Token details for {token.symbol || token.name}.
+            This modal contains live chart data, market statistics, price performance,
             trading activity, and security analysis for the selected token.
             Use Tab to navigate between interactive elements, or press Escape to close.
           </div>
@@ -649,7 +627,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                     Limited Data Available
                   </h4>
                   <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                    Some market data may be incomplete or unavailable for this token. 
+                    Some market data may be incomplete or unavailable for this token.
                     Information will be updated as it becomes available.
                   </p>
                 </div>
@@ -686,9 +664,9 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                   allow="clipboard-write; encrypted-media"
                   aria-label={`Interactive price chart showing trading data for ${token.symbol || token.name || 'token'}`}
                   onError={() => {
-                    setLocalErrors(prev => ({ 
-                      ...prev, 
-                      chart: 'Chart failed to load. Please try again.' 
+                    setLocalErrors(prev => ({
+                      ...prev,
+                      chart: 'Chart failed to load. Please try again.'
                     }));
                   }}
                 />
@@ -715,18 +693,17 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                 ) : (
                   <>
                     <div className="text-xl sm:text-2xl font-bold text-foreground mb-1">
-                      {safeGet(primaryPool, 'price.usd') > 0 
+                      {safeGet(primaryPool, 'price.usd') > 0
                         ? formatCurrency(safeGet(primaryPool, 'price.usd'))
                         : 'N/A'
                       }
                     </div>
                     <div className="flex items-center justify-center space-x-1">
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          (safeGet(events, '24h.priceChangePercentage') || 0) >= 0
+                        className={`w-2 h-2 rounded-full ${(safeGet(events, '24h.priceChangePercentage') || 0) >= 0
                             ? 'bg-green-500'
                             : 'bg-red-500'
-                        }`}
+                          }`}
                       ></span>
                       <span
                         className={`text-sm font-medium ${getPriceChangeColor(safeGet(events, '24h.priceChangePercentage') || 0)}`}
@@ -752,7 +729,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                 <div className="text-center">
                   <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 mx-auto mb-2" />
                   <div className="text-sm sm:text-lg font-bold text-foreground">
-                    {safeGet(primaryPool, 'marketCap.usd') > 0 
+                    {safeGet(primaryPool, 'marketCap.usd') > 0
                       ? formatCurrency(safeGet(primaryPool, 'marketCap.usd'))
                       : 'N/A'
                     }
@@ -772,8 +749,8 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                   <div className="text-sm sm:text-lg font-bold text-foreground">
                     {safeGet(primaryPool, 'txns.volume24h') > 0 && safeGet(primaryPool, 'price.usd') > 0
                       ? formatCurrency(
-                          safeGet(primaryPool, 'txns.volume24h') * safeGet(primaryPool, 'price.usd')
-                        )
+                        safeGet(primaryPool, 'txns.volume24h') * safeGet(primaryPool, 'price.usd')
+                      )
                       : 'N/A'
                     }
                   </div>
@@ -790,7 +767,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                 <div className="text-center">
                   <Users className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 mx-auto mb-2" />
                   <div className="text-sm sm:text-lg font-bold text-foreground">
-                    {safeGet(primaryPool, 'liquidity.usd') > 0 
+                    {safeGet(primaryPool, 'liquidity.usd') > 0
                       ? formatCurrency(safeGet(primaryPool, 'liquidity.usd'))
                       : 'N/A'
                     }
@@ -1098,7 +1075,7 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                   Total Supply
                 </label>
                 <div className="text-foreground mt-1 text-sm">
-                  {safeGet(primaryPool, 'tokenSupply') > 0 
+                  {safeGet(primaryPool, 'tokenSupply') > 0
                     ? formatNumber(safeGet(primaryPool, 'tokenSupply'), 0)
                     : 'N/A'
                   }
@@ -1216,9 +1193,9 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
               disabled={isBuying || !token.mint || !token.symbol}
               className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white rounded-xl w-full sm:w-auto focus:ring-2 focus:ring-green-300 focus:ring-offset-2"
               aria-label={
-                isBuying 
+                isBuying
                   ? `Purchasing ${token.symbol || 'token'}, please wait`
-                  : (!token.mint || !token.symbol) 
+                  : (!token.mint || !token.symbol)
                     ? 'Cannot purchase token due to insufficient data'
                     : `Purchase ${token.symbol || 'token'} instantly`
               }

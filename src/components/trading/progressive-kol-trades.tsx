@@ -7,23 +7,17 @@ import { KOLTradeCard } from './kol-trade-card';
 import { UnifiedKOLMindmap } from './unified-kol-mindmap';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  TradeListSkeleton, 
-  MindmapSkeleton, 
-  HeaderSkeleton,
-  ProgressiveLoadingIndicator 
+import {
+  TradeListSkeleton,
+  MindmapSkeleton,
+  ProgressiveLoadingIndicator
 } from '@/components/ui/skeleton-loaders';
 import { cn } from '@/lib/utils';
-import { 
-  Activity, 
+import {
+  Activity,
   Network,
-  TrendingUp,
-  Zap,
-  Users,
-  CircleDollarSign,
   RefreshCw,
-  AlertCircle,
-  CheckCircle
+  AlertCircle
 } from 'lucide-react';
 
 interface ProgressiveKOLTradesProps {
@@ -35,7 +29,6 @@ interface ProgressiveKOLTradesProps {
 
 export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
   maxTrades = 25,
-  showFilters = true,
   className,
   activeView = 'both'
 }) => {
@@ -68,6 +61,18 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
 
   const [showLoadingDetails, setShowLoadingDetails] = useState(false);
 
+  // State for load more
+  const [visibleTrades, setVisibleTrades] = useState(maxTrades);
+
+  // Update visible trades when maxTrades changes
+  useEffect(() => {
+    setVisibleTrades(maxTrades);
+  }, [maxTrades]);
+
+  const handleLoadMore = () => {
+    setVisibleTrades(prev => prev + 50);
+  };
+
   // Compute final data - prioritize real-time socket data over progressive loading data
   const finalTrades = socketTrades.length > 0 ? socketTrades : (essentialData?.trades || []);
   const finalStats = socketStats.totalTrades > 0 ? socketStats : (essentialData?.stats || {
@@ -77,15 +82,15 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
     totalVolume: 0,
   });
   const finalTrendingTokens = socketTrendingTokens.length > 0 ? socketTrendingTokens : (essentialData?.trendingTokens || []);
-  
+
   // Merge both socket and progressive mindmap data for maximum coverage
   const finalMindmapData = {
     ...progressiveMindmapData,
     ...socketMindmapData, // Socket data takes priority
   };
-  
+
   const finalIsLoading = socketLoading && (loadingState.trades === 'loading' || loadingState.trades === 'idle');
-  
+
   // Check if we have mindmap data available
   const hasMindmapData = Object.keys(finalMindmapData).length > 0;
   const mindmapTokenCount = Object.keys(finalMindmapData).length;
@@ -111,17 +116,17 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
       try {
         // Phase 1: Essential data (< 500ms target)
         await loadEssentialData();
-        
+
         // Phase 2: Enhanced data (< 2s target) - start immediately after essential
         setTimeout(() => {
           loadEnhancedData();
         }, 100);
-        
+
         // Phase 3: Background data - start after enhanced is complete or after delay
         setTimeout(() => {
           loadBackgroundData();
         }, 2000);
-        
+
       } catch (error) {
         console.error('Progressive loading failed:', error);
       }
@@ -145,8 +150,6 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
   if (!isEssentialComplete && !hasErrors) {
     return (
       <div className={cn('space-y-4', className)}>
-        <HeaderSkeleton />
-        
         {/* Loading progress indicator */}
         <Card>
           <CardContent className="py-6">
@@ -155,7 +158,7 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
                 <RefreshCw className="h-5 w-5 animate-spin text-primary" />
                 <span className="text-lg font-medium">Loading KOL Trading Data</span>
               </div>
-              
+
               <div className="space-y-2 w-full max-w-md">
                 <ProgressiveLoadingIndicator
                   phase="essential"
@@ -199,7 +202,7 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
         {(activeView === 'live-trades' || activeView === 'both') && (
           <TradeListSkeleton count={6} />
         )}
-        
+
         {(activeView === 'network-maps' || activeView === 'both') && (
           <Card>
             <CardContent>
@@ -235,7 +238,7 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
                 {showLoadingDetails ? 'Hide' : 'Show'} Error Details
               </Button>
             </div>
-            
+
             {showLoadingDetails && (
               <div className="mt-4 p-4 bg-muted/20 rounded-lg text-xs text-left">
                 <div className="font-semibold mb-2">Error Details:</div>
@@ -254,85 +257,34 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
   // Render main content with progressive enhancement
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Header with stats */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <CardTitle className="flex items-center space-x-2">
-                <Activity className="h-5 w-5" />
-                <span>Live KOL Trades</span>
-              </CardTitle>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm text-muted-foreground">
-                  {finalTrades.length || 0} trades loaded
-                </span>
-              </div>
-              {!isBackgroundComplete && (
-                <div className="animate-bounce bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                  Loading...
-                </div>
-              )}
-            </div>
-
-            {/* Stats display */}
-            {finalStats && (
-              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                <div className="flex items-center space-x-1">
-                  <Users className="h-3 w-3" />
-                  <span className="font-medium">{finalStats.uniqueKOLs}</span>
-                  <span className="hidden sm:inline">KOLs</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <CircleDollarSign className="h-3 w-3" />
-                  <span className="font-medium">{finalStats.uniqueTokens}</span>
-                  <span className="hidden sm:inline">tokens</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Activity className="h-3 w-3" />
-                  <span className="font-medium">{finalStats.totalTrades}</span>
-                  <span className="hidden sm:inline">total</span>
-                </div>
-              </div>
-            )}
-
-            {/* Connection status indicator */}
-            <div className="flex items-center space-x-2">
-              {socketConnected ? (
-                <div className="flex items-center space-x-1 text-green-600">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-xs">Live Updates</span>
-                </div>
-              ) : isBackgroundComplete ? (
-                <div className="flex items-center space-x-1 text-green-600">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-xs">Complete</span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-1 text-blue-600">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span className="text-xs">Loading...</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
 
       {/* Live Trades Section */}
       {(activeView === 'live-trades' || activeView === 'both') && (
         <div>
           {finalTrades.length ? (
-            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-              {finalTrades.slice(0, maxTrades).map((trade, index) => (
-                <KOLTradeCard
-                  key={`${trade.id}-${index}`}
-                  trade={trade}
-                  onClick={() => {}}
-                  variant="card"
-                />
-              ))}
+            <div className="space-y-6">
+              <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                {finalTrades.slice(0, visibleTrades).map((trade, index) => (
+                  <KOLTradeCard
+                    key={`${trade.id}-${index}`}
+                    trade={trade}
+                    onClick={() => { }}
+                    variant="card"
+                  />
+                ))}
+              </div>
+
+              {finalTrades.length > visibleTrades && (
+                <div className="flex justify-center pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMore}
+                    className="min-w-[200px] bg-background/50 backdrop-blur-sm hover:bg-background/80"
+                  >
+                    Load More Trades ({finalTrades.length - visibleTrades} remaining)
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <Card>
@@ -342,7 +294,7 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
                   {loadingState.trades === 'error' ? 'API Temporarily Unavailable' : 'No trades available'}
                 </h3>
                 <p className="text-muted-foreground text-center">
-                  {loadingState.trades === 'error' 
+                  {loadingState.trades === 'error'
                     ? 'The trading data service is currently unavailable. The page will automatically retry when the service is restored.'
                     : 'Waiting for live trading data...'
                   }
@@ -381,7 +333,7 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
           </CardHeader>
           <CardContent>
             {hasMindmapData ? (
-              <UnifiedKOLMindmap 
+              <UnifiedKOLMindmap
                 tokensData={finalMindmapData}
                 trendingTokens={finalTrendingTokens || []}
               />
@@ -394,7 +346,7 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
                   {loadingState.mindmap === 'error' ? 'Network Map Error' : 'Building Network Maps'}
                 </h3>
                 <p className="text-muted-foreground text-center">
-                  {loadingState.mindmap === 'error' 
+                  {loadingState.mindmap === 'error'
                     ? 'Failed to load network data. The maps will update automatically when data becomes available.'
                     : 'Building KOL-token relationship maps from live trade data...'
                   }
@@ -419,7 +371,7 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
               <div className="flex items-center space-x-2">
                 <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
                 <span className="text-sm text-muted-foreground">
-                  {hasMindmapData 
+                  {hasMindmapData
                     ? 'Expanding network maps with live data...'
                     : 'Loading network data in background...'
                   }

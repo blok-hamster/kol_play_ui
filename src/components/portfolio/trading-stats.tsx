@@ -13,11 +13,11 @@ import {
   Coins,
   RefreshCw,
   Eye,
-  Filter,
   Clock,
 } from 'lucide-react';
 import { PortfolioService } from '@/services/portfolio.service';
 import { useNotifications } from '@/stores/use-ui-store';
+import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
 import { formatCurrency, formatNumber, formatPercentage, safeFormatAmount } from '@/lib/utils';
 import type { TransactionStats, TokenPnL } from '@/types';
 
@@ -37,12 +37,12 @@ const formatHoldTime = (minutes: number): string => {
   if (minutes < 60) {
     return `${Math.round(minutes)}m`;
   }
-  
+
   const hours = minutes / 60;
   if (hours < 24) {
     return `${hours.toFixed(1)}h`;
   }
-  
+
   const days = hours / 24;
   return `${days.toFixed(1)}d`;
 };
@@ -61,6 +61,13 @@ const TradingStats: React.FC<TradingStatsProps> = ({
 
   const { showError: showErrorNotification } = useNotifications();
 
+  // Token lazy loading for metadata
+  const { loadTokens, getToken } = useTokenLazyLoading({
+    batchSize: 10,
+    maxConcurrentBatches: 2,
+    cacheEnabled: true,
+  });
+
   const fetchTradingStats = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -73,13 +80,13 @@ const TradingStats: React.FC<TradingStatsProps> = ({
       if (selectedTimeframe !== 'all') {
         const now = new Date();
         endDate = now.toISOString();
-        
+
         const days = {
           '7d': 7,
           '30d': 30,
           '90d': 90,
         }[selectedTimeframe] || 0;
-        
+
         startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
       }
 
@@ -92,14 +99,10 @@ const TradingStats: React.FC<TradingStatsProps> = ({
         const response = await PortfolioService.getUserTradeStats();
         setTradeStats(response.data);
       }
-    } catch (err: any) {
-      console.error('Failed to fetch trading stats:', err);
-      setError(err.message || 'Failed to load trading statistics');
-      showErrorNotification('Error', 'Failed to load trading statistics');
     } finally {
       setIsLoading(false);
     }
-  });
+  }, [selectedTimeframe, showErrorNotification]);
 
   const fetchTokenPnLs = useCallback(async () => {
     if (!showTokenBreakdown) return;
@@ -107,43 +110,38 @@ const TradingStats: React.FC<TradingStatsProps> = ({
     try {
       setIsLoadingTokens(true);
 
-      // In a real implementation, you'd get this list from somewhere
-      // For now, we'll simulate with some common tokens
-      const commonTokens = [
-        {
-          mint: 'So11111111111111111111111111111111111111112',
-          symbol: 'SOL',
-          name: 'Solana',
-        },
-        {
-          mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-          symbol: 'USDC',
-          name: 'USD Coin',
-        },
-        {
-          mint: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
-          symbol: 'BONK',
-          name: 'Bonk',
-        },
-        // Add more as needed
-      ];
+      // Fetch recent transactions to get the list of tokens the user has actually traded
+      const transactionsResponse = await PortfolioService.getUserTransactions({ limit: 50 });
+      const uniqueMints = Array.from(new Set(
+        transactionsResponse.data
+          .map(tx => tx.mint)
+          .filter((mint): mint is string => !!mint)
+      ));
 
-      const tokenPnLPromises = commonTokens.map(async token => {
+      if (uniqueMints.length === 0) {
+        setTokenPnLs([]);
+        return;
+      }
+
+      // Load metadata for these tokens
+      loadTokens(uniqueMints);
+
+      // Fetch PnL for each unique token in parallel
+      const tokenPnLPromises = uniqueMints.map(async mint => {
         try {
-          const response = await PortfolioService.getTokenPnL(token.mint);
+          const response = await PortfolioService.getTokenPnL(mint);
           return {
             ...response.data,
-            tokenSymbol: token.symbol,
-            tokenName: token.name,
-            mint: token.mint,
+            mint,
           };
         } catch (err) {
+          console.error(`Failed to fetch PnL for token ${mint}:`, err);
           return null;
         }
       });
 
       const results = await Promise.all(tokenPnLPromises);
-      const validTokenPnLs = results.filter(Boolean) as TokenPnLWithMeta[];
+      const validTokenPnLs = results.filter(Boolean) as any[];
 
       // Sort by total PnL descending
       validTokenPnLs.sort((a, b) => (b.totalPnL || 0) - (a.totalPnL || 0));
@@ -154,7 +152,7 @@ const TradingStats: React.FC<TradingStatsProps> = ({
     } finally {
       setIsLoadingTokens(false);
     }
-  });
+  }, [showTokenBreakdown, loadTokens]);
 
   useEffect(() => {
     fetchTradingStats();
@@ -343,8 +341,8 @@ const TradingStats: React.FC<TradingStatsProps> = ({
           </div>
           <p className="text-2xl sm:text-3xl font-bold text-foreground">
             {(() => {
-              const calculatedAverage = tradeStats && tradeStats.totalTrades > 0 
-                ? tradeStats.totalSOLTraded / tradeStats.totalTrades 
+              const calculatedAverage = tradeStats && tradeStats.totalTrades > 0
+                ? tradeStats.totalSOLTraded / tradeStats.totalTrades
                 : 0;
               return `${safeFormatAmount(calculatedAverage, 4)} SOL`;
             })()}
@@ -521,77 +519,97 @@ const TradingStats: React.FC<TradingStatsProps> = ({
           ) : tokenPnLs.length > 0 ? (
             <div className="space-y-4">
               {(showAllTokens ? tokenPnLs : tokenPnLs.slice(0, 5)).map(
-                tokenPnL => (
-                  <div
-                    key={tokenPnL.mint}
-                    className="bg-background rounded-lg p-4"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-white font-bold text-xs">
-                            {tokenPnL.tokenSymbol.charAt(0)}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {tokenPnL.tokenSymbol}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {tokenPnL.tokenName}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-left sm:text-right">
-                        <p
-                          className={`font-bold ${(tokenPnL.totalPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                        >
-                          {(tokenPnL.totalPnL || 0) >= 0 ? '+' : ''}
-                          {formatCurrency(tokenPnL.totalPnL || 0)}
-                        </p>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 text-xs text-muted-foreground space-y-1 sm:space-y-0">
-                          <span>
-                            Realized:{' '}
-                            {formatCurrency(tokenPnL.realizedPnL || 0)}
-                          </span>
-                          <span className="hidden sm:inline">•</span>
-                          <span>
-                            Unrealized:{' '}
-                            {formatCurrency(tokenPnL.unrealizedPnL || 0)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                tokenPnL => {
+                  const tokenDetail = getToken(tokenPnL.mint);
+                  const tokenSymbol = tokenDetail?.token?.symbol || tokenPnL.mint.slice(0, 4);
+                  const tokenName = tokenDetail?.token?.name || 'Unknown Token';
+                  const tokenImage = tokenDetail?.token?.image || tokenDetail?.token?.logoURI;
 
-                    {/* Additional token metrics */}
-                    <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-border">
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground">
-                          Holdings
-                        </p>
-                        <p className="text-sm font-medium text-foreground">
-                          {formatNumber(tokenPnL.currentHoldings || 0, 2)}
-                        </p>
+                  return (
+                    <div
+                      key={tokenPnL.mint}
+                      className="bg-background rounded-lg p-4"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-primary/80 to-secondary/80 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border border-muted">
+                            {tokenImage ? (
+                              <img
+                                src={tokenImage}
+                                alt={tokenSymbol}
+                                className="w-full h-full object-cover"
+                                onError={e => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  target.parentElement!.innerHTML = `<span class="text-white font-bold text-xs">${tokenSymbol.charAt(0)}</span>`;
+                                }}
+                              />
+                            ) : (
+                              <span className="text-white font-bold text-xs">
+                                {tokenSymbol.charAt(0)}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {tokenSymbol}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {tokenName}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <p
+                            className={`font-bold ${(tokenPnL.totalPnL || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                          >
+                            {(tokenPnL.totalPnL || 0) >= 0 ? '+' : ''}
+                            {formatCurrency(tokenPnL.totalPnL || 0)}
+                          </p>
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 text-xs text-muted-foreground space-y-1 sm:space-y-0">
+                            <span>
+                              Realized:{' '}
+                              {formatCurrency(tokenPnL.realizedPnL || 0)}
+                            </span>
+                            <span className="hidden sm:inline">•</span>
+                            <span>
+                              Unrealized:{' '}
+                              {formatCurrency(tokenPnL.unrealizedPnL || 0)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground">
-                          Avg Buy Price
-                        </p>
-                        <p className="text-sm font-medium text-foreground">
-                          {formatCurrency(tokenPnL.averageBuyPrice || 0)}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground">
-                          Invested
-                        </p>
-                        <p className="text-sm font-medium text-foreground">
-                          {formatCurrency(tokenPnL.investedAmount || 0)}
-                        </p>
+
+                      {/* Additional token metrics */}
+                      <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-border">
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground">
+                            Holdings
+                          </p>
+                          <p className="text-sm font-medium text-foreground">
+                            {formatNumber(tokenPnL.currentHoldings || 0, 2)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground">
+                            Avg Buy Price
+                          </p>
+                          <p className="text-sm font-medium text-foreground">
+                            {formatCurrency(tokenPnL.averageBuyPrice || 0)}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground">
+                            Invested
+                          </p>
+                          <p className="text-sm font-medium text-foreground">
+                            {formatCurrency(tokenPnL.investedAmount || 0)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
+                  );
+                }
               )}
             </div>
           ) : (

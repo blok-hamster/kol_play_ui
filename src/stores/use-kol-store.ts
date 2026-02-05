@@ -209,8 +209,16 @@ export const useKOLStore = create<KOLState>((set, get) => ({
       if (response.data && response.data.length > 0) {
         get().setKOLs(response.data);
       }
-    } catch (error) {
-      console.error('Failed to load all KOLs:', error);
+    } catch (error: any) {
+      // Suppress console error if it's a network error (expected when backend is down)
+      const isNetworkError = 
+        error.message?.includes('Network Error') || 
+        error.message?.includes('Unable to connect') ||
+        error.code === 'ERR_NETWORK';
+      
+      if (!isNetworkError) {
+        console.error('Failed to load all KOLs:', error);
+      }
     } finally {
       set({ isLoadingAll: false });
     }

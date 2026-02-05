@@ -22,6 +22,7 @@ export interface GetTransactionsRequest extends SearchFilters {
   status?: string;
   minAmount?: number;
   maxAmount?: number;
+  isSimulation?: boolean;
 }
 
 export interface GetTransactionByMintRequest {
@@ -95,6 +96,8 @@ export class PortfolioService {
         params.append('minAmount', request.minAmount.toString());
       if (request?.maxAmount)
         params.append('maxAmount', request.maxAmount.toString());
+      if (request?.isSimulation !== undefined)
+        params.append('isSimulation', request.isSimulation.toString());
 
       const response = await apiClient.get<Transaction[]>(
         `${API_ENDPOINTS.FEATURES.GET_USER_TRANSACTIONS}?${params.toString()}`
@@ -325,12 +328,18 @@ export class PortfolioService {
    * Get all trades for the authenticated user
    */
   static async getUserTrades(
-    status?: 'open' | 'closed'
+    status?: 'open' | 'closed',
+    isSimulation?: boolean,
+    mint?: string
   ): Promise<ApiResponse<TradeHistoryEntry[]>> {
     try {
-      const params = status ? `?status=${status}` : '';
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+      if (isSimulation !== undefined) params.append('isSimulation', isSimulation.toString());
+      if (mint) params.append('mint', mint);
+      
       const response = await apiClient.get<TradeHistoryEntry[]>(
-        `${API_ENDPOINTS.FEATURES.GET_USER_TRADES}${params}`
+        `${API_ENDPOINTS.FEATURES.GET_USER_TRADES}?${params.toString()}`
       );
       return response;
     } catch (error: any) {
@@ -358,11 +367,16 @@ export class PortfolioService {
    * Get all open trades for the authenticated user
    * Note: This is a convenience method that calls getUserTrades with status='open'
    */
-  static async getOpenTrades(): Promise<ApiResponse<TradeHistoryEntry[]>> {
+  static async getOpenTrades(isSimulation?: boolean, mint?: string): Promise<ApiResponse<TradeHistoryEntry[]>> {
     try {
       // Use the same endpoint as getUserTrades with status='open'
+      const params = new URLSearchParams();
+      params.append('status', 'open');
+      if (isSimulation !== undefined) params.append('isSimulation', isSimulation.toString());
+      if (mint) params.append('mint', mint);
+
       const response = await apiClient.get<TradeHistoryEntry[]>(
-        `${API_ENDPOINTS.FEATURES.GET_USER_TRADES}?status=open`
+        `${API_ENDPOINTS.FEATURES.GET_USER_TRADES}?${params.toString()}`
       );
       return response;
     } catch (error: any) {
@@ -375,12 +389,14 @@ export class PortfolioService {
    */
   static async getUserTradeStatsNew(
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    isSimulation?: boolean
   ): Promise<ApiResponse<TradeStats>> {
     try {
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
+      if (isSimulation !== undefined) params.append('isSimulation', isSimulation.toString());
 
       const queryString = params.toString();
       const response = await apiClient.get<TradeStats>(
@@ -434,6 +450,9 @@ export class PortfolioService {
       mint: string;
       watchConfig?: any;
       tradeId?: string;
+      slippage?: number;
+      priority?: 'high' | 'medium' | 'low';
+      limitPrice?: number;
     }
   ): Promise<ApiResponse<any>> {
     try {

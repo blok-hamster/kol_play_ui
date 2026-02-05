@@ -103,13 +103,13 @@ export function useTokenLazyLoading(options: UseTokenLazyLoadingOptions = {}): U
       });
 
       if (tokensToLoad.length === 0) {
-        void 0 && ('All requested tokens are already loaded');
+        console.debug('All requested tokens are already loaded');
         setLoading(false);
         loadingRef.current = false;
         return;
       }
 
-      void 0 && (`Loading ${tokensToLoad.length} new tokens out of ${mintAddresses.length} requested`);
+      console.debug(`Loading ${tokensToLoad.length} new tokens out of ${mintAddresses.length} requested`);
 
       const totalBatches = Math.ceil(tokensToLoad.length / batchSize);
       let loadedCount = 0;
@@ -125,7 +125,7 @@ export function useTokenLazyLoading(options: UseTokenLazyLoadingOptions = {}): U
       const response = await TokenService.getMultipleTokens(tokensToLoad, {
         batchSize,
         maxConcurrentBatches,
-        onBatchComplete: (batch, batchIndex, totalBatches) => {
+        onBatchComplete: (batch: GetTokenResponse[], batchIndex: number, totalBatches: number) => {
           if (cancelRef.current) return;
 
           loadedCount += batch.length;
@@ -142,7 +142,7 @@ export function useTokenLazyLoading(options: UseTokenLazyLoadingOptions = {}): U
           // Update state with new tokens
           setTokens(prev => {
             const newTokens = new Map(prev);
-            batch.forEach(token => {
+            batch.forEach((token: GetTokenResponse) => {
               if (token.mint || token.token?.mint) {
                 const mintAddress = token.mint || token.token?.mint || '';
                 newTokens.set(mintAddress, token);
@@ -165,12 +165,12 @@ export function useTokenLazyLoading(options: UseTokenLazyLoadingOptions = {}): U
       });
 
       if (!cancelRef.current) {
-        void 0 && (`✅ Successfully loaded ${response.data.length} tokens`);
+        console.debug(`✅ Successfully loaded ${response.data.length} tokens`);
         
         // Final state update with all tokens
         setTokens(prev => {
           const newTokens = new Map(prev);
-          response.data.forEach(token => {
+          response.data.forEach((token: GetTokenResponse) => {
             if (token.mint || token.token?.mint) {
               const mintAddress = token.mint || token.token?.mint || '';
               newTokens.set(mintAddress, token);

@@ -16,6 +16,7 @@ import {
   UpdateSettingParams,
   UpdateSettingParamsEditing,
 } from '@/services/settings.service';
+import { PortfolioService } from '@/services/portfolio.service';
 import { useNotifications } from '@/stores/use-ui-store';
 import { useUserStore } from '@/stores/use-user-store';
 
@@ -25,6 +26,7 @@ const TradingSettingsComponent: React.FC = () => {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isResettingPaper, setIsResettingPaper] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -222,6 +224,20 @@ const TradingSettingsComponent: React.FC = () => {
     setHasChanges(false);
   };
 
+  const handleResetPaper = async () => {
+    if (!confirm('Are you sure you want to reset your Paper Trading wallet to 100 SOL? This cannot be undone.')) return;
+
+    setIsResettingPaper(true);
+    try {
+      await PortfolioService.resetPaperAccount();
+      showSuccess('Reset Successful', 'Paper wallet reset to 100 SOL.');
+    } catch (err: any) {
+      showError('Reset Failed', err.message);
+    } finally {
+      setIsResettingPaper(false);
+    }
+  };
+
   if (!settings) {
     return (
       <div className="space-y-6">
@@ -369,233 +385,155 @@ const TradingSettingsComponent: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary"
-                checked={settings.tradeConfig?.paperTrading ?? true} // Default to true
-                onChange={e =>
-                  handleToggleChange(
-                    'tradeConfig',
-                    'paperTrading',
-                    e.target.checked
-                  )
-                }
-              />
-              <span className="text-sm font-medium text-foreground">
-                Paper Trading Mode (Simulation)
-              </span>
-            </label>
-            <p className="text-xs text-muted-foreground mt-1 ml-6">
-              If enabled, trades will be simulated and no real funds will be used.
-            </p>
-          </div>
-
-          <div>
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary"
-                checked={settings.tradeConfig?.useWatchConfig || false}
-                onChange={e =>
-                  handleToggleChange(
-                    'tradeConfig',
-                    'useWatchConfig',
-                    e.target.checked
-                  )
-                }
-              />
-              <span className="text-sm font-medium text-foreground">
-                Use Watch Config
-              </span>
-            </label>
-          </div>
         </div>
       </div>
 
-      {/* Watch Config */}
+      {/* Exit Strategy (formerly Watch Config) */}
       <div className="bg-muted/50 rounded-lg p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Target className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">
-            Watch Configuration
-          </h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Target className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">
+              Exit Strategy
+            </h3>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <span className="text-sm font-medium text-foreground">
+                {settings.tradeConfig?.useWatchConfig ? 'Enabled' : 'Disabled'}
+              </span>
+              <div
+                className={`w-10 h-5 flex items-center bg-gray-300 dark:bg-gray-700 rounded-full p-1 duration-300 ease-in-out ${settings.tradeConfig?.useWatchConfig ? 'bg-primary' : ''}`}
+                onClick={() => handleToggleChange('tradeConfig', 'useWatchConfig', !settings.tradeConfig?.useWatchConfig)}
+              >
+                <div className={`bg-white w-3 h-3 rounded-full shadow-md transform duration-300 ease-in-out ${settings.tradeConfig?.useWatchConfig ? 'translate-x-[18px]' : ''}`}></div>
+              </div>
+            </label>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Take Profit (%)
-            </label>
-            <Input
-              type="number"
-              min="1"
-              max="1000"
-              value={settings.watchConfig?.takeProfitPercentage ?? ''}
-              onChange={e =>
-                handleInputChange(
-                  'watchConfig',
-                  'takeProfitPercentage',
-                  e.target.value === '' ? '' : parseFloat(e.target.value)
-                )
-              }
-              placeholder="20"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Stop Loss (%)
-            </label>
-            <Input
-              type="number"
-              min="1"
-              max="100"
-              value={settings.watchConfig?.stopLossPercentage ?? ''}
-              onChange={e =>
-                handleInputChange(
-                  'watchConfig',
-                  'stopLossPercentage',
-                  e.target.value === '' ? '' : parseFloat(e.target.value)
-                )
-              }
-              placeholder="10"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Trailing Percentage (%)
-            </label>
-            <Input
-              type="number"
-              min="1"
-              max="50"
-              value={settings.watchConfig?.trailingPercentage ?? ''}
-              onChange={e =>
-                handleInputChange(
-                  'watchConfig',
-                  'trailingPercentage',
-                  e.target.value === '' ? '' : parseFloat(e.target.value)
-                )
-              }
-              placeholder="5"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Max Hold Time (minutes)
-            </label>
-            <Input
-              type="number"
-              min="1"
-              max="10080"
-              value={settings.watchConfig?.maxHoldTimeMinutes ?? ''}
-              onChange={e =>
-                handleInputChange(
-                  'watchConfig',
-                  'maxHoldTimeMinutes',
-                  e.target.value === '' ? '' : parseInt(e.target.value)
-                )
-              }
-              placeholder="60"
-            />
-          </div>
-
-          <div>
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary"
-                checked={settings.watchConfig?.enableTrailingStop || false}
+        {settings.tradeConfig?.useWatchConfig && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Take Profit (%)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                max="1000"
+                value={settings.watchConfig?.takeProfitPercentage ?? ''}
                 onChange={e =>
-                  handleToggleChange(
+                  handleInputChange(
                     'watchConfig',
-                    'enableTrailingStop',
-                    e.target.checked
+                    'takeProfitPercentage',
+                    e.target.value === '' ? '' : parseFloat(e.target.value)
                   )
                 }
+                placeholder="20"
               />
-              <span className="text-sm font-medium text-foreground">
-                Enable Trailing Stop
-              </span>
-            </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Stop Loss (%)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                max="100"
+                value={settings.watchConfig?.stopLossPercentage ?? ''}
+                onChange={e =>
+                  handleInputChange(
+                    'watchConfig',
+                    'stopLossPercentage',
+                    e.target.value === '' ? '' : parseFloat(e.target.value)
+                  )
+                }
+                placeholder="10"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-foreground">
+                  Trailing Stop
+                </label>
+                <div
+                  className={`w-8 h-4 flex items-center bg-gray-300 dark:bg-gray-700 rounded-full p-1 cursor-pointer duration-300 ease-in-out ${settings.watchConfig?.enableTrailingStop ? 'bg-primary' : ''}`}
+                  onClick={() => handleToggleChange('watchConfig', 'enableTrailingStop', !settings.watchConfig?.enableTrailingStop)}
+                >
+                  <div className={`bg-white w-2.5 h-2.5 rounded-full shadow-md transform duration-300 ease-in-out ${settings.watchConfig?.enableTrailingStop ? 'translate-x-[14px]' : ''}`}></div>
+                </div>
+              </div>
+
+              <div className={`transition-opacity duration-200 ${settings.watchConfig?.enableTrailingStop ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                <label className="block text-xs text-muted-foreground mb-1">
+                  Trailing Percentage (%)
+                </label>
+                <Input
+                  type="number"
+                  min="0.1"
+                  max="50"
+                  step="0.1"
+                  value={settings.watchConfig?.trailingPercentage ?? ''}
+                  onChange={e =>
+                    handleInputChange(
+                      'watchConfig',
+                      'trailingPercentage',
+                      e.target.value === '' ? '' : parseFloat(e.target.value)
+                    )
+                  }
+                  placeholder="5"
+                  disabled={!settings.watchConfig?.enableTrailingStop}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Max Hold Time (minutes)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                max="10080"
+                value={settings.watchConfig?.maxHoldTimeMinutes ?? ''}
+                onChange={e =>
+                  handleInputChange(
+                    'watchConfig',
+                    'maxHoldTimeMinutes',
+                    e.target.value === '' ? '' : parseInt(e.target.value)
+                  )
+                }
+                placeholder="60"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Copy KOL Config */}
+      {/* Paper Trading Management */}
       <div className="bg-muted/50 rounded-lg p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Target className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-foreground">
-            Copy KOL Configuration
-          </h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <RefreshCw className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-foreground">
+              Paper Trading Management
+            </h3>
+          </div>
+          <Button
+            variant="destructive"
+            onClick={handleResetPaper}
+            disabled={isResettingPaper}
+          >
+            {isResettingPaper ? 'Resetting...' : 'Reset Paper Wallet'}
+          </Button>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Min Amount (SOL)
-            </label>
-            <Input
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={settings.copyKolConfig?.minAmount ?? ''}
-              onChange={e =>
-                handleInputChange(
-                  'copyKolConfig',
-                  'minAmount',
-                  e.target.value === '' ? '' : parseFloat(e.target.value)
-                )
-              }
-              placeholder="0.1"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Max Amount (SOL)
-            </label>
-            <Input
-              type="number"
-              min="0.1"
-              step="0.1"
-              value={settings.copyKolConfig?.maxAmount ?? ''}
-              onChange={e =>
-                handleInputChange(
-                  'copyKolConfig',
-                  'maxAmount',
-                  e.target.value === '' ? '' : parseFloat(e.target.value)
-                )
-              }
-              placeholder="5"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Copy Percentage (%)
-            </label>
-            <Input
-              type="number"
-              min="1"
-              max="100"
-              value={settings.copyKolConfig?.copyPercentage ?? ''}
-              onChange={e =>
-                handleInputChange(
-                  'copyKolConfig',
-                  'copyPercentage',
-                  e.target.value === '' ? '' : parseFloat(e.target.value)
-                )
-              }
-              placeholder="50"
-            />
-          </div>
-        </div>
+        <p className="text-sm text-muted-foreground mt-2">
+          Resetting your paper wallet will safeguard your trade history but set your balance back to 100 SOL.
+        </p>
       </div>
     </div>
   );

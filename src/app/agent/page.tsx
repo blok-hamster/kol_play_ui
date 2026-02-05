@@ -21,15 +21,27 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
 export default function AgentPage() {
+  const searchParams = useSearchParams();
+  const queryThreadId = searchParams.get('threadId');
+
   const [currentThreadId, setCurrentThreadId] = useState<string>(() => {
+    if (queryThreadId) return queryThreadId;
     if (typeof window !== 'undefined') {
       return localStorage.getItem('kolplay_current_thread') || 'default-thread';
     }
     return 'default-thread';
   });
+
+  // Update thread if query param changes
+  useEffect(() => {
+    if (queryThreadId && queryThreadId !== currentThreadId) {
+      setCurrentThreadId(queryThreadId);
+    }
+  }, [queryThreadId, currentThreadId]);
 
   const {
     isConnected,

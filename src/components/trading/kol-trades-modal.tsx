@@ -20,8 +20,8 @@ import {
 } from 'lucide-react';
 import {
   TradingService,
-  ParsedSwap,
-  GetAddressTransactionsRequest,
+  KOLTrade,
+  KOLHistoryResponse,
 } from '@/services/trading.service';
 import { useNotifications, useLoading } from '@/stores/use-ui-store';
 import { formatNumber, copyToClipboard } from '@/lib/utils';
@@ -101,14 +101,12 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
   trader,
   walletAddress,
 }) => {
-  const [trades, setTrades] = useState<ParsedSwap[]>([]);
-  const [enrichedTrades, setEnrichedTrades] = useState<ParsedSwap[]>([]);
+  const [trades, setTrades] = useState<KOLTrade[]>([]);
+  const [enrichedTrades, setEnrichedTrades] = useState<KOLTrade[]>([]);
   const [timeframe, setTimeframe] = useState<'24h' | '7d' | '30d'>('7d');
   const [viewMode, setViewMode] = useState<ViewMode>('realtime');
   const [realtimeView, setRealtimeView] = useState<RealtimeView>('list');
   const [pagination, setPagination] = useState<{
-    before?: string;
-    after?: string;
     hasMore: boolean;
   }>({ hasMore: false });
 
@@ -143,7 +141,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
 
   // Filter real-time trades for this specific KOL
   const kolRealtimeTrades = useMemo(() => {
-    return recentTrades.filter(trade => 
+    return recentTrades.filter(trade =>
       trade.kolWallet?.toLowerCase() === walletAddress.toLowerCase()
     );
   }, [recentTrades, walletAddress]);
@@ -151,7 +149,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
   // Calculate stats from trades (use enriched trades for display)
   const stats: TradeStats = useMemo(() => {
     const tradesData = enrichedTrades.length > 0 ? enrichedTrades : trades;
-    
+
     if (!tradesData.length) {
       return {
         totalTrades: 0,
@@ -164,18 +162,18 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
       };
     }
 
-    const buyTrades = tradesData.filter(t => t.side === 'buy').length;
-    const sellTrades = tradesData.filter(t => t.side === 'sell').length;
+    const buyTrades = tradesData.filter(t => t.tradeType === 'buy').length;
+    const sellTrades = tradesData.filter(t => t.tradeType === 'sell').length;
     const totalVolume = tradesData.reduce((sum, t) => sum + t.solAmount, 0);
-    const avgTradeSize = totalVolume / tradesData.length;
+    const avgTradeSize = tradesData.length > 0 ? totalVolume / tradesData.length : 0;
 
-    // Simple PnL calculation (this would be more complex in real scenarios)
+    // Simple PnL calculation from the visible trades
     const totalPnL = tradesData.reduce((sum, t) => {
-      return sum + (t.side === 'sell' ? t.solAmount : -t.solAmount);
+      return sum + (t.tradeType === 'sell' ? t.solAmount : -t.solAmount);
     }, 0);
 
     const winRate =
-      sellTrades > 0 ? (sellTrades / (buyTrades + sellTrades)) * 100 : 0;
+      tradesData.length > 0 ? (sellTrades / tradesData.length) * 100 : 0;
 
     return {
       totalTrades: tradesData.length,
@@ -202,7 +200,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
 
     const buyTrades = kolTrades.filter(t => (t.tradeData?.tradeType ?? 'sell') === 'buy').length;
     const sellTrades = kolTrades.filter(t => (t.tradeData?.tradeType ?? 'sell') === 'sell').length;
-    
+
     // Calculate total volume in SOL correctly based on trade type
     const totalVolume = kolTrades.reduce((sum, t) => {
       const isBuy = (t.tradeData?.tradeType ?? 'sell') === 'buy';
@@ -232,8 +230,8 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
 
     try {
       // Extract unique token mint addresses
-      const uniqueMints = Array.from(new Set(tradesData.map(trade => trade.tokenMint).filter(Boolean)));
-      
+      const uniqueMints = Array.from(new Set(tradesData.map(trade => trade.mint || (trade.tradeType === 'buy' ? trade.tokenIn : trade.tokenOut)).filter(Boolean)));
+
       if (uniqueMints.length === 0) {
         setEnrichedTrades(tradesData);
         return;
@@ -248,20 +246,21 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
 
       // Enrich trades with metadata
       const enriched = tradesData.map(trade => {
-        const metadata = metadataMap.get(trade.tokenMint);
+        const tokenMint = trade.mint || (trade.tradeType === 'buy' ? trade.tokenIn : trade.tokenOut);
+        const metadata = metadataMap.get(tokenMint);
         const enrichedTrade = {
           ...trade,
           name: metadata?.name || trade.name || 'Unknown Token',
           symbol: metadata?.symbol || trade.symbol,
-          logoURI: metadata?.logoURI || trade.logoURI,
+          image: metadata?.logoURI || trade.image,
         };
-        
+
         console.log(`Enriching trade for ${trade.tokenMint}:`, {
           original: trade.name,
           metadata: metadata?.name,
           final: enrichedTrade.name
         });
-        
+
         return enrichedTrade;
       });
 
@@ -279,34 +278,13 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
     try {
       setLoading('kolTrades', true);
 
-      const now = new Date();
-      const startTime = new Date();
+      const response = await TradingService.getKOLTradeHistory(walletAddress, timeframeParam);
+      const tradesData = response.data.trades || [];
 
-      switch (timeframeParam) {
-        case '24h':
-          startTime.setHours(now.getHours() - 24);
-          break;
-        case '7d':
-          startTime.setDate(now.getDate() - 7);
-          break;
-        case '30d':
-          startTime.setDate(now.getDate() - 30);
-          break;
-      }
-
-      const request: GetAddressTransactionsRequest = {
-        address: walletAddress,
-        startTime: startTime.toISOString(),
-        endTime: now.toISOString(),
-      };
-
-      const response = await TradingService.getAddressTransactions(request);
-      const tradesData = response.data.transactions || [];
-      
       console.log('Fetched', tradesData.length, 'trades:', tradesData);
-      
+
       setTrades(tradesData);
-      setPagination(response.data.pagination || { hasMore: false });
+      setPagination({ hasMore: false }); // Analytics service currently returns all at once
 
       // Enrich trades with token metadata
       await enrichTradesWithMetadata(tradesData);
@@ -446,11 +424,10 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
             <div className="flex items-center bg-muted rounded-lg p-1 w-full sm:w-auto">
               <button
                 onClick={() => handleViewModeChange('realtime')}
-                className={`flex-1 sm:flex-none px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center sm:justify-start space-x-2 ${
-                  viewMode === 'realtime'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center sm:justify-start space-x-2 ${viewMode === 'realtime'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 <Zap className="w-4 h-4" />
                 <span>Live Trades</span>
@@ -462,11 +439,10 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
               </button>
               <button
                 onClick={() => handleViewModeChange('historical')}
-                className={`flex-1 sm:flex-none px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center sm:justify-start space-x-2 ${
-                  viewMode === 'historical'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center sm:justify-start space-x-2 ${viewMode === 'historical'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 <Calendar className="w-4 h-4" />
                 <span>Historical</span>
@@ -480,11 +456,10 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                   <button
                     key={tf}
                     onClick={() => handleTimeframeChange(tf)}
-                    className={`flex-1 sm:flex-none px-3 py-1 text-sm rounded transition-colors ${
-                      timeframe === tf
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
+                    className={`flex-1 sm:flex-none px-3 py-1 text-sm rounded transition-colors ${timeframe === tf
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                      }`}
                   >
                     {tf}
                   </button>
@@ -533,8 +508,8 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                 </span>
               </div>
               <span className="text-lg sm:text-xl font-bold text-foreground">
-                {viewMode === 'realtime' 
-                  ? currentStats.buyTrades 
+                {viewMode === 'realtime'
+                  ? currentStats.buyTrades
                   : `${formatNumber(stats.winRate, 1)}%`
                 }
               </span>
@@ -549,7 +524,7 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
               </div>
               <div>
                 <span className="text-lg sm:text-xl font-bold text-foreground">
-                  {viewMode === 'realtime' 
+                  {viewMode === 'realtime'
                     ? currentStats.sellTrades
                     : formatNumber(stats.avgTradeSize, 3)
                   }
@@ -622,22 +597,20 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                   <div className="flex items-center bg-muted rounded-lg p-1">
                     <button
                       onClick={() => setRealtimeView('cards')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center space-x-1 ${
-                        realtimeView === 'cards'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center space-x-1 ${realtimeView === 'cards'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       <LayoutGrid className="w-4 h-4" />
                       <span className="hidden sm:inline">Cards</span>
                     </button>
                     <button
                       onClick={() => setRealtimeView('list')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center space-x-1 ${
-                        realtimeView === 'list'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center space-x-1 ${realtimeView === 'list'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                        }`}
                     >
                       <ListIcon className="w-4 h-4" />
                       <span className="hidden sm:inline">List</span>
@@ -721,71 +694,14 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
                     <p>No trades found for the selected timeframe</p>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                     {(enrichedTrades.length > 0 ? enrichedTrades : trades).map((trade, index) => (
-                      <div
-                        key={`${trade.tokenMint}-${index}`}
-                        className="bg-muted/20 rounded-lg p-4 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center overflow-hidden relative">
-                              {trade.logoURI ? (
-                                <>
-                                  <img
-                                    src={trade.logoURI}
-                                    alt={trade.name || 'Token'}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      // Hide the image and show the fallback icon
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = 'none';
-                                      const fallback = target.nextElementSibling as HTMLElement;
-                                      if (fallback) {
-                                        fallback.style.display = 'flex';
-                                      }
-                                    }}
-                                  />
-                                  <div className="absolute inset-0 flex items-center justify-center" style={{ display: 'none' }}>
-                                    {getTradeIcon(trade.side)}
-                                  </div>
-                                </>
-                              ) : (
-                                getTradeIcon(trade.side)
-                              )}
-                            </div>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium text-foreground">
-                                  {trade.name || 'Unknown Token'}
-                                </span>
-                                {trade.symbol && (
-                                  <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                    {trade.symbol}
-                                  </span>
-                                )}
-                                <span
-                                  className={`text-sm font-medium ${getTradeColor(trade.side)}`}
-                                >
-                                  {trade.side.toUpperCase()}
-                                </span>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {formatNumber(trade.tokenAmount)} tokens •{' '}
-                                {(trade as any).timestamp ? new Date((trade as any).timestamp * 1000).toDateString() : 'Unknown date'}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium text-foreground">
-                              {formatNumber(trade.solAmount, 4)} SOL
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {(trade as any).timestamp ? new Date((trade as any).timestamp * 1000).toLocaleTimeString() : 'Unknown time'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <KOLTradeCard
+                        key={`${trade.signature}-${index}`}
+                        trade={trade}
+                        variant="list"
+                        hideKOLInfo
+                      />
                     ))}
                   </div>
                 )}

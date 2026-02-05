@@ -397,6 +397,47 @@ export class SettingsService {
       );
       return response;
     } catch (error: any) {
+      if (apiClient.isOfflineError(error)) {
+        console.warn('⚠️ Backend offline, returning default user settings');
+        return {
+          success: true,
+          message: 'Backend offline - using default settings',
+          data: {
+            userId: 'offline-user',
+            tradeConfig: {
+              slippage: 0.5,
+              minSpend: 0.1,
+              maxSpend: 1.0,
+              useWatchConfig: true,
+              paperTrading: true,
+            },
+            watchConfig: {
+              takeProfitPercentage: 200,
+              stopLossPercentage: 50,
+              enableTrailingStop: true,
+              trailingPercentage: 10,
+              maxHoldTimeMinutes: 120,
+            },
+            copyKolConfig: {
+              minAmount: 0.1,
+              maxAmount: 1.0,
+              copyPercentage: 10,
+            },
+            tradeNotificationConfig: {
+              kolActivity: true,
+              tradeActivity: true,
+            },
+            notificationDelieveryConfig: {
+              useEmail: false,
+              useTelegram: false,
+            },
+            accountConfig: {
+              displayName: 'Offline User',
+              avatar: '',
+            },
+          },
+        };
+      }
       throw new Error(apiClient.handleError(error));
     }
   }
