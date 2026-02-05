@@ -85,19 +85,31 @@ export default function AnalyticsDashboardPage() {
 
             // Handle Prediction
             if (predictionResult.status === 'fulfilled' && predictionResult.value) {
-                const prob = predictionResult.value.probability;
+                const { probability: prob, label: serverLabel } = predictionResult.value;
                 let label: "GOOD" | "BAD" | "NEUTRAL" = "NEUTRAL";
-                let confidence = 0;
+                let confidence = prob * 100;
 
-                if (prob >= 0.6) {
-                    label = "GOOD";
-                    confidence = prob * 100;
-                } else if (prob <= 0.4) {
-                    label = "BAD";
-                    confidence = (1 - prob) * 100;
+                // Priority 1: Use server provided label if it exists
+                if (serverLabel) {
+                    const normalized = serverLabel.toUpperCase();
+                    if (normalized === 'GOOD') {
+                        label = 'GOOD';
+                    } else if (normalized === 'BAD') {
+                        label = 'BAD';
+                    } else {
+                        label = 'NEUTRAL';
+                    }
                 } else {
-                    label = "NEUTRAL";
-                    confidence = (1 - Math.abs(prob - 0.5) * 2) * 100;
+                    // Priority 2: Fallback to existing probability logic
+                    if (prob >= 0.6) {
+                        label = "GOOD";
+                    } else if (prob <= 0.4) {
+                        label = "BAD";
+                        confidence = (1 - prob) * 100;
+                    } else {
+                        label = "NEUTRAL";
+                        confidence = (1 - Math.abs(prob - 0.5) * 2) * 100;
+                    }
                 }
 
                 setPrediction({ label, confidence });

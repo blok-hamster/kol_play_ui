@@ -203,28 +203,30 @@ export class AnalyticsService {
 
   /**
    * Get ML Prediction for a token
-   * Returns prediction probability
+   * Returns prediction data including label and probability
    */
-  static async getPrediction(tokenSymbol: string): Promise<{ probability: number } | null> {
+  static async getPrediction(tokenSymbol: string): Promise<{ probability: number; label?: string } | null> {
     try {
       const cleanToken = tokenSymbol.replace('$', '');
 
       // Endpoint: POST /api/features/predict-trade
       // Body: { mints: [cleanToken] }
-      // Response: { success: true, data: PredictionResult[] }
+      // Response as observed: { "message": "...", "data": [ { "classLabel": "good", "probability": 0.7, ... } ] }
       
-      const response = await authenticatedRequest<ApiResponse<any[]>>(
+      const response = await authenticatedRequest<any>(
         () => apiClient.post(
           `${process.env.NEXT_PUBLIC_API_URL}/api/features/predict-trade`,
           { mints: [cleanToken] }
         )
       );
 
-      if (response && response.success && response.data && response.data.length > 0) {
-        const result = response.data[0];
-        // Result has { probability, label, etc }
+      // Handle both wrapped and unwrapped responses
+      const predictionData = response?.data?.[0] || (response?.success && response.data?.[0]);
+      
+      if (predictionData) {
         return {
-           probability: result.probability || 0
+           probability: predictionData.probability || 0,
+           label: predictionData.classLabel
         };
       }
       return null;
