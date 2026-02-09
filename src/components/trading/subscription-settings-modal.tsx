@@ -44,6 +44,10 @@ interface FormData {
       end: string;
       timezone: string;
     };
+    minMarketCap?: number;
+    maxMarketCap?: number;
+    minLiquidity?: number;
+    minKOLConfidence?: number;
   };
   watchConfig: {
     takeProfitPercentage: number;
@@ -61,7 +65,7 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
 }) => {
   const { updateSubscriptionSettings, getSubscription } = useSubscriptions();
   const { showSuccess, showError } = useNotifications();
-  const { hasLoaded: hasLoadedSubscriptions } = useSubscriptionManager();
+  const { } = useSubscriptionManager();
   const { filters } = useKOLTradeStore();
   const selectedKolWallet = filters.selectedKOL;
   const effectiveSubscription: UserSubscription | null = subscription || (selectedKolWallet ? getSubscription?.(selectedKolWallet) || null : null);
@@ -86,6 +90,10 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
         end: '17:00',
         timezone: 'UTC',
       },
+      minMarketCap: 0,
+      maxMarketCap: 0,
+      minLiquidity: 0,
+      minKOLConfidence: 0,
     },
     watchConfig: {
       takeProfitPercentage: 50,
@@ -102,35 +110,39 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
     const latest = getSubscription?.(effectiveSubscription.kolWallet) || effectiveSubscription;
     const isTradeDisabled = process.env.NEXT_PUBLIC_DISABLE_B === 'true';
     const defaultType = isTradeDisabled ? 'watch' : (latest.type ?? 'trade');
-      setFormData({
-        type: defaultType,
-        minAmount: latest.minAmount ?? 0.01,
-        maxAmount: latest.maxAmount ?? 1.0,
-        copyPercentage: latest.copyPercentage ?? 100,
-        tokenBuyCount: (latest as any).tokenBuyCount ?? 0,
-        isActive: latest.isActive ?? true,
-        settings: {
-          enableSlippageProtection: latest.settings?.enableSlippageProtection ?? true,
-          maxSlippagePercent: latest.settings?.maxSlippagePercent ?? 5,
-          enableDexWhitelist: latest.settings?.enableDexWhitelist ?? false,
-          allowedDexes: latest.settings?.allowedDexes ?? [],
-          enableTokenBlacklist: latest.settings?.enableTokenBlacklist ?? false,
-          blacklistedTokens: latest.settings?.blacklistedTokens ?? [],
-          enableTimeRestrictions: latest.settings?.enableTimeRestrictions ?? false,
-          tradingHours: {
-            start: latest.settings?.tradingHours?.start ?? '09:00',
-            end: latest.settings?.tradingHours?.end ?? '17:00',
-            timezone: latest.settings?.tradingHours?.timezone ?? 'UTC',
-          },
+    setFormData({
+      type: defaultType,
+      minAmount: latest.minAmount ?? 0.01,
+      maxAmount: latest.maxAmount ?? 1.0,
+      copyPercentage: latest.copyPercentage ?? 100,
+      tokenBuyCount: (latest as any).tokenBuyCount ?? 0,
+      isActive: latest.isActive ?? true,
+      settings: {
+        enableSlippageProtection: latest.settings?.enableSlippageProtection ?? true,
+        maxSlippagePercent: latest.settings?.maxSlippagePercent ?? 5,
+        enableDexWhitelist: latest.settings?.enableDexWhitelist ?? false,
+        allowedDexes: latest.settings?.allowedDexes ?? [],
+        enableTokenBlacklist: latest.settings?.enableTokenBlacklist ?? false,
+        blacklistedTokens: latest.settings?.blacklistedTokens ?? [],
+        enableTimeRestrictions: latest.settings?.enableTimeRestrictions ?? false,
+        tradingHours: {
+          start: latest.settings?.tradingHours?.start ?? '09:00',
+          end: latest.settings?.tradingHours?.end ?? '17:00',
+          timezone: latest.settings?.tradingHours?.timezone ?? 'UTC',
         },
-        watchConfig: {
-          takeProfitPercentage: latest.watchConfig?.takeProfitPercentage ?? 50,
-          stopLossPercentage: latest.watchConfig?.stopLossPercentage ?? 20,
-          enableTrailingStop: latest.watchConfig?.enableTrailingStop ?? false,
-          trailingPercentage: latest.watchConfig?.trailingPercentage ?? 10,
-          maxHoldTimeMinutes: latest.watchConfig?.maxHoldTimeMinutes ?? 1440,
-        },
-      });
+        minMarketCap: latest.settings?.minMarketCap ?? 0,
+        maxMarketCap: latest.settings?.maxMarketCap ?? 0,
+        minLiquidity: latest.settings?.minLiquidity ?? 0,
+        minKOLConfidence: latest.settings?.minKOLConfidence ?? 0,
+      },
+      watchConfig: {
+        takeProfitPercentage: latest.watchConfig?.takeProfitPercentage ?? 50,
+        stopLossPercentage: latest.watchConfig?.stopLossPercentage ?? 20,
+        enableTrailingStop: latest.watchConfig?.enableTrailingStop ?? false,
+        trailingPercentage: latest.watchConfig?.trailingPercentage ?? 10,
+        maxHoldTimeMinutes: latest.watchConfig?.maxHoldTimeMinutes ?? 1440,
+      },
+    });
   }, [isOpen, effectiveSubscription, getSubscription]);
 
   // Force type to 'watch' if 'trade' is disabled
@@ -171,6 +183,10 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
           end: effectiveSubscription.settings?.tradingHours?.end ?? '17:00',
           timezone: effectiveSubscription.settings?.tradingHours?.timezone ?? 'UTC',
         },
+        minMarketCap: effectiveSubscription.settings?.minMarketCap ?? 0,
+        maxMarketCap: effectiveSubscription.settings?.maxMarketCap ?? 0,
+        minLiquidity: effectiveSubscription.settings?.minLiquidity ?? 0,
+        minKOLConfidence: effectiveSubscription.settings?.minKOLConfidence ?? 0,
       },
       watchConfig: {
         takeProfitPercentage: effectiveSubscription.watchConfig?.takeProfitPercentage ?? 50,
@@ -235,12 +251,12 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
       const keys = path.split('.');
       const updated = { ...prev };
       let current: any = updated;
-      
+
       for (let i = 0; i < keys.length - 1; i++) {
         current[keys[i]] = { ...current[keys[i]] };
         current = current[keys[i]];
       }
-      
+
       current[keys[keys.length - 1]] = value;
       return updated;
     });
@@ -251,8 +267,8 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
   const displayName = `KOL ${effectiveSubscription.kolWallet.slice(0, 6)}...${effectiveSubscription.kolWallet.slice(-4)}`;
 
   return (
-    <Modal 
-      isOpen={isOpen} 
+    <Modal
+      isOpen={isOpen}
       onClose={onClose}
       title={'Subscription Settings'}
       description={`Configure settings for ${displayName}`}
@@ -274,296 +290,348 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
               <h4 className="text-sm font-medium text-foreground">Basic</h4>
               <p className="text-xs text-muted-foreground">Configure subscription type and limits</p>
             </div>
-              <div>
-                <Label htmlFor="type">Subscription Type</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: 'trade' | 'watch') => {
-                    // Prevent selecting 'trade' when disabled
-                    if (value === 'trade' && process.env.NEXT_PUBLIC_DISABLE_B === 'true') {
-                      return;
-                    }
-                    updateFormData('type', value);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {process.env.NEXT_PUBLIC_DISABLE_B === 'true' ? (
-                      <SelectItem value="trade" disabled className="opacity-50 cursor-not-allowed pointer-events-none">
-                        <div className="flex items-center justify-between w-full">
-                          <span>Copy Trading</span>
-                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full ml-2">
-                            Coming Soon
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ) : (
-                      <SelectItem value="trade">Copy Trading</SelectItem>
-                    )}
-                    <SelectItem value="watch">Watch Only</SelectItem>
-                  </SelectContent>
-                </Select>
-                {process.env.NEXT_PUBLIC_DISABLE_B === 'true' && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Copy Trading is currently under development. Use Watch Only mode to track KOL trades.
-                  </p>
-                )}
-              </div>
- 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="minAmount">Minimum Amount (SOL)</Label>
-                  <Input
-                    id="minAmount"
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    value={formData.minAmount}
-                    onChange={(e) => updateFormData('minAmount', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="maxAmount">Maximum Amount (SOL)</Label>
-                  <Input
-                    id="maxAmount"
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    value={formData.maxAmount}
-                    onChange={(e) => updateFormData('maxAmount', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-              </div>
- 
-              {formData.type === 'trade' && (
-                <div>
-                  <Label htmlFor="copyPercentage">Copy Percentage (%)</Label>
-                  <Input
-                    id="copyPercentage"
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={formData.copyPercentage || 100}
-                    onChange={(e) => updateFormData('copyPercentage', parseInt(e.target.value) || 100)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Percentage of KOL trade size to copy</p>
-                </div>
+            <div>
+              <Label htmlFor="type">Subscription Type</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value: string) => {
+                  const typeValue = value as 'trade' | 'watch';
+                  // Prevent selecting 'trade' when disabled
+                  if (typeValue === 'trade' && process.env.NEXT_PUBLIC_DISABLE_B === 'true') {
+                    return;
+                  }
+                  updateFormData('type', typeValue);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {process.env.NEXT_PUBLIC_DISABLE_B === 'true' ? (
+                    <SelectItem value="trade" disabled className="opacity-50 cursor-not-allowed pointer-events-none">
+                      <div className="flex items-center justify-between w-full">
+                        <span>Copy Trading</span>
+                        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full ml-2">
+                          Coming Soon
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ) : (
+                    <SelectItem value="trade">Copy Trading</SelectItem>
+                  )}
+                  <SelectItem value="watch">Watch Only</SelectItem>
+                </SelectContent>
+              </Select>
+              {process.env.NEXT_PUBLIC_DISABLE_B === 'true' && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Copy Trading is currently under development. Use Watch Only mode to track KOL trades.
+                </p>
               )}
- 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="tokenBuyCount">Token Buy Count</Label>
-                  <Input
-                    id="tokenBuyCount"
-                    type="number"
-                    min="0"
-                    value={formData.tokenBuyCount ?? 0}
-                    onChange={(e) => updateFormData('tokenBuyCount', parseInt(e.target.value) || 0)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max number of different tokens to buy</p>
-                </div>
-                <div className="flex items-end">
-                  <div className="w-full">
-                    <Label>Status</Label>
-                    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-background">
-                      <span className="text-sm text-muted-foreground">{formData.isActive ? 'Active' : 'Paused'}</span>
-                      <Button
-                        variant={formData.isActive ? 'secondary' : 'default'}
-                        size="sm"
-                        onClick={() => updateFormData('isActive', !formData.isActive)}
-                        className="flex items-center space-x-2"
-                      >
-                        {formData.isActive ? (
-                          <>
-                            <Pause className="w-4 h-4" />
-                            <span>Pause</span>
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4" />
-                            <span>Resume</span>
-                          </>
-                        )}
-                      </Button>
-                    </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="minAmount">Minimum Amount (SOL)</Label>
+                <Input
+                  id="minAmount"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={formData.minAmount}
+                  onChange={(e) => updateFormData('minAmount', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="maxAmount">Maximum Amount (SOL)</Label>
+                <Input
+                  id="maxAmount"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={formData.maxAmount}
+                  onChange={(e) => updateFormData('maxAmount', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+
+            {formData.type === 'trade' && (
+              <div>
+                <Label htmlFor="copyPercentage">Copy Percentage (%)</Label>
+                <Input
+                  id="copyPercentage"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={formData.copyPercentage || 100}
+                  onChange={(e) => updateFormData('copyPercentage', parseInt(e.target.value) || 100)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Percentage of KOL trade size to copy</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="tokenBuyCount">Token Buy Count</Label>
+                <Input
+                  id="tokenBuyCount"
+                  type="number"
+                  min="0"
+                  value={formData.tokenBuyCount ?? 0}
+                  onChange={(e) => updateFormData('tokenBuyCount', parseInt(e.target.value) || 0)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Max number of different tokens to buy</p>
+              </div>
+              <div className="flex items-end">
+                <div className="w-full">
+                  <Label>Status</Label>
+                  <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-background">
+                    <span className="text-sm text-muted-foreground">{formData.isActive ? 'Active' : 'Paused'}</span>
+                    <Button
+                      variant={formData.isActive ? 'secondary' : 'default'}
+                      size="sm"
+                      onClick={() => updateFormData('isActive', !formData.isActive)}
+                      className="flex items-center space-x-2"
+                    >
+                      {formData.isActive ? (
+                        <>
+                          <Pause className="w-4 h-4" />
+                          <span>Pause</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4" />
+                          <span>Resume</span>
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
+            </div>
           </div>
         </TabsContent>
- 
+
         <TabsContent value="trading" className="space-y-4">
           <div className="bg-muted/50 rounded-lg p-4 sm:p-6 space-y-4">
             <div>
               <h4 className="text-sm font-medium text-foreground">Trading</h4>
               <p className="text-xs text-muted-foreground">Slippage protection and trade controls</p>
             </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Slippage Protection</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Protect against excessive slippage during trades
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.settings.enableSlippageProtection}
-                  onCheckedChange={(checked: boolean) => updateFormData('settings.enableSlippageProtection', checked)}
-                />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Slippage Protection</Label>
+                <p className="text-sm text-muted-foreground">
+                  Protect against excessive slippage during trades
+                </p>
               </div>
- 
-              {formData.settings.enableSlippageProtection && (
-                <div>
-                  <Label htmlFor="maxSlippage">Maximum Slippage (%)</Label>
-                  <Input
-                    id="maxSlippage"
-                    type="number"
-                    min="0"
-                    max="50"
-                    step="0.1"
-                    value={formData.settings.maxSlippagePercent}
-                    onChange={(e) => updateFormData('settings.maxSlippagePercent', parseFloat(e.target.value) || 0)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Trades above this slippage will be skipped</p>
-                </div>
-              )}
+              <Switch
+                checked={formData.settings.enableSlippageProtection}
+                onCheckedChange={(checked: boolean) => updateFormData('settings.enableSlippageProtection', checked)}
+              />
+            </div>
+
+            {formData.settings.enableSlippageProtection && (
+              <div>
+                <Label htmlFor="maxSlippage">Maximum Slippage (%)</Label>
+                <Input
+                  id="maxSlippage"
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.1"
+                  value={formData.settings.maxSlippagePercent}
+                  onChange={(e) => updateFormData('settings.maxSlippagePercent', parseFloat(e.target.value) || 0)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Trades above this slippage will be skipped</p>
+              </div>
+            )}
           </div>
         </TabsContent>
- 
+
         <TabsContent value="protection" className="space-y-4">
           <div className="bg-muted/50 rounded-lg p-4 sm:p-6 space-y-4">
             <div>
               <h4 className="text-sm font-medium text-foreground">Protection</h4>
               <p className="text-xs text-muted-foreground">Time restrictions and trading windows</p>
             </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Time Restrictions</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Limit trading to specific hours
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.settings.enableTimeRestrictions}
-                  onCheckedChange={(checked: boolean) => updateFormData('settings.enableTimeRestrictions', checked)}
-                />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Time Restrictions</Label>
+                <p className="text-sm text-muted-foreground">
+                  Limit trading to specific hours
+                </p>
               </div>
- 
-              {formData.settings.enableTimeRestrictions && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="startTime">Start Time</Label>
-                    <Input
-                      id="startTime"
-                      type="time"
-                      value={formData.settings.tradingHours.start}
-                      onChange={(e) => updateFormData('settings.tradingHours.start', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="endTime">End Time</Label>
-                    <Input
-                      id="endTime"
-                      type="time"
-                      value={formData.settings.tradingHours.end}
-                      onChange={(e) => updateFormData('settings.tradingHours.end', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="timezone">Timezone</Label>
-                    <Select
-                      value={formData.settings.tradingHours.timezone}
-                      onValueChange={(value: string) => updateFormData('settings.tradingHours.timezone', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="UTC">UTC</SelectItem>
-                        <SelectItem value="America/New_York">EST</SelectItem>
-                        <SelectItem value="America/Los_Angeles">PST</SelectItem>
-                        <SelectItem value="Europe/London">GMT</SelectItem>
-                        <SelectItem value="Asia/Tokyo">JST</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <Switch
+                checked={formData.settings.enableTimeRestrictions}
+                onCheckedChange={(checked: boolean) => updateFormData('settings.enableTimeRestrictions', checked)}
+              />
+            </div>
+
+            {formData.settings.enableTimeRestrictions && (
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="startTime">Start Time</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={formData.settings.tradingHours.start}
+                    onChange={(e) => updateFormData('settings.tradingHours.start', e.target.value)}
+                  />
                 </div>
-              )}
+                <div>
+                  <Label htmlFor="endTime">End Time</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={formData.settings.tradingHours.end}
+                    onChange={(e) => updateFormData('settings.tradingHours.end', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <Select
+                    value={formData.settings.tradingHours.timezone}
+                    onValueChange={(value: string) => updateFormData('settings.tradingHours.timezone', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UTC">UTC</SelectItem>
+                      <SelectItem value="America/New_York">EST</SelectItem>
+                      <SelectItem value="America/Los_Angeles">PST</SelectItem>
+                      <SelectItem value="Europe/London">GMT</SelectItem>
+                      <SelectItem value="Asia/Tokyo">JST</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            <Separator className="my-2" />
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="minMarketCap">Min Market Cap ($)</Label>
+                  <Input
+                    id="minMarketCap"
+                    type="number"
+                    placeholder="e.g. 50000"
+                    value={formData.settings.minMarketCap || ''}
+                    onChange={(e) => updateFormData('settings.minMarketCap', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maxMarketCap">Max Market Cap ($)</Label>
+                  <Input
+                    id="maxMarketCap"
+                    type="number"
+                    placeholder="e.g. 1000000"
+                    value={formData.settings.maxMarketCap || ''}
+                    onChange={(e) => updateFormData('settings.maxMarketCap', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="minLiquidity">Min Liquidity ($)</Label>
+                  <Input
+                    id="minLiquidity"
+                    type="number"
+                    placeholder="e.g. 10000"
+                    value={formData.settings.minLiquidity || ''}
+                    onChange={(e) => updateFormData('settings.minLiquidity', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="minKOLConfidence">Min KOL Confidence (%)</Label>
+                  <Input
+                    id="minKOLConfidence"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.settings.minKOLConfidence || ''}
+                    onChange={(e) => updateFormData('settings.minKOLConfidence', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </TabsContent>
- 
+
         <TabsContent value="watch" className="space-y-4">
           <div className="bg-muted/50 rounded-lg p-4 sm:p-6 space-y-4">
             <div>
               <h4 className="text-sm font-medium text-foreground">TP/SL settings</h4>
               <p className="text-xs text-muted-foreground">Rules for watch-only mode</p>
             </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="takeProfit">Take Profit (%)</Label>
-                  <Input
-                    id="takeProfit"
-                    type="number"
-                    min="0"
-                    max="1000"
-                    value={formData.watchConfig.takeProfitPercentage}
-                    onChange={(e) => updateFormData('watchConfig.takeProfitPercentage', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="stopLoss">Stop Loss (%)</Label>
-                  <Input
-                    id="stopLoss"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.watchConfig.stopLossPercentage}
-                    onChange={(e) => updateFormData('watchConfig.stopLossPercentage', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-              </div>
- 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Trailing Stop</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Enable trailing stop loss
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.watchConfig.enableTrailingStop}
-                  onCheckedChange={(checked: boolean) => updateFormData('watchConfig.enableTrailingStop', checked)}
-                />
-              </div>
- 
-              {formData.watchConfig.enableTrailingStop && (
-                <div>
-                  <Label htmlFor="trailingPercent">Trailing Percentage (%)</Label>
-                  <Input
-                    id="trailingPercent"
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={formData.watchConfig.trailingPercentage}
-                    onChange={(e) => updateFormData('watchConfig.trailingPercentage', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-              )}
- 
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="maxHoldTime">Max Hold Time (minutes)</Label>
+                <Label htmlFor="takeProfit">Take Profit (%)</Label>
                 <Input
-                  id="maxHoldTime"
+                  id="takeProfit"
                   type="number"
-                  min="1"
-                  value={formData.watchConfig.maxHoldTimeMinutes}
-                  onChange={(e) => updateFormData('watchConfig.maxHoldTimeMinutes', parseInt(e.target.value) || 0)}
+                  min="0"
+                  max="1000"
+                  value={formData.watchConfig.takeProfitPercentage}
+                  onChange={(e) => updateFormData('watchConfig.takeProfitPercentage', parseFloat(e.target.value) || 0)}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Maximum time to hold a position (1440 = 24 hours)
+              </div>
+              <div>
+                <Label htmlFor="stopLoss">Stop Loss (%)</Label>
+                <Input
+                  id="stopLoss"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.watchConfig.stopLossPercentage}
+                  onChange={(e) => updateFormData('watchConfig.stopLossPercentage', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Trailing Stop</Label>
+                <p className="text-sm text-muted-foreground">
+                  Enable trailing stop loss
                 </p>
               </div>
+              <Switch
+                checked={formData.watchConfig.enableTrailingStop}
+                onCheckedChange={(checked: boolean) => updateFormData('watchConfig.enableTrailingStop', checked)}
+              />
+            </div>
+
+            {formData.watchConfig.enableTrailingStop && (
+              <div>
+                <Label htmlFor="trailingPercent">Trailing Percentage (%)</Label>
+                <Input
+                  id="trailingPercent"
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={formData.watchConfig.trailingPercentage}
+                  onChange={(e) => updateFormData('watchConfig.trailingPercentage', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="maxHoldTime">Max Hold Time (minutes)</Label>
+              <Input
+                id="maxHoldTime"
+                type="number"
+                min="1"
+                value={formData.watchConfig.maxHoldTimeMinutes}
+                onChange={(e) => updateFormData('watchConfig.maxHoldTimeMinutes', parseInt(e.target.value) || 0)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Maximum time to hold a position (1440 = 24 hours)
+              </p>
+            </div>
           </div>
         </TabsContent>
 
@@ -600,6 +668,10 @@ const SubscriptionSettingsModal: React.FC<SubscriptionSettingsModalProps> = ({
                         end: latest.settings?.tradingHours?.end ?? '17:00',
                         timezone: latest.settings?.tradingHours?.timezone ?? 'UTC',
                       },
+                      minMarketCap: latest.settings?.minMarketCap ?? 0,
+                      maxMarketCap: latest.settings?.maxMarketCap ?? 0,
+                      minLiquidity: latest.settings?.minLiquidity ?? 0,
+                      minKOLConfidence: latest.settings?.minKOLConfidence ?? 0,
                     },
                     watchConfig: {
                       takeProfitPercentage: latest.watchConfig?.takeProfitPercentage ?? 50,

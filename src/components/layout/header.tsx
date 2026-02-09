@@ -18,6 +18,7 @@ import {
   Brain,
   HelpCircle,
   TrendingUp,
+  Gamepad2,
 } from 'lucide-react';
 import WalletDropdown from './wallet-dropdown';
 import UserMenu from './user-menu';
@@ -94,6 +95,13 @@ const proNavigationItems: NavigationItem[] = [
     href: '/pro-terminal/analytics',
     icon: TrendingUp, // Reusing TrendingUp or could import LineChart
     description: 'Deep market analysis',
+  },
+  {
+    name: 'AFK Mode',
+    href: '/pro-terminal/afk',
+    icon: Gamepad2,
+    description: 'Automated trading & agents',
+    badge: 'NEW',
   },
   {
     name: 'Portfolio',

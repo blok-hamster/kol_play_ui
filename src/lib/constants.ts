@@ -65,8 +65,8 @@ export const API_ENDPOINTS = {
     GET_USER_ACCOUNT_DETAILS: '/api/features/get-user-account-details',
 
     // Settings
-    GET_TRADING_SETTINGS: '/api/features/get-trading-settings',
-    UPDATE_TRADING_SETTINGS: '/api/features/update-trading-settings',
+    GET_TRADING_SETTINGS: '/api/features/get-settings',
+    UPDATE_TRADING_SETTINGS: '/api/features/update-settings',
 
     // KOL Management
     ADD_KOL_TO_WEBHOOK: '/api/features/add-kol-to-webhook',

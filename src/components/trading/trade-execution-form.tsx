@@ -10,7 +10,8 @@ import {
     AlertTriangle,
     History,
     TrendingDown,
-    TrendingUp
+    TrendingUp,
+    Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUserStore } from '@/stores/use-user-store';
@@ -59,6 +60,7 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
     // Advanced Settings
     const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
     const [slippage, setSlippage] = useState<number>(0.5);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const solPresets = [0.1, 0.2, 0.5, 1];
 
@@ -112,6 +114,7 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
         }
 
         try {
+            setIsSubmitting(true);
             const payload: any = {
                 mint,
                 amount: Number(amount),
@@ -135,12 +138,15 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
 
             if (res.data?.success || res.success) {
                 showNotification('Success', `${side === 'buy' ? 'Bought' : 'Sold'} ${symbol} successfully!`, 'success');
+                setAmount(''); // Clear amount on success
             } else {
                 showNotification('Trade Failed', res.message || 'Transaction not confirmed', 'error');
             }
         } catch (e: any) {
             console.error(e);
             showNotification('Trade Failed', e.message || 'An unexpected error occurred', 'error');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -426,8 +432,16 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
                         side === 'buy' ? "bg-green-500 hover:bg-green-600 shadow-green-500/20" : "bg-red-500 hover:bg-red-600 shadow-red-500/20"
                     )}
                     onClick={handleTrade}
+                    disabled={isSubmitting}
                 >
-                    {side.toUpperCase()} {symbol}
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            PROCESSING...
+                        </>
+                    ) : (
+                        `${side.toUpperCase()} ${symbol}`
+                    )}
                 </Button>
             </div>
         </Card>

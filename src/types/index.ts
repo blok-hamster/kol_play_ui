@@ -224,6 +224,13 @@ export interface SubscriptionSettings {
     end: string;
     timezone: string;
   };
+  minMarketCap?: number;
+  maxMarketCap?: number;
+  minLiquidity?: number;
+  minKOLConfidence?: number;
+  minKOLConvergence?: number | undefined;
+  convergenceWindowMinutes?: number | undefined;
+  afkEnabled?: boolean;
 }
 
 // Trading and Portfolio Types
@@ -233,6 +240,7 @@ export interface WatchConfig {
   enableTrailingStop: boolean;
   trailingPercentage: number;
   maxHoldTimeMinutes: number;
+  priority?: 'low' | 'medium' | 'high';
 }
 
 export interface TradingSettings {
@@ -242,6 +250,19 @@ export interface TradingSettings {
   useWatchConfig?: boolean;
   paperTrading?: boolean;
   watchConfig?: WatchConfig;
+  // Global Filters
+  enableMarketCapFilter?: boolean;
+  minMarketCap?: number;
+  maxMarketCap?: number;
+  enableLiquidityFilter?: boolean;
+  minLiquidity?: number;
+  tokenBlacklist?: string[];
+  dexWhitelist?: string[];
+  useTurboPriority?: boolean;
+  maxConcurrentTrades?: number;
+  minKOLConvergence?: number | undefined;
+  convergenceWindowMinutes?: number | undefined;
+  afkEnabled?: boolean;
 }
 
 export interface SwapData {

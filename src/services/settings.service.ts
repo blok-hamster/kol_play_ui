@@ -393,7 +393,7 @@ export class SettingsService {
   static async getUserSettings(): Promise<ApiResponse<UpdateSettingParams>> {
     try {
       const response = await apiClient.get<UpdateSettingParams>(
-        '/api/features/get-settings'
+        API_ENDPOINTS.FEATURES.GET_TRADING_SETTINGS
       );
       return response;
     } catch (error: any) {
@@ -450,7 +450,7 @@ export class SettingsService {
   ): Promise<ApiResponse<UpdateSettingParams>> {
     try {
       const response = await apiClient.post<UpdateSettingParams>(
-        '/api/features/update-settings/',
+        API_ENDPOINTS.FEATURES.UPDATE_TRADING_SETTINGS,
         settings
       );
       return response;

@@ -59,7 +59,10 @@ interface TradingState {
   updateSubscriptionSettings: (
     kolWallet: string,
     updates: Partial<UserSubscription>
-  ) => Promise<void>; // Add update subscription settings function
+  ) => Promise<void>;
+  bulkUpdateSubscriptionSettings: (
+    updates: UpdateUserSubscriptionRequest[]
+  ) => Promise<void>;
 
   // Live trades actions
   setLiveTradesFeed: (trades: KOLTrade[]) => void;
@@ -81,6 +84,8 @@ interface TradingState {
   // Settings actions
   setTradingSettings: (settings: TradingSettings) => void;
   updateTradingSettings: (updates: Partial<TradingSettings>) => void;
+  saveTradingSettings: () => Promise<void>;
+  fetchTradingSettings: () => Promise<void>;
 
   // Clear all data
   clearTradingData: () => void;
@@ -104,13 +109,39 @@ export const useTradingStore = create<TradingState>()(
         slippage: 0.5,
         minSpend: 0.01,
         maxSpend: 1.0,
-        useWatchConfig: false,
+        useWatchConfig: true,
+        watchConfig: {
+          takeProfitPercentage: 50,
+          stopLossPercentage: 15,
+          enableTrailingStop: false,
+          trailingPercentage: 10,
+          maxHoldTimeMinutes: 1440, // 24 hours
+        },
+        enableMarketCapFilter: true,
+        minMarketCap: 10000,
+        maxMarketCap: 50000000,
+        enableLiquidityFilter: true,
+        minLiquidity: 50000,
+        tokenBlacklist: [],
+        dexWhitelist: ['Raydium', 'Jupiter', 'Orca', 'Pump.fun'],
+        useTurboPriority: false,
+        paperTrading: false,
+        maxConcurrentTrades: 3,
+        minKOLConvergence: 1,
+        convergenceWindowMinutes: 60,
+        afkEnabled: false,
       },
       isPaperTrading: false, // Default to Real execution, user can toggle
       error: null,
 
       // Basic setters
-      setPaperTrading: enabled => set({ isPaperTrading: enabled }),
+      setPaperTrading: enabled => {
+        const currentSettings = get().tradingSettings;
+        set({ 
+          isPaperTrading: enabled,
+          tradingSettings: { ...currentSettings, paperTrading: enabled }
+        });
+      },
       setError: error => set({ error }),
 
       // Subscription actions
@@ -177,9 +208,7 @@ export const useTradingStore = create<TradingState>()(
         
         set({ isLoadingSubscriptions: true });
         try {
-          void 0 && ('Initializing subscriptions from store...');
           const response = await TradingService.getUserSubscriptions();
-          void 0 && ('Store API Response:', response);
 
           if (response.data) {
             // Filter out subscriptions without kolWallet and transform dates
@@ -196,7 +225,7 @@ export const useTradingStore = create<TradingState>()(
               hasLoadedSubscriptions: true,
               error: null
             });
-            void 0 && ('Store: Successfully loaded subscriptions:', validSubscriptions);
+            // Successfully loaded subscriptions
           } else {
             throw new Error(response.message || 'Failed to fetch subscriptions');
           }
@@ -277,9 +306,7 @@ export const useTradingStore = create<TradingState>()(
         });
         
         try {
-          void 0 && ('Refreshing subscriptions from store...');
           const response = await TradingService.getUserSubscriptions();
-          void 0 && ('Store Refresh API Response:', response);
 
           if (response.data) {
             // Filter out subscriptions without kolWallet and transform dates
@@ -296,7 +323,7 @@ export const useTradingStore = create<TradingState>()(
               hasLoadedSubscriptions: true,
               error: null
             });
-            void 0 && ('Store: Successfully refreshed subscriptions:', validSubscriptions);
+            // Successfully refreshed subscriptions
           } else {
             throw new Error(response.message || 'Failed to refresh subscriptions');
           }
@@ -320,8 +347,6 @@ export const useTradingStore = create<TradingState>()(
         }
 
         try {
-          void 0 && ('Updating subscription settings for:', kolWallet);
-          
           // Prepare the update request
           const updateRequest: UpdateUserSubscriptionRequest = {
             kolWallet,
@@ -330,17 +355,16 @@ export const useTradingStore = create<TradingState>()(
             tokenBuyCount: (updates as any).tokenBuyCount,
             isActive: updates.isActive,
             type: updates.type,
-            settings: updates.settings,
-            watchConfig: updates.watchConfig,
+            settings: updates.settings as any,
+            watchConfig: updates.watchConfig as any,
           };
 
           const response = await TradingService.updateUserSubscription(updateRequest);
-          void 0 && ('Store Update Subscription API Response:', response);
 
           if (response.data) {
             // Robustly handle if response.data is an array (which some backend methods do)
             const updatedData = Array.isArray(response.data) 
-              ? response.data.find(s => s.kolWallet === kolWallet) || response.data[0]
+              ? response.data.find((s: any) => s.kolWallet === kolWallet) || response.data[0]
               : response.data;
 
             if (!updatedData) {
@@ -354,7 +378,7 @@ export const useTradingStore = create<TradingState>()(
                 : sub
             );
             set({ subscriptions: updatedSubscriptions, error: null });
-            void 0 && ('Store: Successfully updated subscription settings for:', kolWallet);
+            // Successfully updated subscription settings
           } else {
             throw new Error(response.message || 'Failed to update subscription settings');
           }
@@ -362,6 +386,32 @@ export const useTradingStore = create<TradingState>()(
           console.error('Store: Error updating subscription settings:', error);
           set({ error: error.message || 'Failed to update subscription settings' });
           throw error;
+        }
+      },
+
+      bulkUpdateSubscriptionSettings: async (updates) => {
+        set({ isLoadingSubscriptions: true });
+        try {
+          const response = await TradingService.bulkUpdateSubscriptions(updates);
+          if (response.data) {
+            const current = get().subscriptions;
+            const updatedSubs = response.data;
+            
+            const newSubscriptions = current.map(sub => {
+              const update = updatedSubs.find(u => u.kolWallet === sub.kolWallet);
+              return update ? { ...sub, ...update, updatedAt: new Date() } : sub;
+            });
+
+            set({ subscriptions: newSubscriptions, error: null });
+          } else {
+            throw new Error(response.message || 'Failed to bulk update subscriptions');
+          }
+        } catch (error: any) {
+          console.error('Store: Error bulk updating subscriptions:', error);
+          set({ error: error.message || 'Failed to bulk update subscriptions' });
+          throw error;
+        } finally {
+          set({ isLoadingSubscriptions: false });
         }
       },
 
@@ -409,9 +459,80 @@ export const useTradingStore = create<TradingState>()(
       // Settings actions
       setTradingSettings: tradingSettings => set({ tradingSettings }),
 
-      updateTradingSettings: updates => {
+      updateTradingSettings: (updates: Partial<TradingSettings>) => {
         const current = get().tradingSettings;
         set({ tradingSettings: { ...current, ...updates } });
+      },
+
+      saveTradingSettings: async () => {
+        const settings = get().tradingSettings;
+        set({ isLoadingStats: true }); // Use loading stats as overlay
+        try {
+          const response = await TradingService.updateTradingSettings(settings);
+          if (response.success) {
+            set({ error: null });
+            // Successfully saved trading settings
+          } else {
+            throw new Error(response.message || 'Failed to save settings');
+          }
+        } catch (error: any) {
+          console.error('Store: Error saving trading settings:', error);
+          set({ error: error.message || 'Failed to save settings' });
+          throw error;
+        } finally {
+          set({ isLoadingStats: false });
+        }
+      },
+      
+      fetchTradingSettings: async () => {
+        set({ isLoadingStats: true });
+        try {
+          const response = await TradingService.getTradingSettings();
+          if (response.data) {
+            // Map structured backend settings back to flat store settings
+            const backendSettings: any = response.data;
+            const tradeConfig = backendSettings.tradeConfig || {};
+            const watchConfig = backendSettings.watchConfig || {};
+            
+            const mergedSettings: TradingSettings = {
+              ...get().tradingSettings,
+              slippage: tradeConfig.slippage ?? 0.5,
+              minSpend: tradeConfig.minSpend ?? 0.01,
+              maxSpend: tradeConfig.maxSpend ?? 1.0,
+              useWatchConfig: tradeConfig.useWatchConfig ?? true,
+              paperTrading: tradeConfig.paperTrading ?? false,
+              useTurboPriority: tradeConfig.useTurboPriority ?? false,
+              enableMarketCapFilter: tradeConfig.enableMarketCapFilter ?? true,
+              minMarketCap: tradeConfig.minMarketCap ?? 10000,
+              maxMarketCap: tradeConfig.maxMarketCap ?? 50000000,
+              enableLiquidityFilter: tradeConfig.enableLiquidityFilter ?? true,
+              minLiquidity: tradeConfig.minLiquidity ?? 50000,
+              tokenBlacklist: tradeConfig.tokenBlacklist ?? [],
+              dexWhitelist: tradeConfig.dexWhitelist ?? ['Raydium', 'Jupiter', 'Orca', 'Pump.fun'],
+              maxConcurrentTrades: tradeConfig.maxConcurrentTrades ?? 3,
+              watchConfig: {
+                takeProfitPercentage: watchConfig.takeProfitPercentage ?? 50,
+                stopLossPercentage: watchConfig.stopLossPercentage ?? 15,
+                enableTrailingStop: watchConfig.enableTrailingStop ?? false,
+                trailingPercentage: watchConfig.trailingPercentage ?? 10,
+                maxHoldTimeMinutes: watchConfig.maxHoldTimeMinutes ?? 1440,
+              },
+              minKOLConvergence: tradeConfig.minKOLConvergence ?? 1,
+              convergenceWindowMinutes: tradeConfig.convergenceWindowMinutes ?? 60,
+              afkEnabled: tradeConfig.afkEnabled ?? false,
+            };
+            
+            set({ 
+              tradingSettings: mergedSettings,
+              isPaperTrading: mergedSettings.paperTrading || false,
+              error: null 
+            });
+          }
+        } catch (error: any) {
+          console.error('Store: Error fetching trading settings:', error);
+        } finally {
+          set({ isLoadingStats: false });
+        }
       },
 
       // Clear all data
@@ -452,6 +573,7 @@ export const useSubscriptions = () => {
     initializeSubscriptions,
     refreshSubscriptions,
     updateSubscriptionSettings,
+    bulkUpdateSubscriptionSettings,
   } = useTradingStore();
 
   return {
@@ -467,6 +589,7 @@ export const useSubscriptions = () => {
     initializeSubscriptions,
     refreshSubscriptions,
     updateSubscriptionSettings,
+    bulkUpdateSubscriptionSettings,
     // Convenience methods
     isSubscribedToKOL: (kolWallet: string) =>
       subscriptions.some(sub => sub.kolWallet === kolWallet && sub.isActive),
