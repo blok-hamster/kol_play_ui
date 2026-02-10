@@ -171,12 +171,12 @@ export function AfkTerminal() {
 
             <div className="flex flex-1 min-h-0">
                 {/* Side Logs */}
-                <div className="w-1/3 border-r border-zinc-900 bg-black/40 p-3 hidden lg:flex flex-col">
+                <div className="w-1/3 border-r border-zinc-900 bg-black/40 p-3 hidden lg:flex flex-col min-h-0">
                     <div className="text-[10px] font-black text-zinc-600 uppercase mb-3 flex items-center gap-2">
                         <Zap className="w-3 h-3" />
                         Kernel Logs
                     </div>
-                    <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-none">
+                    <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                         {terminalLogs.map((log, i) => (
                             <div key={i} className={cn(
                                 "text-[10px] leading-relaxed break-all",
@@ -195,8 +195,8 @@ export function AfkTerminal() {
                 </div>
 
                 {/* Main Content */}
-                <div className="flex-1 flex flex-col min-w-0">
-                    <Tabs defaultValue="open" className="flex-1 flex flex-col" onValueChange={setActiveTab}>
+                <div className="flex-1 flex flex-col min-w-0 min-h-0">
+                    <Tabs defaultValue="open" className="flex-1 flex flex-col min-h-0" onValueChange={setActiveTab}>
                         <div className="px-4 py-2 border-b border-zinc-900 flex justify-between items-center bg-black/20">
                             <TabsList className="bg-transparent h-auto p-0 gap-4">
                                 <TabsTrigger
@@ -218,7 +218,7 @@ export function AfkTerminal() {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                        <div className="flex-1 overflow-y-auto p-4 min-h-0 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                             <TabsContent value="open" className="m-0 focus-visible:outline-none">
                                 {openTrades.length === 0 ? (
                                     <div className="h-40 flex flex-col items-center justify-center text-zinc-700 opacity-50 space-y-2">
