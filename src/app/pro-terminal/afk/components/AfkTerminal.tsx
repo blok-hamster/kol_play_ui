@@ -11,6 +11,11 @@ import {
     Zap
 } from 'lucide-react';
 import { SolanaService } from '@/services/solana.service';
+import { PortfolioService } from '@/services/portfolio.service';
+import { useTradingStore } from '@/stores/use-trading-store';
+import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
+import { useEnhancedWebSocket } from '@/hooks/use-enhanced-websocket';
+import AuthService from '@/services/auth.service';
 import { cn, safeFormatAmount, formatCurrency, formatPercentage } from '@/lib/utils';
 import type { TradeHistoryEntry } from '@/types';
 
