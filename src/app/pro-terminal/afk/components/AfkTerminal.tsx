@@ -10,12 +10,8 @@ import {
     RefreshCw,
     Zap
 } from 'lucide-react';
-import { PortfolioService } from '@/services/portfolio.service';
-import { useTradingStore } from '@/stores/use-trading-store';
-import { useTokenLazyLoading } from '@/hooks/use-token-lazy-loading';
-import { useEnhancedWebSocket } from '@/hooks/use-enhanced-websocket';
-import AuthService from '@/services/auth.service';
-import { cn, safeFormatAmount } from '@/lib/utils';
+import { SolanaService } from '@/services/solana.service';
+import { cn, safeFormatAmount, formatCurrency, formatPercentage } from '@/lib/utils';
 import type { TradeHistoryEntry } from '@/types';
 
 export function AfkTerminal() {
@@ -24,6 +20,7 @@ export function AfkTerminal() {
 
     const [openTrades, setOpenTrades] = useState<TradeHistoryEntry[]>([]);
     const [closedTrades, setClosedTrades] = useState<TradeHistoryEntry[]>([]);
+    const [solPrice, setSolPrice] = useState<number>(0);
     const [isLoading, setIsLoading] = useState(true);
     const [terminalLogs, setTerminalLogs] = useState<{ msg: string, type: 'info' | 'success' | 'warning' | 'error' | 'exec' }[]>([]);
     const [, setActiveTab] = useState('open');
@@ -76,6 +73,16 @@ export function AfkTerminal() {
 
     useEffect(() => {
         fetchTrades();
+        const fetchSolPrice = async () => {
+            try {
+                const price = await SolanaService.getSolPrice();
+                setSolPrice(price);
+            } catch (e) {
+                console.error('Failed to fetch SOL price:', e);
+            }
+        };
+        fetchSolPrice();
+
         connect().catch(() => addLog('WebSocket uplink failed. Retrying...', 'warning'));
 
         return () => disconnect();
@@ -97,10 +104,15 @@ export function AfkTerminal() {
                     loadTokens([trade.tokenMint]);
                 }
             } else if (event.type === 'POSITION_UPDATE') {
-                const { tradeId, pnl, currentPrice } = event.data;
+                const { tradeId, pnl, pnlPercent, currentPrice } = event.data;
                 setOpenTrades(prev => prev.map(t => {
                     if (t.id === tradeId || t.originalTradeId === tradeId) {
-                        return { ...t, currentPrice, unrealizedPnL: pnl };
+                        return {
+                            ...t,
+                            currentPrice,
+                            unrealizedPnL: pnl,
+                            unrealizedPnLPercentage: pnlPercent
+                        };
                     }
                     return t;
                 }));
@@ -211,7 +223,7 @@ export function AfkTerminal() {
                                 ) : (
                                     <div className="space-y-4">
                                         {openTrades.map(trade => (
-                                            <TradeEntry key={trade.id} trade={trade} getToken={getToken} isHistory={false} />
+                                            <TradeEntry key={trade.id} trade={trade} getToken={getToken} isHistory={false} solPrice={solPrice} />
                                         ))}
                                     </div>
                                 )}
@@ -226,7 +238,7 @@ export function AfkTerminal() {
                                 ) : (
                                     <div className="space-y-4">
                                         {closedTrades.map(trade => (
-                                            <TradeEntry key={trade.id} trade={trade} getToken={getToken} isHistory={true} />
+                                            <TradeEntry key={trade.id} trade={trade} getToken={getToken} isHistory={true} solPrice={solPrice} />
                                         ))}
                                     </div>
                                 )}
@@ -239,12 +251,13 @@ export function AfkTerminal() {
     );
 }
 
-function TradeEntry({ trade, getToken, isHistory }: { trade: TradeHistoryEntry, getToken: (mint: string) => any, isHistory: boolean }) {
+function TradeEntry({ trade, getToken, isHistory, solPrice }: { trade: TradeHistoryEntry, getToken: (mint: string) => any, isHistory: boolean, solPrice: number }) {
     const info = getToken(trade.tokenMint);
     const symbol = info?.token?.symbol || `${trade.tokenMint.slice(0, 4)}...${trade.tokenMint.slice(-4)}`;
 
-    const pnl = isHistory ? trade.realizedPnLPercentage : trade.unrealizedPnLPercentage;
-    const isPositive = (pnl ?? 0) >= 0;
+    const pnlPercent = isHistory ? trade.realizedPnLPercentage : trade.unrealizedPnLPercentage;
+    const solPnL = isHistory ? trade.realizedPnL : trade.unrealizedPnL;
+    const isPositive = (pnlPercent ?? 0) >= 0;
 
     return (
         <div className="group border border-zinc-800/50 bg-black/20 hover:bg-black/40 hover:border-cyan-900/40 rounded-lg p-3 transition-all duration-300">
@@ -275,12 +288,18 @@ function TradeEntry({ trade, getToken, isHistory }: { trade: TradeHistoryEntry, 
 
                 <div className="text-right">
                     <div className={cn(
-                        "text-xs font-black font-mono",
+                        "text-xs font-black font-mono leading-none",
                         isPositive ? "text-green-500" : "text-red-500"
                     )}>
-                        {isPositive ? '+' : ''}{pnl?.toFixed(2)}%
+                        {isPositive ? '+' : ''}{pnlPercent?.toFixed(2)}%
                     </div>
-                    <div className="text-[9px] font-bold text-zinc-600 uppercase mt-0.5 tracking-tighter">
+                    <div className={cn(
+                        "text-[10px] font-bold font-mono mt-1",
+                        isPositive ? "text-green-500/80" : "text-red-500/80"
+                    )}>
+                        {solPnL ? formatCurrency(solPnL * solPrice) : '--'}
+                    </div>
+                    <div className="text-[9px] font-bold text-zinc-600 uppercase mt-1 tracking-tighter">
                         {isHistory ? `EXIT: ${trade.sellReason || 'UNKNOWN'}` : `${safeFormatAmount(trade.entryValue, 4)} SOL`}
                     </div>
                 </div>

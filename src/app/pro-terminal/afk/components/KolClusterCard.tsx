@@ -124,7 +124,7 @@ export function KolClusterCard() {
                 <span className="text-primary font-black">Note:</span> The Threshold applies globally to all KOLs unless <span className="text-foreground font-bold">"Instant Execution"</span> is enabled for a specific KOL below.
             </p>
 
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                 {subscriptions.length === 0 ? (
                     <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-border/30 rounded-2xl bg-muted/10">
                         <Layers className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
