@@ -962,7 +962,7 @@ export interface TradeHistoryEntry {
   id: string;
   agentId: string;
   tokenMint: string;
-  status: 'open' | 'closed' | 'failed';
+  status: 'open' | 'closed' | 'failed' | 'pending';
   openedAt: Date | string;
   closedAt?: Date | string;
   entryPrice: number;
