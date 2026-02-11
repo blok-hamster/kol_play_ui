@@ -58,7 +58,7 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
     const [trailingPercent, setTrailingPercent] = useState<string>('10');
 
     // Advanced Settings
-    const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('medium');
+    const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('high');
     const [slippage, setSlippage] = useState<number>(0.5);
     const [isSubmitting, setIsSubmitting] = useState(false);
 

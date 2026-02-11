@@ -98,6 +98,7 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
         mint: trade.tokenMint,
         amount: amountToSell,
         tradeId: trade.id,
+        priority: 'high',
       });
       showSuccess('Order Placed', `Sell order for ${trade.tokenMint.slice(0, 4)}... sent successfully.`);
       setTimeout(() => {
