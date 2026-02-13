@@ -5,8 +5,9 @@ import { useLoading, useNotifications, useSubscriptions, useKOLStore } from '@/s
 import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
 import { TradeFilters, KOLTradeUnion, SocketKOLTrade, KOLTrade } from '@/types';
 import { cn } from '@/lib/utils';
-import { Filter, LayoutGrid, List, Brain, Clock } from 'lucide-react';
+import { Filter, LayoutGrid, List, Brain, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 // Helper to check if a trade is a SocketKOLTrade (has tradeData)
 const isSocketTrade = (trade: any): trade is SocketKOLTrade => {
@@ -16,8 +17,7 @@ const isSocketTrade = (trade: any): trade is SocketKOLTrade => {
 const TradeCard: React.FC<{
   trade: KOLTradeUnion;
   subscriptions: any[];
-  onTradeClick: (trade: KOLTradeUnion, type: 'buy' | 'sell') => void;
-}> = ({ trade, subscriptions, onTradeClick }) => {
+}> = ({ trade, subscriptions }) => {
   const isSocket = isSocketTrade(trade);
   const { getKOLMetadata } = useKOLStore();
 
@@ -54,6 +54,9 @@ const TradeCard: React.FC<{
   }, [kolMetadata, trade, displayName]);
 
   const prediction: any = trade.prediction || (isSocket ? trade.tradeData.prediction : undefined);
+
+  // Extract token mint for the trade link
+  const tokenMint = tradeData?.mint || (isBuy ? tradeData?.tokenOut : tradeData?.tokenIn) || '';
 
   return (
     <div className="bg-card hover:bg-muted/50 border border-border p-3 rounded-xl transition-all group group-hover:border-primary/50 relative overflow-hidden">
@@ -145,28 +148,16 @@ const TradeCard: React.FC<{
         )}
 
         <div className="flex space-x-1">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-6 text-[9px] px-2 hover:bg-green-500/10 hover:text-green-500 hover:border-green-500/40 font-black tracking-tight border-border/60 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onTradeClick(trade, 'buy');
-            }}
-          >
-            BUY
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-6 text-[9px] px-2 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/40 font-black tracking-tight border-border/60 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              onTradeClick(trade, 'sell');
-            }}
-          >
-            SELL
-          </Button>
+          <Link href={`/pro-terminal/trade?mint=${tokenMint}`}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-[9px] px-3 hover:bg-primary/10 hover:text-primary hover:border-primary/40 font-black tracking-tight border-border/60 transition-colors gap-1"
+            >
+              TRADE
+              <ArrowRight className="w-2.5 h-2.5" />
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
@@ -338,7 +329,6 @@ const LiveTradesFeed: React.FC<{
                 key={`${trade.id}-${idx}`}
                 trade={trade as KOLTradeUnion}
                 subscriptions={subscriptions}
-                onTradeClick={handleQuickTrade}
               />
             ))
           ) : (

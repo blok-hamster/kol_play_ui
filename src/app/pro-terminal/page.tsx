@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import AppLayout from '@/components/layout/app-layout';
 import { TokenService } from '@/services/token.service';
 import { SolanaService } from '@/services/solana.service';
@@ -12,41 +12,51 @@ import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 import { usePumpPortalStream } from '@/hooks/use-pumpportal-stream';
 
-const TokenCard: React.FC<{ token: SearchTokenResult }> = ({ token }) => (
-    <Link href={`/pro-terminal/trade?mint=${token.mint}`} className="block">
-        <div className="bg-card hover:bg-muted/50 border border-border p-3 rounded-xl transition-all group group-hover:border-primary/50">
-            <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                    {token.image ? (
-                        <img src={token.image} alt={token.symbol} className="w-8 h-8 rounded-full" />
-                    ) : (
-                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center font-bold text-xs">
-                            {token.symbol?.slice(0, 2).toUpperCase()}
+const TokenCard: React.FC<{ token: SearchTokenResult }> = ({ token }) => {
+    const [imgError, setImgError] = useState(false);
+    const imageUrl = !imgError ? (token.image || (token as any).logoURI) : null;
+
+    return (
+        <Link href={`/pro-terminal/trade?mint=${token.mint}`} className="block">
+            <div className="bg-card hover:bg-muted/50 border border-border p-3 rounded-xl transition-all group group-hover:border-primary/50">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                        {imageUrl ? (
+                            <img
+                                src={imageUrl}
+                                alt={token.symbol}
+                                className="w-8 h-8 rounded-full object-cover"
+                                onError={() => setImgError(true)}
+                            />
+                        ) : (
+                            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center font-bold text-xs">
+                                {token.symbol?.slice(0, 2).toUpperCase()}
+                            </div>
+                        )}
+                        <div>
+                            <div className="font-bold text-sm text-foreground truncate max-w-[100px]">{token.symbol}</div>
+                            <div className="text-[10px] text-muted-foreground truncate max-w-[80px]">{token.name}</div>
                         </div>
-                    )}
-                    <div>
-                        <div className="font-bold text-sm text-foreground truncate max-w-[100px]">{token.symbol}</div>
-                        <div className="text-[10px] text-muted-foreground truncate max-w-[80px]">{token.name}</div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-sm font-bold text-foreground">
+                            {token.price ? formatCurrency(token.price) : 'N/A'}
+                        </div>
+                        {token.priceChange24h !== undefined && (
+                            <div className={`text-[10px] font-medium ${token.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+                            </div>
+                        )}
                     </div>
                 </div>
-                <div className="text-right">
-                    <div className="text-sm font-bold text-foreground">
-                        {token.price ? formatCurrency(token.price) : 'N/A'}
-                    </div>
-                    {token.priceChange24h !== undefined && (
-                        <div className={`text-[10px] font-medium ${token.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
-                        </div>
-                    )}
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Vol: {token.volume24h ? formatCurrency(token.volume24h) : 'N/A'}</span>
+                    <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                 </div>
             </div>
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>Vol: {token.volume24h ? formatCurrency(token.volume24h) : 'N/A'}</span>
-                <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-            </div>
-        </div>
-    </Link>
-);
+        </Link>
+    );
+};
 
 const TokenSection: React.FC<{
     title: string;
@@ -120,6 +130,18 @@ export default function ProLandingPage() {
         };
 
         fetchTokens();
+
+        // Poll trending tokens every 30 seconds for fresh DexScreener data
+        const trendingInterval = setInterval(async () => {
+            try {
+                const trendingData = await SolanaService.getTrendingTokens();
+                setTrendingTokens(trendingData.slice(0, 20));
+            } catch (e) {
+                console.error('Failed to refresh trending tokens', e);
+            }
+        }, 30_000);
+
+        return () => clearInterval(trendingInterval);
     }, []);
 
     // Real-time token streaming

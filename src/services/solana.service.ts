@@ -1057,23 +1057,122 @@ export class SolanaService {
   }
 
   /**
-   * Get trending tokens using existing Jupiter token list cache
-   * Falls back to Solana Token Registry
+   * Fetch trending tokens from DexScreener (boosted tokens + pair data)
+   * Uses token-boosts/top/v1 for trending addresses, then tokens/v1/solana for pair data
+   * @private
+   */
+  private static async getDexScreenerTrending(): Promise<any[]> {
+    // Step 1: Get top boosted tokens from DexScreener
+    const boostsResponse = await fetch('https://api.dexscreener.com/token-boosts/top/v1', {
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (!boostsResponse.ok) {
+      throw new Error(`DexScreener boosts API returned ${boostsResponse.status}`);
+    }
+
+    const boostsData = await boostsResponse.json();
+    if (!Array.isArray(boostsData) || boostsData.length === 0) {
+      throw new Error('DexScreener boosts returned empty data');
+    }
+
+    // Filter Solana tokens and deduplicate
+    const seenAddresses = new Set<string>();
+    const solanaTokenAddresses: string[] = [];
+    for (const boost of boostsData) {
+      if (boost.chainId === 'solana' && boost.tokenAddress && !seenAddresses.has(boost.tokenAddress)) {
+        seenAddresses.add(boost.tokenAddress);
+        solanaTokenAddresses.push(boost.tokenAddress);
+        if (solanaTokenAddresses.length >= 30) break; // DexScreener allows up to 30 per batch
+      }
+    }
+
+    if (solanaTokenAddresses.length === 0) {
+      throw new Error('No Solana tokens found in DexScreener boosts');
+    }
+
+    // Step 2: Batch-fetch pair data for these tokens
+    const addressList = solanaTokenAddresses.join(',');
+    const pairsResponse = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${addressList}`, {
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (!pairsResponse.ok) {
+      throw new Error(`DexScreener pairs API returned ${pairsResponse.status}`);
+    }
+
+    const pairsData = await pairsResponse.json();
+    const pairs = Array.isArray(pairsData) ? pairsData : [];
+
+    // Deduplicate by base token address (pick the pair with highest volume for each token)
+    const bestPairByToken = new Map<string, any>();
+    for (const pair of pairs) {
+      const addr = pair.baseToken?.address;
+      if (!addr) continue;
+      const existing = bestPairByToken.get(addr);
+      const vol = parseFloat(pair.volume?.h24 || '0');
+      if (!existing || vol > (parseFloat(existing.volume?.h24 || '0'))) {
+        bestPairByToken.set(addr, pair);
+      }
+    }
+
+    // Transform to SearchTokenResult-compatible format
+    const tokens = Array.from(bestPairByToken.values()).map((pair: any) => ({
+      name: pair.baseToken?.name || 'Unknown',
+      symbol: pair.baseToken?.symbol || '???',
+      mint: pair.baseToken?.address || '',
+      decimals: 9,
+      image: pair.info?.imageUrl || '',
+      logoURI: pair.info?.imageUrl || '',
+      holders: 0,
+      jupiter: false,
+      verified: false,
+      liquidityUsd: parseFloat(pair.liquidity?.usd || '0'),
+      marketCapUsd: parseFloat(pair.marketCap || pair.fdv || '0'),
+      priceUsd: parseFloat(pair.priceUsd || '0'),
+      price: parseFloat(pair.priceUsd || '0'),
+      priceChange24h: parseFloat(pair.priceChange?.h24 || '0'),
+      volume24h: parseFloat(pair.volume?.h24 || '0'),
+      volume: parseFloat(pair.volume?.h24 || '0'),
+      lpBurn: 0,
+      market: pair.dexId || 'dexscreener',
+    }));
+
+    console.log(`✅ Fetched ${tokens.length} trending tokens from DexScreener`);
+    return tokens;
+  }
+
+  /**
+   * Get trending tokens — DexScreener primary, Jupiter/SPL fallback
+   * Cache duration: 30 seconds for fresher data
    */
   static async getTrendingTokens(): Promise<any[]> {
     try {
       const now = Date.now();
-      if (trendingTokensCache.data.length > 0 && (now - trendingTokensCache.timestamp) < trendingTokensCache.duration) {
+      // Use a shorter cache for DexScreener trending (30s)
+      const cacheDuration = 30_000;
+      if (trendingTokensCache.data.length > 0 && (now - trendingTokensCache.timestamp) < cacheDuration) {
         return trendingTokensCache.data;
       }
 
       console.log('🔄 Fetching trending tokens...');
-      
-      // Try to use the existing Jupiter token list function
+
+      // Primary: DexScreener boosted/trending tokens
+      try {
+        const dexTokens = await this.getDexScreenerTrending();
+        if (dexTokens.length > 0) {
+          trendingTokensCache.data = dexTokens;
+          trendingTokensCache.timestamp = now;
+          return dexTokens;
+        }
+      } catch (dexError) {
+        console.warn('DexScreener trending failed, falling back to Jupiter:', dexError);
+      }
+
+      // Fallback 1: Jupiter token list
       try {
         const jupiterMap = await fetchJupiterTokenList();
         if (jupiterMap && jupiterMap.size > 0) {
-          // Convert map to array and take first 100
           const tokens = Array.from(jupiterMap.entries())
             .slice(0, 100)
             .map(([address, token]) => ({
@@ -1099,7 +1198,7 @@ export class SolanaService {
         console.warn('Jupiter token list failed, trying SPL Token Registry:', jupiterError);
       }
 
-      // Fallback to SPL Token Registry
+      // Fallback 2: SPL Token Registry
       try {
         const tokenListContainer = await new TokenListProvider().resolve();
         const tokenList = tokenListContainer
