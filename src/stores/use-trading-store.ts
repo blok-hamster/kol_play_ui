@@ -130,6 +130,13 @@ export const useTradingStore = create<TradingState>()(
         minKOLConvergence: 1,
         convergenceWindowMinutes: 60,
         afkEnabled: false,
+        afkBuyAmount: 0.1,
+        enableTimeRestrictions: false,
+        tradingHours: {
+          start: '00:00',
+          end: '23:59',
+          timezone: 'UTC',
+        },
       },
       isPaperTrading: false, // Default to Real execution, user can toggle
       error: null,
@@ -520,6 +527,13 @@ export const useTradingStore = create<TradingState>()(
               minKOLConvergence: tradeConfig.minKOLConvergence ?? 1,
               convergenceWindowMinutes: tradeConfig.convergenceWindowMinutes ?? 60,
               afkEnabled: tradeConfig.afkEnabled ?? false,
+              afkBuyAmount: tradeConfig.afkBuyAmount ?? 0.1,
+              enableTimeRestrictions: tradeConfig.enableTimeRestrictions ?? false,
+              tradingHours: tradeConfig.tradingHours ?? {
+                start: '00:00',
+                end: '23:59',
+                timezone: 'UTC',
+              },
             };
             
             set({ 

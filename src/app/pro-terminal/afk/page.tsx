@@ -5,11 +5,13 @@ import AppLayout from '@/components/layout/app-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import {
-    Gamepad2,
     Bot,
     Activity,
-    Zap,
-    TrendingUp
+    TrendingUp,
+    Settings,
+    Clock,
+    Shield,
+    Filter
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { GlobalSettingsCard } from './components/GlobalSettingsCard';
@@ -18,20 +20,60 @@ import { TradeFiltersCard } from './components/TradeFiltersCard';
 import { RiskManagementCard } from './components/RiskManagementCard';
 import { AfkTerminal } from './components/AfkTerminal';
 
+import { TradingHoursCard } from './components/TradingHoursCard';
+
 // Component Placeholders (Will be implemented in Phase 4)
 const CopyTradingTab = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 space-y-6">
-            <AfkTerminal />
-            <KolClusterCard />
+    <>
+        {/* Desktop View */}
+        <div className="hidden lg:grid lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8 space-y-6">
+                <AfkTerminal />
+                <KolClusterCard />
+            </div>
+
+            <div className="lg:col-span-4 space-y-6">
+                <GlobalSettingsCard />
+                <TradingHoursCard />
+                <RiskManagementCard />
+                <TradeFiltersCard />
+            </div>
         </div>
 
-        <div className="lg:col-span-4 space-y-6">
-            <GlobalSettingsCard />
-            <RiskManagementCard />
-            <TradeFiltersCard />
+        {/* Mobile View: Inner Tabs */}
+        <div className="lg:hidden -mx-2">
+            <Tabs defaultValue="terminal" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-muted/30 p-1 rounded-xl h-auto border border-border/50 mb-6">
+                    <TabsTrigger value="terminal" className="py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest gap-2 px-2">
+                        <Activity className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Terminal
+                    </TabsTrigger>
+                    <TabsTrigger value="config" className="py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest gap-2 px-2">
+                        <Settings className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Config
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="terminal" className="space-y-6 focus-visible:outline-none ring-0">
+                    <AfkTerminal />
+                    <KolClusterCard />
+                </TabsContent>
+
+                <TabsContent value="config" className="space-y-6 focus-visible:outline-none ring-0">
+                    <Tabs defaultValue="global" className="w-full">
+                        <TabsList className="grid w-full grid-cols-4 bg-muted/20 p-0.5 rounded-lg h-auto border border-border/40 mb-4 [&>*]:px-0.5">
+                            <TabsTrigger value="global" className="py-1.5 text-[8px] font-bold uppercase"><Settings className="w-3 h-3" /></TabsTrigger>
+                            <TabsTrigger value="hours" className="py-1.5 text-[8px] font-bold uppercase"><Clock className="w-3 h-3" /></TabsTrigger>
+                            <TabsTrigger value="risk" className="py-1.5 text-[8px] font-bold uppercase"><Shield className="w-3 h-3" /></TabsTrigger>
+                            <TabsTrigger value="filters" className="py-1.5 text-[8px] font-bold uppercase"><Filter className="w-3 h-3" /></TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="global" className="focus-visible:outline-none ring-0"><GlobalSettingsCard /></TabsContent>
+                        <TabsContent value="hours" className="focus-visible:outline-none ring-0"><TradingHoursCard /></TabsContent>
+                        <TabsContent value="risk" className="focus-visible:outline-none ring-0"><RiskManagementCard /></TabsContent>
+                        <TabsContent value="filters" className="focus-visible:outline-none ring-0"><TradeFiltersCard /></TabsContent>
+                    </Tabs>
+                </TabsContent>
+            </Tabs>
         </div>
-    </div>
+    </>
 );
 
 const AgenticTradingTab = () => (
@@ -101,17 +143,17 @@ export default function AFKPage() {
                     <TabsList className="bg-muted/50 p-1 border border-border/50 rounded-xl h-auto mb-6">
                         <TabsTrigger
                             value="copy-trading"
-                            className="px-8 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+                            className="px-4 sm:px-8 py-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-[10px] sm:text-xs font-bold uppercase tracking-widest flex items-center gap-2"
                         >
-                            <TrendingUp className="w-3.5 h-3.5" />
-                            Copy Trading
+                            <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            Copy Trade
                         </TabsTrigger>
                         <TabsTrigger
                             value="agentic"
-                            className="px-8 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+                            className="px-4 sm:px-8 py-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-[10px] sm:text-xs font-bold uppercase tracking-widest flex items-center gap-2"
                         >
-                            <Bot className="w-3.5 h-3.5" />
-                            Agentic Trading
+                            <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            Agentic
                         </TabsTrigger>
                     </TabsList>
 

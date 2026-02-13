@@ -9,7 +9,6 @@ import {
     Zap,
     ShieldCheck,
     Wallet,
-    Info,
     Power
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,7 +26,8 @@ export function GlobalSettingsCard() {
         afkEnabled = false,
         paperTrading = true,
         maxConcurrentTrades = 3,
-        slippage = 1.0
+        slippage = 1.0,
+        afkBuyAmount = 0.1
     } = tradingSettings || {};
 
     const handleToggleAfk = async (checked: boolean) => {
@@ -50,6 +50,12 @@ export function GlobalSettingsCard() {
         const num = parseFloat(val);
         if (isNaN(num)) return;
         updateTradingSettings({ slippage: num });
+    };
+
+    const handleUpdateBuyAmount = async (val: string) => {
+        const num = parseFloat(val);
+        if (isNaN(num)) return;
+        updateTradingSettings({ afkBuyAmount: num });
     };
 
     const handleSaveGlobal = async () => {
@@ -161,6 +167,29 @@ export function GlobalSettingsCard() {
                                 className="w-16 h-10 text-center font-bold !bg-zinc-950 border-border/20 focus:ring-primary/20 rounded-xl !text-white"
                             />
                             <span className="text-xs font-bold text-muted-foreground">%</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-500/10 rounded-lg group-hover:bg-green-500/20 transition-colors">
+                                <Wallet className="w-4 h-4 text-green-500" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-tight">AFK Buy Amount</p>
+                                <p className="text-[10px] text-muted-foreground uppercase opacity-60 font-medium">Standard entry per KOL</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                type="number"
+                                step="0.1"
+                                value={afkBuyAmount}
+                                onChange={(e) => handleUpdateBuyAmount(e.target.value)}
+                                onBlur={handleSaveGlobal}
+                                className="w-16 h-10 text-center font-bold !bg-zinc-950 border-border/20 focus:ring-primary/20 rounded-xl !text-white"
+                            />
+                            <span className="text-xs font-bold text-muted-foreground">SOL</span>
                         </div>
                     </div>
                 </div>

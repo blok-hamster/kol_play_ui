@@ -54,9 +54,7 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
 
   const token = AuthService.getToken();
   const { connect, disconnect } = useEnhancedWebSocket({
-    auth: {
-      token: token || undefined
-    }
+    auth: token ? { token } : {}
   });
 
   // Paper Balance State Removed
@@ -205,7 +203,7 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
         verified: tokenDetail?.token?.verified || false,
         marketCap: tokenDetail?.pools?.[0]?.marketCap?.usd || tokenDetail?.token?.marketCapUsd || 0,
         liquidityUsd: tokenDetail?.pools?.[0]?.liquidity?.usd || tokenDetail?.token?.liquidityUsd || 0,
-        priceChange24h: tokenDetail?.events?.['24h']?.priceChangePercentage || tokenDetail?.token?.priceChange24h || 0,
+        priceChange24h: tokenDetail?.events?.['24h']?.priceChangePercentage || (tokenDetail?.token as any)?.priceChange24h || 0,
         twitter: tokenDetail?.token?.twitter,
         website: tokenDetail?.token?.website,
         currentPrice,
@@ -370,7 +368,7 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
                     </div>
 
                     {/* Rich Metadata Metrics */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-border/40 text-[10px] text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-3 pt-3 border-t border-border/40 text-[10px] text-muted-foreground">
                       {trade.marketCap > 0 && (
                         <div className="flex items-center" title="Market Cap">
                           <Activity className="w-3 h-3 mr-1.5 text-blue-500/60" />

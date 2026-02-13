@@ -7,7 +7,6 @@ import {
   TrendingDown,
   Clock,
   CheckCircle,
-  XCircle,
   RefreshCw,
   Eye,
   AlertCircle,
@@ -56,9 +55,7 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
   const { isPaperTrading } = useTradingStore();
   const token = AuthService.getToken();
   const { connect, disconnect } = useEnhancedWebSocket({
-    auth: {
-      token: token || undefined
-    }
+    auth: token ? { token } : {}
   });
 
   const { showError } = useNotifications();
@@ -169,7 +166,7 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
         tokenImage: tokenDetail?.token?.image || tokenDetail?.token?.logoURI,
         verified: tokenDetail?.token?.verified || false,
         marketCap: tokenDetail?.pools?.[0]?.marketCap?.usd || tokenDetail?.token?.marketCapUsd || 0,
-        priceChange24h: tokenDetail?.events?.['24h']?.priceChangePercentage || tokenDetail?.token?.priceChange24h || 0,
+        priceChange24h: tokenDetail?.events?.['24h']?.priceChangePercentage || (tokenDetail?.token as any)?.priceChange24h || 0,
         twitter: tokenDetail?.token?.twitter,
         holdTime,
       };
@@ -434,7 +431,7 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
             </div>
 
             {/* Trade Details */}
-            <div className="grid grid-cols-4 gap-2 p-3 bg-background/50 rounded-lg text-xs">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-background/50 rounded-lg text-xs">
               <div>
                 <p className="text-muted-foreground mb-1">Price</p>
                 <div className="flex flex-col">

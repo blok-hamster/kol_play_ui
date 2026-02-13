@@ -436,7 +436,7 @@ export default function KOLList({
       return (
         <div
           key={kol.walletAddress || `kol-${Math.random()}`}
-          className={`bg-background border rounded-xl p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group ${isSubscribed
+          className={`bg-background border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group ${isSubscribed
             ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
             : 'border-border'
             }`}
@@ -444,13 +444,13 @@ export default function KOLList({
         >
           {/* Subscribed badge */}
           {isSubscribed && (
-            <div className="mb-3">
+            <div className="mb-2 sm:mb-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 px-3 py-1 bg-primary/10 rounded-full">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                  <span className="text-xs font-medium text-primary">Subscribed</span>
+                <div className="flex items-center space-x-2 px-2 sm:px-3 py-0.5 sm:py-1 bg-primary/10 rounded-full">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-primary rounded-full animate-pulse" />
+                  <span className="text-[10px] sm:text-xs font-medium text-primary">Subscribed</span>
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-[10px] sm:text-xs text-muted-foreground">
                   Priority KOL
                 </div>
               </div>
@@ -466,13 +466,13 @@ export default function KOLList({
                 <img
                   src={kol.avatar}
                   alt={subscription?.label || kol.name || 'KOL Avatar'}
-                  className={`w-12 h-12 rounded-full flex-shrink-0 border-2 ${isSubscribed ? 'border-primary' : 'border-muted'
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0 border-2 ${isSubscribed ? 'border-primary' : 'border-muted'
                     }`}
                 />
               ) : (
-                <div className={`w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 ${isSubscribed ? 'border-primary' : 'border-muted'
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 ${isSubscribed ? 'border-primary' : 'border-muted'
                   }`}>
-                  <span className="text-primary-foreground font-bold text-sm">
+                  <span className="text-primary-foreground font-bold text-xs sm:text-sm">
                     {(
                       (subscription?.label && subscription.label !== kol.walletAddress)
                         ? subscription.label.slice(0, 2)
@@ -484,17 +484,17 @@ export default function KOLList({
 
               {/* KOL Name & Info */}
               <div className="min-w-0 flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <h3 className="font-bold text-foreground text-lg truncate">
+                <div className="flex items-center space-x-2 mb-0.5 sm:mb-1">
+                  <h3 className="font-bold text-foreground text-base sm:text-lg truncate">
                     {(subscription?.label && subscription.label !== kol.walletAddress)
                       ? subscription.label
                       : (kol.name || (kol.walletAddress ? `${kol.walletAddress.slice(0, 6)}...${kol.walletAddress.slice(-4)}` : 'Unknown KOL'))
                     }
                   </h3>
                   {isSubscribed && (
-                    <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                    <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 bg-green-500 rounded-full flex items-center justify-center">
                       <svg
-                        className="w-2.5 h-2.5 text-white"
+                        className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-white"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
@@ -508,13 +508,18 @@ export default function KOLList({
                   )}
                   {/* Real-time indicator */}
                   {isTradeSocketConnected && recentTrades.length > 0 && (
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Live trades available" />
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse" title="Live trades available" />
                   )}
                 </div>
-                <div className="flex items-center space-x-3 text-sm text-muted-foreground">
+                <div className="flex items-center space-x-3 text-[10px] sm:text-sm text-muted-foreground">
                   <span className="font-mono">
                     {kol.walletAddress
-                      ? `${kol.walletAddress.slice(0, 4)}...${kol.walletAddress.slice(-4)}`
+                      ? (
+                        <>
+                          <span className="sm:hidden">{`${kol.walletAddress.slice(0, 4)}...${kol.walletAddress.slice(-4)}`}</span>
+                          <span className="hidden sm:inline">{`${kol.walletAddress.slice(0, 8)}...${kol.walletAddress.slice(-8)}`}</span>
+                        </>
+                      )
                       : 'Unknown'}
                   </span>
                 </div>
@@ -522,9 +527,9 @@ export default function KOLList({
             </div>
 
             {/* Right section - Click indicator */}
-            <div className="flex items-center space-x-2">
-              <div className="text-sm text-muted-foreground flex items-center space-x-1">
-                <Eye className="w-4 h-4" />
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <div className="text-[10px] sm:text-sm text-muted-foreground flex items-center space-x-1">
+                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">View Details</span>
               </div>
             </div>
@@ -532,38 +537,38 @@ export default function KOLList({
 
           {/* Recent Trades Section - hide in list view */}
           {viewMode !== 'list' && recentTrades.length > 0 && (
-            <div className="mb-3 p-3 bg-muted/20 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-medium text-muted-foreground flex items-center space-x-1">
+            <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-muted/20 rounded-lg">
+              <div className="flex items-center justify-between mb-1.5 sm:mb-2 text-[10px] sm:text-xs">
+                <h4 className="font-medium text-muted-foreground flex items-center space-x-1">
                   <Activity className="w-3 h-3" />
                   <span>Recent Live Trades</span>
                 </h4>
-                <div className="flex items-center space-x-1 text-xs text-green-600">
+                <div className="flex items-center space-x-1 text-green-600">
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
                   <span>Live</span>
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 sm:space-y-2">
                 {recentTrades.map((trade, idx) => (
                   <div key={`${trade.id}-${idx}`} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                      <div className="flex items-center space-x-1.5 sm:space-x-2">
                         <div className={`w-1.5 h-1.5 rounded-full ${(trade.tradeData?.tradeType ?? 'sell') === 'buy' ? 'bg-green-500' : 'bg-red-500'
                           }`} />
                         {/* Token pill: image + symbol/name fallback to mint */}
                         {(trade.tradeData?.symbol || trade.tradeData?.name || trade.tradeData?.image || trade.tradeData?.mint) && (
                           <div className="flex items-center space-x-1">
                             {trade.tradeData?.image && (
-                              <img src={trade.tradeData.image} alt={trade.tradeData.symbol || trade.tradeData.name || 'Token'} className="w-3.5 h-3.5 rounded" />
+                              <img src={trade.tradeData.image} alt={trade.tradeData.symbol || trade.tradeData.name || 'Token'} className="w-3 sm:w-3.5 h-3 sm:h-3.5 rounded" />
                             )}
-                            <span className="font-medium">
+                            <span className="font-medium truncate max-w-[80px] sm:max-w-none">
                               {(() => {
                                 const name = trade.tradeData?.name?.trim();
                                 const symbol = trade.tradeData?.symbol?.trim();
-                                if (name && symbol) return `${name} (${symbol})`;
+                                if (name && symbol) return symbol; // Simplified for mobile
                                 if (name) return name;
                                 if (symbol) return symbol;
-                                return trade.tradeData?.mint ? `${trade.tradeData.mint.slice(0, 4)}...${trade.tradeData.mint.slice(-4)}` : 'Token';
+                                return trade.tradeData?.mint ? `${trade.tradeData.mint.slice(0, 4)}...` : 'Token';
                               })()}
                             </span>
                           </div>
@@ -576,15 +581,15 @@ export default function KOLList({
                             const isBuy = (trade.tradeData?.tradeType ?? 'sell') === 'buy';
                             if (isBuy) {
                               // For buy: show SOL spent
-                              return `${trade.tradeData?.amountOut?.toFixed(2) || '0.00'} SOL`;
+                              return `${trade.tradeData?.amountOut?.toFixed(1) || '0.0'} SOL`;
                             } else {
                               // For sell: show SOL received
-                              return `${trade.tradeData?.amountIn?.toFixed(2) || '0.00'} SOL`;
+                              return `${trade.tradeData?.amountIn?.toFixed(1) || '0.0'} SOL`;
                             }
                           })()}
                         </span>
                       </div>
-                      <span className="text-muted-foreground">
+                      <span className="text-muted-foreground hidden xs:inline">
                         {trade.timestamp ?
                           new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
                           'Now'
@@ -598,11 +603,11 @@ export default function KOLList({
                       const shouldShowPrediction = prediction && isBuyTrade;
 
                       return shouldShowPrediction ? (
-                        <div className="flex items-center justify-between text-xs bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded">
+                        <div className="flex items-center justify-between text-[10px] sm:text-xs bg-purple-50 dark:bg-purple-900/20 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
                           <div className="flex items-center space-x-1">
-                            <Brain className="w-3 h-3 text-purple-500" />
+                            <Brain className="w-2.5 h-2.5 text-purple-500" />
                             <span className="text-purple-700 dark:text-purple-300 font-medium">
-                              {prediction.classLabel} (Buy)
+                              {prediction.classLabel}
                             </span>
                           </div>
                           <span className="font-medium text-purple-600 dark:text-purple-400">
@@ -611,12 +616,12 @@ export default function KOLList({
                         </div>
                       ) : (
                         // Skeleton placeholder for consistent spacing (for sell trades)
-                        <div className="flex items-center justify-between text-xs bg-muted/10 px-2 py-1 rounded">
+                        <div className="flex items-center justify-between text-[10px] sm:text-xs bg-muted/10 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded opacity-50">
                           <div className="flex items-center space-x-1">
-                            <div className="w-3 h-3 bg-muted/40 rounded animate-pulse" />
-                            <div className="w-16 h-3 bg-muted/40 rounded animate-pulse" />
+                            <div className="w-2.5 h-2.5 bg-muted/40 rounded animate-pulse" />
+                            <div className="w-12 h-2.5 bg-muted/40 rounded animate-pulse" />
                           </div>
-                          <div className="w-8 h-3 bg-muted/40 rounded animate-pulse" />
+                          <div className="w-6 h-2.5 bg-muted/40 rounded animate-pulse" />
                         </div>
                       );
                     })()}
@@ -627,10 +632,10 @@ export default function KOLList({
           )}
 
           {/* Stats row */}
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center justify-between mt-auto">
             {/* Left stats */}
             <div className="flex items-center">
-              <div className="flex items-center space-x-1 px-2 py-1 bg-muted rounded text-xs">
+              <div className="flex items-center space-x-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-muted rounded text-[10px] sm:text-xs">
                 {isTradeSocketConnected && recentTrades.length > 0 ? (
                   <Activity className="w-3 h-3 text-green-500" />
                 ) : (
@@ -653,7 +658,7 @@ export default function KOLList({
                   onClick={e => e.stopPropagation()}
                   aria-label="Twitter profile"
                 >
-                  <TwitterIcon className="w-4 h-4" />
+                  <TwitterIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </a>
               )}
               {kol.socialLinks?.telegram && (
@@ -665,7 +670,7 @@ export default function KOLList({
                   onClick={e => e.stopPropagation()}
                   aria-label="Telegram profile"
                 >
-                  <TelegramIcon className="w-4 h-4" />
+                  <TelegramIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </a>
               )}
               {kol.socialLinks?.discord && (
@@ -677,7 +682,7 @@ export default function KOLList({
                   onClick={e => e.stopPropagation()}
                   aria-label="Discord profile"
                 >
-                  <DiscordIcon className="w-4 h-4" />
+                  <DiscordIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </a>
               )}
               {!kol.socialLinks?.twitter && twitterUrl && (
@@ -689,7 +694,7 @@ export default function KOLList({
                   onClick={e => e.stopPropagation()}
                   aria-label="Twitter profile"
                 >
-                  <TwitterIcon className="w-4 h-4" />
+                  <TwitterIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </a>
               )}
             </div>

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/app-layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, TrendingUp, ShieldCheck, Activity, User, Target } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, TrendingUp, ShieldCheck, Activity, User, Target, Zap } from 'lucide-react';
 import { AnalyticsService, SentimentAnalysisResult } from '@/services/analytics.service';
 // Components
 import { SentimentGauge } from './_components/SentimentGauge';
@@ -131,8 +132,31 @@ export default function AnalyticsDashboardPage() {
             */}
             <div className="max-w-[1800px] mx-auto p-2 mt-4 h-[calc(100vh-6rem)] lg:h-[calc(100vh-10rem)] flex flex-col font-sans overflow-hidden">
 
-                {/* 3-Column Grid: Stretches to fill available height, columns must have min-h-0 to allow children to scroll */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0">
+                {/* Mobile Header: Persistent Search */}
+                <div className="lg:hidden mb-4 shrink-0 px-1">
+                    <div className="flex items-center gap-2 bg-card/10 p-2 rounded-xl border border-white/5 backdrop-blur-md">
+                        <div className="relative flex-1 group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                            <Input
+                                placeholder="TOKEN ADDRESS"
+                                className="h-10 pl-9 bg-black/40 border-white/10 font-mono text-xs uppercase placeholder:normal-case focus:border-primary/50 transition-all text-white"
+                                value={tokenInput}
+                                onChange={(e) => setTokenInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+                            />
+                        </div>
+                        <Button
+                            size="sm"
+                            onClick={handleAnalyze}
+                            className="h-10 px-4 text-xs font-bold uppercase tracking-wider bg-primary/20 hover:bg-primary/30 text-primary border border-primary/20"
+                        >
+                            Analyze
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Desktop View: 3-column Grid */}
+                <div className="hidden lg:grid lg:grid-cols-12 gap-3 flex-1 min-h-0">
 
                     {/* Left Column: Smart Wallets (Data Feed Style) */}
                     <div className="lg:col-span-3 flex flex-col h-full min-h-0">
@@ -290,7 +314,113 @@ export default function AnalyticsDashboardPage() {
                             </div>
                         </div>
                     </div>
+                </div>
 
+                {/* Mobile View: Tabs */}
+                <div className="lg:hidden flex-1 min-h-0 flex flex-col">
+                    <Tabs defaultValue="intelligence" className="flex-1 flex flex-col min-h-0">
+                        <TabsList className="grid w-full grid-cols-3 bg-muted/30 p-1 rounded-xl h-auto border border-border/50 shrink-0">
+                            <TabsTrigger value="wallets" className="py-2 text-[10px] font-bold uppercase tracking-wider gap-2">
+                                <Target className="w-3 h-3" /> Wallets
+                            </TabsTrigger>
+                            <TabsTrigger value="intelligence" className="py-2 text-[10px] font-bold uppercase tracking-wider gap-2">
+                                <Zap className="w-3 h-3" /> Intelligence
+                            </TabsTrigger>
+                            <TabsTrigger value="analysis" className="py-2 text-[10px] font-bold uppercase tracking-wider gap-2">
+                                <Activity className="w-3 h-3" /> Analysis
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="wallets" className="flex-1 min-h-0 mt-4 ring-0 focus-visible:ring-0">
+                            <div className="h-full border border-border/60 rounded-xl bg-card/20 backdrop-blur-xl overflow-hidden flex flex-col">
+                                <div className="py-2 px-3 border-b border-border/50 flex items-center justify-between shrink-0 bg-muted/20">
+                                    <div className="flex items-center gap-2">
+                                        <Target className="w-4 h-4 text-primary animate-pulse" />
+                                        <span className="font-bold text-xs text-foreground uppercase tracking-wider">Smart Wallets</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            id="mobile-subscribed-mode"
+                                            checked={showSubscribedOnly}
+                                            onCheckedChange={setShowSubscribedOnly}
+                                            className="scale-75"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-y-auto">
+                                    <TopTraders
+                                        limit={30}
+                                        className="h-full"
+                                        filterWallets={showSubscribedOnly ? (subscriptions?.length > 0 ? subscriptions.map(s => s.kolWallet) : []) : null}
+                                        compactMode
+                                    />
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="intelligence" className="flex-1 min-h-0 mt-4 space-y-4 overflow-y-auto ring-0 focus-visible:ring-0 custom-scrollbar">
+                            {/* Mindmap */}
+                            <div className="h-[400px] shrink-0 border border-border/60 rounded-xl bg-black/40 backdrop-blur-xl overflow-hidden relative">
+                                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20 pointer-events-none" />
+                                <div className="flex-1 h-full relative z-0">
+                                    <UnifiedKolMindmap />
+                                </div>
+                            </div>
+
+                            {/* Security & Prediction */}
+                            <div className="grid grid-cols-1 gap-4 shrink-0">
+                                <div className="border border-border/60 rounded-xl bg-card/20 backdrop-blur-xl overflow-hidden shadow-lg h-[250px]">
+                                    <div className="py-2 px-3 border-b border-border/50 bg-muted/20">
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                            <ShieldCheck className="w-3 h-3 text-orange-400" /> Security
+                                        </h3>
+                                    </div>
+                                    <div className="h-[calc(250px-33px)] overflow-y-auto">
+                                        <RugCheckCard tokenAddress={activeToken} />
+                                    </div>
+                                </div>
+
+                                <div className="border border-border/60 rounded-xl bg-card/20 backdrop-blur-xl overflow-hidden shadow-lg h-[200px]">
+                                    <div className="py-2 px-3 border-b border-border/50 bg-muted/20">
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                            <TrendingUp className="w-3 h-3 text-purple-400" /> Prediction
+                                        </h3>
+                                    </div>
+                                    <div className="p-2 h-[calc(200px-33px)] flex items-center justify-center">
+                                        <PredictionTrafficLight prediction={prediction} loading={loadingSentiment} />
+                                    </div>
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="analysis" className="flex-1 min-h-0 mt-4 space-y-4 overflow-y-auto ring-0 focus-visible:ring-0 custom-scrollbar">
+                            <div className="h-[350px] shrink-0">
+                                <RecentAnalysisList className="h-full border-border/60 bg-card/20 rounded-xl" />
+                            </div>
+
+                            <div className="h-[250px] shrink-0 border border-border/60 rounded-xl bg-card/20 backdrop-blur-xl overflow-hidden shadow-lg flex flex-col">
+                                <div className="py-2 px-3 border-b border-border/50 bg-muted/20">
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                        <User className="w-3 h-3 text-pink-400" /> Social Sentiment
+                                    </h3>
+                                </div>
+                                <div className="p-2 flex-1 relative overflow-hidden flex flex-col">
+                                    {sentimentError ? (
+                                        <div className="flex-1 flex items-center justify-center p-4">
+                                            <div className="text-red-400 text-xs text-center">{sentimentError}</div>
+                                        </div>
+                                    ) : (
+                                        <SentimentGauge
+                                            score={sentiment?.score || 50}
+                                            loading={loadingSentiment}
+                                            positiveWords={sentiment?.positiveWords || []}
+                                            negativeWords={sentiment?.negativeWords || []}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
                 </div>
             </div>
         </AppLayout>

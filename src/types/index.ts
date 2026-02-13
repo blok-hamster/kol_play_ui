@@ -263,6 +263,13 @@ export interface TradingSettings {
   minKOLConvergence?: number | undefined;
   convergenceWindowMinutes?: number | undefined;
   afkEnabled?: boolean;
+  afkBuyAmount?: number;
+  enableTimeRestrictions?: boolean;
+  tradingHours?: {
+    start: string;
+    end: string;
+    timezone: string;
+  };
 }
 
 export interface SwapData {

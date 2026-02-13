@@ -200,22 +200,23 @@ export default function ProLandingPage() {
                         <TabsList className="bg-muted/50 p-1 border border-border/50 rounded-xl h-auto">
                             <TabsTrigger
                                 value="discover"
-                                className="px-6 py-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs font-bold uppercase tracking-widest"
+                                className="px-4 sm:px-6 py-1.5 sm:py-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-[10px] sm:text-xs font-bold uppercase tracking-widest"
                             >
                                 Discover
                             </TabsTrigger>
                             <TabsTrigger
                                 value="prediction"
                                 disabled
-                                className="px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest gap-2 opacity-50 cursor-not-allowed"
+                                className="px-4 sm:px-6 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-widest gap-2 opacity-50 cursor-not-allowed"
                             >
-                                Prediction Markets
-                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-primary/20 text-primary bg-primary/5">Beta</Badge>
+                                Prediction
+                                <Badge variant="outline" className="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0 h-3.5 sm:h-4 border-primary/20 text-primary bg-primary/5">Beta</Badge>
                             </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="discover" className="mt-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            {/* Desktop View: 3-column grid */}
+                            <div className="hidden lg:grid lg:grid-cols-12 gap-6">
                                 {/* Live KOL Trades section */}
                                 <div className="lg:col-span-4 space-y-3">
                                     <div className="bg-card/30 border border-border rounded-2xl overflow-hidden h-[700px] shadow-2xl shadow-black/20 backdrop-blur-sm">
@@ -260,6 +261,64 @@ export default function ProLandingPage() {
                                         />
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Mobile View: Tabs */}
+                            <div className="lg:hidden space-y-4">
+                                <Tabs defaultValue="kol-activity" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-3 bg-muted/30 p-1 rounded-xl h-auto border border-border/50">
+                                        <TabsTrigger value="kol-activity" className="py-1.5 text-[9px] font-bold uppercase tracking-tighter">
+                                            KOLs
+                                        </TabsTrigger>
+                                        <TabsTrigger value="trending" className="py-1.5 text-[9px] font-bold uppercase tracking-tighter">
+                                            Trending
+                                        </TabsTrigger>
+                                        <TabsTrigger value="new-tokens" className="py-1.5 text-[9px] font-bold uppercase tracking-tighter">
+                                            New
+                                        </TabsTrigger>
+                                    </TabsList>
+
+                                    <TabsContent value="kol-activity" className="mt-4 ring-0 focus-visible:ring-0">
+                                        <div className="bg-card/30 border border-border rounded-2xl overflow-hidden h-[600px] shadow-xl backdrop-blur-sm">
+                                            <div className="flex items-center justify-between p-3 border-b border-border bg-card/50">
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                                                    <h2 className="font-bold text-xs text-foreground uppercase tracking-tight">KOL ACTIVITY</h2>
+                                                </div>
+                                            </div>
+                                            <LiveTradesFeed
+                                                showHeader={false}
+                                                limit={30}
+                                                compactMode={true}
+                                                globalFeed={true}
+                                                className="h-full"
+                                            />
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="trending" className="mt-4 ring-0 focus-visible:ring-0">
+                                        <div className="bg-card/30 border border-border rounded-2xl overflow-hidden h-[600px] shadow-xl backdrop-blur-sm">
+                                            <TokenSection
+                                                title="TRENDING"
+                                                icon={<TrendingUp className="text-primary w-4 h-4" />}
+                                                tokens={trendingTokens}
+                                                isLoading={isTrendingLoading}
+                                            />
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="new-tokens" className="mt-4 ring-0 focus-visible:ring-0">
+                                        <div className="bg-card/30 border border-border rounded-2xl overflow-hidden h-[600px] shadow-xl backdrop-blur-sm">
+                                            <TokenSection
+                                                title="NEW TOKENS"
+                                                icon={<Clock className="text-blue-500 w-4 h-4" />}
+                                                tokens={newTokens}
+                                                isLoading={isNewLoading}
+                                                isLive={isConnected}
+                                            />
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
                             </div>
                         </TabsContent>
                     </Tabs>

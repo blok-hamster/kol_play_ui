@@ -3,157 +3,75 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/layout/app-layout';
 import TokenList from '@/components/tokens/token-list';
-import { TrendingUp, DollarSign, Clock } from 'lucide-react';
-
-interface CategoryTab {
-  id: 'trending' | 'volume' | 'latest';
-  label: string;
-  icon: React.ReactNode;
-  description: string;
-}
+import RequireAuth from '@/components/auth/require-auth';
+import { Rocket, BarChart3, Clock } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function TokensPage() {
-  const [activeCategory, setActiveCategory] = useState<
-    'trending' | 'volume' | 'latest'
-  >('trending');
-
-  // Treat controls as regular buttons on mobile (no tab semantics)
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(max-width: 767px)');
-    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    setIsMobile(mql.matches);
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, []);
-
-  const categories: CategoryTab[] = [
-    {
-      id: 'trending',
-      label: 'Trending',
-      icon: <TrendingUp className="w-5 h-5" />,
-      description:
-        'Most popular tokens with growing interest and trading activity',
-    },
-    {
-      id: 'volume',
-      label: 'High Volume',
-      icon: <DollarSign className="w-5 h-5" />,
-      description:
-        'Tokens with the highest trading volume and liquidity in the market',
-    },
-    {
-      id: 'latest',
-      label: 'Latest',
-      icon: <Clock className="w-5 h-5" />,
-      description:
-        'Newly launched tokens and latest additions to the Solana ecosystem',
-    },
-  ];
-
-  const handleCategoryClick = (
-    categoryId: 'trending' | 'volume' | 'latest'
-  ) => {
-    setActiveCategory(categoryId);
-  };
-
-  const activeTab = categories.find(cat => cat.id === activeCategory)!;
+  const [category, setCategory] = useState<'trending' | 'volume' | 'latest'>(
+    'trending'
+  );
 
   return (
-    <AppLayout>
-      <div className="p-4 md:p-6">
-        <h1 className="sr-only">Tokens</h1>
-
-        {/* Category Selection */}
-        <div
-          className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8"
-          role={isMobile ? undefined : 'tablist'}
-          aria-label={isMobile ? undefined : 'Token categories'}
-        >
-          {categories.map(category => (
-            <button
-              key={category.id}
-              id={`tab-${category.id}`}
-              className={`
-                w-full text-left p-3 sm:p-4 md:min-h-[56px] rounded-lg border md:border-2 transition-all duration-200
-                ${
-                  activeCategory === category.id
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-muted-foreground bg-background'
-                }
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background
-              `}
-              onClick={() => handleCategoryClick(category.id)}
-              role={isMobile ? undefined : 'tab'}
-              aria-selected={isMobile ? undefined : activeCategory === category.id}
-              tabIndex={0}
-              title={`${category.label} tokens`}
-              type="button"
-              aria-controls={isMobile ? undefined : 'category-panel'}
-            >
-              <div className="flex items-center space-x-3">
-                <div
-                  className={`
-                  p-2 rounded-lg
-                  ${
-                    activeCategory === category.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  }
-                `}
-                >
-                  {category.icon}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground text-base md:text-lg">
-                    {category.label}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    {category.description}
-                  </p>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Active Category Display */}
-        <div className="bg-background rounded-lg border border-border">
-          {/* Category Header */}
-          <div className="px-4 py-3 md:px-6 md:py-4 border-b border-border">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                {activeTab.icon}
-              </div>
-              <div>
-                <h2 className="text-lg md:text-xl font-semibold text-foreground">
-                  {activeTab.label} Tokens
-                </h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  {activeTab.description}
-                </p>
-              </div>
+    <RequireAuth title="Sign In Required" message="Please sign in to explore tokens and trade.">
+      <AppLayout>
+        <div className="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+          {/* Categories Navigation */}
+          <Tabs defaultValue="trending" value={category} onValueChange={(v) => setCategory(v as any)} className="w-full">
+            {/* Mobile Tabs (Same design as AFK page) */}
+            <div className="sm:hidden -mx-2">
+              <TabsList className="grid w-full grid-cols-3 bg-muted/30 p-1 rounded-xl h-auto border border-border/50 mb-6">
+                <TabsTrigger value="trending" className="py-2.5 text-[9px] font-bold uppercase tracking-widest gap-2">
+                  <Rocket className="w-3.5 h-3.5" /> Trending
+                </TabsTrigger>
+                <TabsTrigger value="volume" className="py-2.5 text-[9px] font-bold uppercase tracking-widest gap-2">
+                  <BarChart3 className="w-3.5 h-3.5" /> Volume
+                </TabsTrigger>
+                <TabsTrigger value="latest" className="py-2.5 text-[9px] font-bold uppercase tracking-widest gap-2">
+                  <Clock className="w-3.5 h-3.5" /> Latest
+                </TabsTrigger>
+              </TabsList>
             </div>
-          </div>
 
-          {/* Token List Content */}
-          <div
-            className="p-4 md:p-6"
-            role={isMobile ? undefined : 'tabpanel'}
-            id={isMobile ? undefined : 'category-panel'}
-            aria-labelledby={isMobile ? undefined : `tab-${activeCategory}`}
-          >
-            <TokenList
-              category={activeCategory}
-              title=""
-              limit={50}
-              showFilters={true}
-              timeframe={activeCategory === 'latest' ? '7d' : '24h'}
-            />
-          </div>
+            {/* Desktop Grid (Hidden on smallest screens) */}
+            <div
+              className="hidden sm:grid grid-cols-2 md:grid-cols-3 gap-4 mb-8"
+              role="tablist"
+            >
+              {[
+                { id: 'trending', label: 'Trending', icon: Rocket, color: 'text-orange-500', desc: 'Fastest growing' },
+                { id: 'volume', label: 'High Volume', icon: BarChart3, color: 'text-blue-500', desc: 'Most traded' },
+                { id: 'latest', label: 'Latest', icon: Clock, color: 'text-green-500', desc: 'Newly listed' }
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  role="tab"
+                  aria-selected={category === cat.id}
+                  onClick={() => setCategory(cat.id as any)}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-300 text-left group
+                    ${category === cat.id
+                      ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5'
+                      : 'border-border/50 bg-card hover:border-border hover:bg-muted/30'
+                    }`}
+                >
+                  <div className={`p-2 rounded-lg ${category === cat.id ? 'bg-primary/10' : 'bg-muted'} group-hover:scale-110 transition-transform`}>
+                    <cat.icon className={`w-5 h-5 ${cat.color}`} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base uppercase tracking-tight">{cat.label}</h3>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground opacity-60 tracking-widest">{cat.desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Token List Content */}
+            <TabsContent value={category} className="focus-visible:outline-none focus:outline-none ring-0 border-none m-0 p-0">
+              <TokenList category={category} />
+            </TabsContent>
+          </Tabs>
         </div>
-      </div>
-    </AppLayout>
+      </AppLayout>
+    </RequireAuth>
   );
 }

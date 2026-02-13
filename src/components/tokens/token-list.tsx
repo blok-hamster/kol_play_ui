@@ -59,8 +59,6 @@ type DiscoveryItem = {
 
 interface TokenListProps {
   category: 'trending' | 'volume' | 'latest';
-  title: string;
-  description?: string;
   className?: string;
   limit?: number;
   showFilters?: boolean;
@@ -508,27 +506,27 @@ const TokenList: React.FC<TokenListProps> = ({
       return (
         <div
           key={t.mint}
-          className="bg-background border border-border rounded-xl p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group"
+          className="bg-background border border-border rounded-xl p-3 sm:p-4 hover:border-muted-foreground transition-all duration-200 cursor-pointer group"
           onClick={() => handleTokenClick(item)}
         >
           {/* Main content row */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
             {/* Left section - Token info */}
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
+            <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
               {/* Token Logo */}
               {t.image ? (
                 <img
                   src={t.image}
                   alt={t.symbol || t.name}
-                  className="w-12 h-12 rounded-full flex-shrink-0 border-2 border-muted"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0 border-2 border-muted"
                   onError={e => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                   }}
                 />
               ) : (
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 border-muted">
-                  <span className="text-primary-foreground font-bold text-sm">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0 border-2 border-muted">
+                  <span className="text-primary-foreground font-bold text-[10px] sm:text-sm">
                     {(t.symbol || t.name || '?')
                       .charAt(0)
                       .toUpperCase()}
@@ -538,14 +536,14 @@ const TokenList: React.FC<TokenListProps> = ({
 
               {/* Token Name & Symbol */}
               <div className="min-w-0 flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <h3 className="font-bold text-foreground text-lg truncate">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 mb-0.5 sm:mb-1">
+                  <h3 className="font-bold text-foreground text-base sm:text-lg truncate">
                     {t.symbol || t.name || 'Unknown'}
                   </h3>
                   {item.risk?.jupiterVerified && (
-                    <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                    <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
                       <svg
-                        className="w-2.5 h-2.5 text-white"
+                        className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-white"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
@@ -558,21 +556,22 @@ const TokenList: React.FC<TokenListProps> = ({
                     </div>
                   )}
                 </div>
-                <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                  <span>
+                <div className="flex items-center space-x-2 sm:space-x-3 text-[10px] sm:text-sm text-muted-foreground font-mono">
+                  <span className="truncate max-w-[50px] sm:max-w-none">
                     {t.creation?.created_time
                       ? formatRelativeTime(new Date(t.creation.created_time * 1000))
                       : 'N/A'}
                   </span>
-                  <span className="font-mono">
+                  <span>
                     {t.mint
-                      ? `${t.mint.slice(0, 4)}...${t.mint.slice(-4)}`
+                      ? (
+                        <>
+                          <span className="sm:hidden">{t.mint.slice(0, 4)}...</span>
+                          <span className="hidden sm:inline">{t.mint.slice(0, 4)}...{t.mint.slice(-4)}</span>
+                        </>
+                      )
                       : 'Unknown'}
                   </span>
-                  <div className="flex items-center space-x-1">
-                    <Users className="w-3 h-3" />
-                    <span>{item.holders || 0}</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -581,18 +580,19 @@ const TokenList: React.FC<TokenListProps> = ({
             <Button
               size="sm"
               disabled={isBuying}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-6 py-2 rounded-lg font-medium flex items-center space-x-2 min-w-[80px]"
+              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-medium flex items-center space-x-1.5 sm:space-x-2 min-w-[70px] sm:min-w-[80px] h-8 sm:h-10 text-xs sm:text-sm"
               onClick={e => handleQuickBuy({ mint: t.mint, symbol: t.symbol } as any, e)}
             >
               {isBuying ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Buying...</span>
+                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                  <span className="hidden xs:inline">Buying...</span>
+                  <span className="xs:hidden">Buy</span>
                 </>
               ) : (
                 <>
-                  <span className="w-4 h-4 bg-green-400 rounded-full flex items-center justify-center">
-                    <span className="text-green-900 font-bold text-xs">⚡</span>
+                  <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 bg-green-400 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-green-900 font-bold text-[8px] sm:text-xs">⚡</span>
                   </span>
                   <span>Buy</span>
                 </>
@@ -601,54 +601,58 @@ const TokenList: React.FC<TokenListProps> = ({
           </div>
 
           {/* Stats row */}
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center justify-between text-[10px] sm:text-sm">
             {/* Left stats */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="flex items-center space-x-1">
-                <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                <span className="text-muted-foreground">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-orange-500 rounded-full"></span>
+                <span className="text-muted-foreground whitespace-nowrap">
                   {primaryPool?.price?.usd ? `${formatNumber(primaryPool.price.usd, 4)} USD` : 'N/A'}
                 </span>
               </div>
-              <div className="flex items-center space-x-1 px-2 py-1 bg-muted rounded text-xs">
-                <span className="text-muted-foreground">Buys</span>
+              <div className="flex items-center space-x-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-muted rounded text-[10px] sm:text-xs">
+                <span className="text-muted-foreground hidden xs:inline">Buys</span>
                 <span className="font-medium">{primaryPool?.txns?.buys ?? item.buys ?? 0}</span>
               </div>
               <div className="flex items-center space-x-1">
-                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></span>
                 <span className="text-muted-foreground">
                   {primaryPool?.liquidity?.usd && primaryPool?.marketCap?.usd
-                    ? `${formatNumber((primaryPool.liquidity.usd / primaryPool.marketCap.usd) * 100, 2)}%`
+                    ? `${formatNumber((primaryPool.liquidity.usd / primaryPool.marketCap.usd) * 100, 1)}%`
                     : '—'}
                 </span>
               </div>
             </div>
 
             {/* Right stats */}
-            <div className="flex items-center space-x-4 text-muted-foreground">
-              <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-2 sm:space-x-4 text-muted-foreground">
+              <div className="flex items-center space-x-1 sm:hidden">
+                <Users className="w-2.5 h-2.5" />
+                <span>{item.holders || 0}</span>
+              </div>
+              <div className="flex items-center space-x-1 hidden sm:flex">
                 <Users className="w-3 h-3" />
                 <span>{item.holders || 0}</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <span className="w-3 h-3 bg-accent-gradient rounded"></span>
-                <span>{primaryPool?.price?.usd ? formatNumber(primaryPool.price.usd, 6) : 'N/A'}</span>
-              </div>
-              <div className="text-xs">
+              <div className="text-[10px] sm:text-xs hidden xs:inline opacity-70">
                 TX {primaryPool?.txns?.total ?? item.txns ?? 0}
               </div>
             </div>
           </div>
 
           {/* Bottom stats row */}
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border text-sm">
-            <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-between mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-border text-[10px] sm:text-sm">
+            <div className="flex items-center space-x-3 sm:space-x-4">
               <span className="text-muted-foreground">
-                V ${formatNumber(primaryPool?.txns?.volume24h || 0, 0)}
+                <span className="hidden xs:inline">Vol </span>${formatNumber(primaryPool?.txns?.volume24h || 0, 0)}
               </span>
               <span className="text-muted-foreground">
-                MC ${formatNumber(primaryPool?.marketCap?.usd || 0, 0)}
+                <span className="hidden xs:inline">MC </span>${formatNumber(primaryPool?.marketCap?.usd || 0, 0)}
               </span>
+            </div>
+            <div className="text-muted-foreground flex items-center space-x-1">
+              <Clock className="w-2.5 h-2.5 sm:w-3 h-3" />
+              <span>{item.pools?.[0]?.timeframe || '24h'}</span>
             </div>
             {category === 'trending' && (
               <div className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded text-xs font-medium">
@@ -664,14 +668,7 @@ const TokenList: React.FC<TokenListProps> = ({
 
   return (
     <div className={cn('space-y-6', className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">{title}</h2>
-          {description && (
-            <p className="text-muted-foreground mt-1">{description}</p>
-          )}
-        </div>
+      <div className="flex items-center justify-between mb-2">
 
         {/* Live Mode Toggle for Latest Category */}
         {category === 'latest' && (

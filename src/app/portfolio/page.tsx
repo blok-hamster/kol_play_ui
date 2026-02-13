@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/app-layout';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   PieChart,
   TrendingUp,
@@ -56,6 +57,7 @@ const PortfolioPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isOverviewCollapsed, setIsOverviewCollapsed] = useState(false);
   const [isTradingStatsCollapsed, setIsTradingStatsCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -383,10 +385,43 @@ const PortfolioPage: React.FC = () => {
             </div>
           )}
 
+          {/* Mobile Navigation */}
+          <div className="lg:hidden mb-6">
+            <div className="bg-muted/30 p-1 rounded-xl border border-border/50 flex">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={cn(
+                  "flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
+                  activeTab === 'overview' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                )}
+              >Overview</button>
+              <button
+                onClick={() => setActiveTab('open')}
+                className={cn(
+                  "flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
+                  activeTab === 'open' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                )}
+              >Open</button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={cn(
+                  "flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
+                  activeTab === 'history' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                )}
+              >History</button>
+            </div>
+          </div>
+
           {/* Main Content */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8 mb-8">
+          <div className={cn(
+            "grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8",
+            isMobile ? "flex flex-col" : "lg:grid"
+          )}>
             {/* Portfolio Overview */}
-            <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
+            <div className={cn(
+              "bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg",
+              isMobile && activeTab !== 'overview' && "hidden"
+            )}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg sm:text-xl font-semibold text-foreground">
                   Portfolio Overview
@@ -643,7 +678,10 @@ const PortfolioPage: React.FC = () => {
             </div>
 
             {/* Open Positions - NEW */}
-            <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
+            <div className={cn(
+              "bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg",
+              isMobile && activeTab !== 'open' && "hidden"
+            )}>
               <OpenPositions
                 limit={10}
                 showHeader={true}
@@ -656,7 +694,10 @@ const PortfolioPage: React.FC = () => {
             </div>
 
             {/* Token Holdings - Keep for wallet balance display */}
-            <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
+            <div className={cn(
+              "bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg",
+              isMobile && activeTab !== 'overview' && "hidden"
+            )}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg sm:text-xl font-semibold text-foreground">
                   Wallet Holdings
@@ -923,7 +964,10 @@ const PortfolioPage: React.FC = () => {
           </div>
 
           {/* Closed Trades - NEW */}
-          <div className="bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg">
+          <div className={cn(
+            "bg-background border border-border rounded-xl p-4 sm:p-6 shadow-lg",
+            isMobile && activeTab !== 'history' && "hidden"
+          )}>
             <ClosedTrades
               limit={5}
               showHeader={true}

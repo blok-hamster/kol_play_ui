@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserSubscription } from '@/types';
-import { Badge } from '@/components/ui/badge';
 
 export function KolClusterCard() {
     const { subscriptions, updateSubscriptionSettings, bulkUpdateSubscriptionSettings } = useSubscriptions();
@@ -84,37 +83,37 @@ export function KolClusterCard() {
 
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
+                    <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                         <Layers className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-foreground italic uppercase tracking-tight">KOL Cluster Dashboard</h2>
-                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">Manage your copy trading clusters and thresholds</p>
+                        <h2 className="text-lg md:text-xl font-bold text-foreground italic uppercase tracking-tight leading-tight">KOL Cluster Dashboard</h2>
+                        <p className="text-[9px] md:text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">Manage your copy trading clusters</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 bg-muted/20 p-2 rounded-xl border border-border/30">
-                    <div className="flex items-center gap-2 px-3">
-                        <Settings2 className="w-4 h-4 text-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Threshold</span>
+                <div className="flex flex-wrap items-center gap-2 md:gap-4 bg-muted/20 p-2 rounded-xl border border-border/30">
+                    <div className="flex items-center gap-2 px-2 md:px-3">
+                        <Settings2 className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Thresh</span>
                         <Input
                             type="number"
                             value={globalThreshold}
                             onChange={(e) => handleUpdateGlobalThreshold(e.target.value)}
                             onBlur={() => saveTradingSettings()}
-                            className="w-12 h-8 text-xs font-bold p-1 text-center !bg-zinc-950 border-border/20 focus:ring-primary/30 !text-white"
+                            className="w-10 md:w-12 h-7 md:h-8 text-[10px] font-bold p-1 text-center !bg-zinc-950 border-border/20 focus:ring-primary/30 !text-white"
                         />
                     </div>
-                    <div className="w-px h-6 bg-border/30" />
-                    <div className="flex items-center gap-2 px-3">
-                        <Clock className="w-4 h-4 text-blue-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Window (m)</span>
+                    <div className="w-px h-5 md:h-6 bg-border/30" />
+                    <div className="flex items-center gap-2 px-2 md:px-3">
+                        <Clock className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Wind</span>
                         <Input
                             type="number"
                             value={globalWindow}
                             onChange={(e) => handleUpdateGlobalWindow(e.target.value)}
                             onBlur={() => saveTradingSettings()}
-                            className="w-16 h-8 text-xs font-bold p-1 text-center !bg-zinc-950 border-border/20 focus:ring-primary/30 !text-white"
+                            className="w-12 md:w-16 h-7 md:h-8 text-[10px] font-bold p-1 text-center !bg-zinc-950 border-border/20 focus:ring-primary/30 !text-white"
                         />
                     </div>
                 </div>
@@ -141,33 +140,33 @@ export function KolClusterCard() {
                             )}
                         >
                             {/* KOL Header */}
-                            <div className="p-4 flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="relative">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center border border-border/30 overflow-hidden shadow-inner">
-                                            <User className="w-5 h-5 text-primary" />
+                            <div className="p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-4">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                    <div className="relative shrink-0">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center border border-border/30 overflow-hidden shadow-inner">
+                                            <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                                         </div>
                                         {sub.isActive && (
-                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background flex items-center justify-center">
-                                                <Zap className="w-2 h-2 text-white fill-current" />
+                                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border border-background flex items-center justify-center">
+                                                <Zap className="w-1.5 h-1.5 text-white fill-current" />
                                             </div>
                                         )}
                                     </div>
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-bold text-sm truncate uppercase tracking-tight text-foreground">{sub.label || 'KOL'}</h3>
-                                            <div className="flex items-center gap-1 bg-zinc-950/50 p-0.5 rounded-md border border-border/20">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                            <h3 className="font-bold text-xs sm:text-sm truncate uppercase tracking-tight text-foreground leading-none">{sub.label || 'KOL'}</h3>
+                                            <div className="flex items-center gap-1 bg-zinc-950/50 p-0.5 rounded-md border border-border/20 w-fit">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         handleUpdateKolSettings(sub.kolWallet, { type: 'trade' });
                                                     }}
                                                     className={cn(
-                                                        "text-[9px] px-1.5 py-0.5 rounded transition-all font-black uppercase tracking-tighter",
-                                                        sub.type === 'trade' ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-white/5"
+                                                        "text-[8px] px-1 py-0.5 rounded transition-all font-black uppercase tracking-tighter",
+                                                        sub.type === 'trade' ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                                                     )}
                                                 >
-                                                    Trade
+                                                    T
                                                 </button>
                                                 <button
                                                     onClick={(e) => {
@@ -175,41 +174,33 @@ export function KolClusterCard() {
                                                         handleUpdateKolSettings(sub.kolWallet, { type: 'watch' });
                                                     }}
                                                     className={cn(
-                                                        "text-[9px] px-1.5 py-0.5 rounded transition-all font-black uppercase tracking-tighter",
-                                                        sub.type === 'watch' ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "text-muted-foreground hover:bg-white/5"
+                                                        "text-[8px] px-1 py-0.5 rounded transition-all font-black uppercase tracking-tighter",
+                                                        sub.type === 'watch' ? "bg-blue-500 text-white" : "text-muted-foreground"
                                                     )}
                                                 >
-                                                    Watch
+                                                    W
                                                 </button>
                                             </div>
                                         </div>
-                                        <p className="text-[10px] text-muted-foreground font-bold truncate font-mono opacity-60">
+                                        <p className="text-[9px] text-muted-foreground font-bold truncate font-mono opacity-60">
                                             {sub.kolWallet.slice(0, 4)}...{sub.kolWallet.slice(-4)}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <span className={cn(
-                                            "text-[10px] font-black uppercase tracking-widest hidden sm:block",
-                                            sub.isActive ? "text-primary" : "text-muted-foreground/50"
-                                        )}>
-                                            {sub.isActive ? 'Active' : 'Paused'}
-                                        </span>
-                                        <Switch
-                                            checked={sub.isActive}
-                                            onCheckedChange={(checked) => handleUpdateKolSettings(sub.kolWallet, { isActive: checked })}
-                                            className="data-[state=checked]:bg-primary"
-                                        />
-                                    </div>
+                                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                                    <Switch
+                                        checked={sub.isActive}
+                                        onCheckedChange={(checked) => handleUpdateKolSettings(sub.kolWallet, { isActive: checked })}
+                                        className="scale-75 sm:scale-100 data-[state=checked]:bg-primary"
+                                    />
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg transition-colors"
+                                        className="h-7 w-7 sm:h-8 sm:w-8 p-0 hover:bg-muted/50 rounded-lg transition-colors"
                                         onClick={() => toggleExpand(sub.kolWallet)}
                                     >
-                                        {expandedKols.has(sub.kolWallet) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                        {expandedKols.has(sub.kolWallet) ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                     </Button>
                                 </div>
                             </div>

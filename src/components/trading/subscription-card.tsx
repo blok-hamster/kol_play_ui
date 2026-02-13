@@ -196,22 +196,22 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
   return (
     <>
-      <div className={`bg-background border border-border rounded-lg ${isList ? 'p-3' : 'p-4 sm:p-6'} hover:border-muted-foreground transition-all duration-200 group`}
+      <div className={`bg-background border border-border rounded-lg ${isList ? 'p-2 sm:p-3' : 'p-3 sm:p-6'} hover:border-muted-foreground transition-all duration-200 group`}
       >
         {/* Header */}
-        <div className={`flex ${isList ? 'items-center' : 'items-start'} justify-between ${isList ? 'mb-2' : 'mb-4'} gap-3`}
+        <div className={`flex ${isList ? 'items-center' : 'items-start'} justify-between ${isList ? 'mb-1 sm:mb-2' : 'mb-3 sm:mb-4'} gap-2 sm:gap-3`}
         >
-          <div className="flex items-center space-x-3 flex-1 min-w-0">
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
             {/* Avatar */}
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt={displayName}
-                className={`${isList ? 'w-8 h-8' : 'w-10 h-10 sm:w-12 sm:h-12'} rounded-full object-cover flex-shrink-0`}
+                className={`${isList ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-9 h-9 sm:w-12 sm:h-12'} rounded-full object-cover flex-shrink-0`}
               />
             ) : (
-              <div className={`${isList ? 'w-8 h-8' : 'w-10 h-10 sm:w-12 sm:h-12'} bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0`}>
-                <span className={`text-primary-foreground font-bold ${isList ? 'text-xs' : 'text-xs sm:text-sm'}`}>
+              <div className={`${isList ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-9 h-9 sm:w-12 sm:h-12'} bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0`}>
+                <span className={`text-primary-foreground font-bold ${isList ? 'text-[10px] sm:text-xs' : 'text-[10px] sm:text-sm'}`}>
                   {displayName.slice(0, 2).toUpperCase()}
                 </span>
               </div>
@@ -219,12 +219,15 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
             {/* Info */}
             <div className="min-w-0 flex-1">
-              <h3 className={`font-bold text-foreground ${isList ? 'text-sm' : 'text-sm sm:text-base'} truncate`}>
+              <h3 className={`font-bold text-foreground ${isList ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'} truncate`}>
                 {displayName}
               </h3>
-              <div className="flex items-center space-x-2 text-xs sm:text-sm text-muted-foreground">
+              <div className="flex items-center space-x-1.5 sm:space-x-2 text-[10px] sm:text-sm text-muted-foreground">
                 <span className="font-mono truncate">
-                  <span className="sm:hidden">
+                  <span className="xs:hidden">
+                    {subscription.kolWallet.slice(0, 4)}...
+                  </span>
+                  <span className="hidden xs:inline sm:hidden">
                     {subscription.kolWallet.slice(0, 4)}...
                     {subscription.kolWallet.slice(-4)}
                   </span>
@@ -238,14 +241,14 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                   className="hover:text-foreground transition-colors flex-shrink-0"
                   title="Copy address"
                 >
-                  <Copy className="w-3 h-3" />
+                  <Copy className="w-2.5 h-2.5 sm:w-3 h-3" />
                 </button>
                 <button
                   onClick={handleViewOnExplorer}
                   className="hover:text-foreground transition-colors flex-shrink-0"
                   title="View on Solscan"
                 >
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-2.5 h-2.5 sm:w-3 h-3" />
                 </button>
               </div>
             </div>
@@ -255,10 +258,10 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
             {/* Status Badge */}
             <div
-              className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusBg()} ${getStatusColor()}`}
+              className={`flex items-center space-x-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${getStatusBg()} ${getStatusColor()}`}
             >
-              <StatusIcon className="w-3 h-3" />
-              <span className="hidden sm:inline">
+              <StatusIcon className="w-2.5 h-2.5 sm:w-3 h-3" />
+              <span className="hidden xs:inline">
                 {!subscription.isActive
                   ? 'Paused'
                   : subscription.type === 'trade'
@@ -271,9 +274,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowDropdown(!showDropdown)}
-                className="p-1.5 sm:p-2 hover:bg-muted rounded-lg transition-colors"
+                className="p-1 sm:p-2 hover:bg-muted rounded-lg transition-colors"
               >
-                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                <MoreHorizontal className="w-3.5 h-3.5 sm:w-4 h-4 text-muted-foreground" />
               </button>
 
               {showDropdown && (
@@ -353,13 +356,13 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
         {/* Subscription Details / Condensed */}
         {isList ? (
-          <div className="mt-2 flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
+          <div className="mt-1.5 flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
             <span className="capitalize">
               {subscription.type === 'trade' ? 'Copy Trading' : 'Watch Only'}
             </span>
             {subscription.createdAt && (
               <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
+                <Calendar className="w-2.5 h-2.5 sm:w-3 h-3" />
                 {new Date(subscription.createdAt).toLocaleDateString()}
               </span>
             )}
@@ -367,10 +370,10 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
         ) : (
           <>
             {/* Subscription Details */}
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {/* Type & Settings */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
-                <div className="flex items-center space-x-4">
+              <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1.5 text-[11px] sm:text-sm">
+                <div className="flex items-center space-x-3 sm:space-x-4">
                   <div className="flex items-center space-x-1">
                     <span className="text-muted-foreground">Type:</span>
                     <span className="font-medium text-foreground capitalize">
@@ -383,8 +386,8 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
                 {subscription.createdAt && (
                   <div className="flex items-center space-x-1 text-muted-foreground">
-                    <Calendar className="w-3 h-3" />
-                    <span className="text-xs">
+                    <Calendar className="w-2.5 h-2.5 sm:w-3 h-3" />
+                    <span className="text-[10px] sm:text-xs text-nowrap">
                       {new Date(subscription.createdAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -393,9 +396,9 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
               {/* Trading Settings */}
               {subscription.type === 'trade' && (
-                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
-                    {subscription.copyPercentage &&
+                <div className="bg-muted/30 rounded-lg p-2 sm:p-3 space-y-1.5 sm:space-y-2">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4 text-[10px] sm:text-sm">
+                    {subscription.copyPercentage !== undefined &&
                       subscription.copyPercentage > 0 && (
                         <div>
                           <span className="text-muted-foreground">Copy %:</span>
@@ -405,19 +408,19 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                         </div>
                       )}
 
-                    {subscription.minAmount && subscription.minAmount > 0 && (
+                    {subscription.minAmount !== undefined && subscription.minAmount > 0 && (
                       <div>
                         <span className="text-muted-foreground">Min:</span>
-                        <span className="ml-1 font-medium text-foreground">
+                        <span className="ml-1 font-medium text-foreground text-nowrap">
                           {subscription.minAmount} SOL
                         </span>
                       </div>
                     )}
 
-                    {subscription.maxAmount && subscription.maxAmount > 0 && (
+                    {subscription.maxAmount !== undefined && subscription.maxAmount > 0 && (
                       <div>
                         <span className="text-muted-foreground">Max:</span>
-                        <span className="ml-1 font-medium text-foreground">
+                        <span className="ml-1 font-medium text-foreground text-nowrap">
                           {subscription.maxAmount} SOL
                         </span>
                       </div>
@@ -428,10 +431,10 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
               {/* Watch-only Settings */}
               {subscription.type === 'watch' &&
-                subscription.minAmount &&
+                subscription.minAmount !== undefined &&
                 subscription.minAmount > 0 && (
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <div className="text-sm">
+                  <div className="bg-muted/30 rounded-lg p-2 sm:p-3">
+                    <div className="text-[10px] sm:text-sm">
                       <span className="text-muted-foreground">Minimum Amount:</span>
                       <span className="ml-1 font-medium text-foreground">
                         {subscription.minAmount} SOL
@@ -442,31 +445,31 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-border mt-4">
+            <div className="flex flex-row items-center justify-between gap-2 pt-3 border-t border-border mt-3 sm:pt-4 sm:mt-4">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsTradesModalOpen(true)}
-                className="flex items-center justify-center space-x-2 w-full sm:w-auto"
+                className="flex items-center justify-center space-x-1.5 sm:space-x-2 flex-1 sm:flex-none text-[10px] sm:text-sm h-8 sm:h-9"
               >
-                <Eye className="w-4 h-4" />
-                <span>View Trades</span>
+                <Eye className="w-3.5 h-3.5 sm:w-4 h-4" />
+                <span>Trades</span>
               </Button>
 
               <Button
                 variant={subscription.isActive ? 'secondary' : 'default'}
                 size="sm"
                 onClick={handleToggleActive}
-                className="flex items-center space-x-2"
+                className="flex items-center justify-center space-x-1.5 sm:space-x-2 flex-1 sm:flex-none text-[10px] sm:text-sm h-8 sm:h-9"
               >
                 {subscription.isActive ? (
                   <>
-                    <Pause className="w-4 h-4" />
+                    <Pause className="w-3.5 h-3.5 sm:w-4 h-4" />
                     <span>Pause</span>
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4" />
+                    <Play className="w-3.5 h-3.5 sm:w-4 h-4" />
                     <span>Resume</span>
                   </>
                 )}

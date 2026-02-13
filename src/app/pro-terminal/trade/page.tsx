@@ -9,8 +9,9 @@ import { OrderHistory } from '@/components/trading/order-history';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { TokenService } from '@/services/token.service';
 import { SearchTokenResult } from '@/types';
+import { cn } from '@/lib/utils';
 
-import { Loader2, ExternalLink, Search, TrendingUp, Trophy } from 'lucide-react';
+import { Loader2, ExternalLink, Search, TrendingUp, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,10 +21,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 // --- Active Trading View (When mint is selected) ---
 function ActiveTradeSession({ mint }: { mint: string }) {
     const [token, setToken] = React.useState<SearchTokenResult | null>(null);
-    const [loading, setLoading] = React.useState(true);
 
     // Live price updates
     const [livePrice, setLivePrice] = React.useState<number | null>(null);
+    const [isHeaderCollapsed, setIsHeaderCollapsed] = React.useState(true);
 
     React.useEffect(() => {
         const fetchToken = async () => {
@@ -53,77 +54,104 @@ function ActiveTradeSession({ mint }: { mint: string }) {
     return (
         <div className="max-w-[1800px] mx-auto px-4 py-4 space-y-4">
             {/* Token Header Info */}
-            <div className="bg-card/40 border border-border rounded-2xl p-5 flex flex-wrap items-center gap-8 backdrop-blur-md shadow-2xl shadow-black/20">
+            <div className="bg-card/40 border border-border rounded-2xl p-4 lg:p-5 flex flex-col gap-4 backdrop-blur-md shadow-2xl shadow-black/20">
                 {token ? (
                     <>
-                        {(() => {
-                            const t = token as any;
-                            return (
-                                <>
+                        <div className="flex items-center justify-between w-full">
+                            {(() => {
+                                const t = token as any;
+                                return (
                                     <div className="flex items-center space-x-4">
                                         <div className="relative">
                                             {t.token?.image ? (
-                                                <img src={t.token.image} alt={t.token.symbol} className="w-12 h-12 rounded-full border-2 border-primary/50 shadow-lg" />
+                                                <img src={t.token.image} alt={t.token.symbol} className="w-10 h-10 lg:w-12 lg:h-12 rounded-full border-2 border-primary/50 shadow-lg" />
                                             ) : (
-                                                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center font-black text-xs border-2 border-border">
+                                                <div className="w-10 h-10 lg:w-12 lg:h-12 bg-muted rounded-full flex items-center justify-center font-black text-[10px] lg:text-xs border-2 border-border">
                                                     {t.token?.symbol?.slice(0, 2).toUpperCase()}
                                                 </div>
                                             )}
-                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-card animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                                            <div className="absolute -bottom-1 -right-1 w-3 h-3 lg:w-4 lg:h-4 bg-green-500 rounded-full border-2 border-card animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h1 className="text-2xl font-black text-foreground tracking-tighter uppercase italic">{t.token?.symbol} <span className="text-muted-foreground opacity-50 not-italic">/ SOL</span></h1>
-                                                <div className="px-1.5 py-0.5 bg-primary/10 border border-primary/20 rounded text-[9px] font-black text-primary uppercase tracking-widest">PRO FEED</div>
+                                                <h1 className="text-lg lg:text-2xl font-black text-foreground tracking-tighter uppercase italic">{t.token?.symbol} <span className="text-muted-foreground opacity-50 not-italic">/ SOL</span></h1>
+                                                <div className="px-1.5 py-0.5 bg-primary/10 border border-primary/20 rounded text-[8px] lg:text-[9px] font-black text-primary uppercase tracking-widest">PRO FEED</div>
                                             </div>
-                                            <div className="text-[10px] text-muted-foreground font-mono font-bold tracking-tight opacity-70 max-w-[200px] truncate">{t.token?.name}</div>
+                                            <div className="text-[9px] lg:text-[10px] text-muted-foreground font-mono font-bold tracking-tight opacity-70 max-w-[150px] lg:max-w-[200px] truncate">{t.token?.name}</div>
                                         </div>
                                     </div>
+                                );
+                            })()}
 
-                                    <div className="h-12 w-px bg-border/50 hidden lg:block" />
-
-                                    <div className="flex-1 flex flex-wrap items-center gap-8">
-                                        <div className="space-y-1">
-                                            <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">Live Price</div>
-                                            <div className="text-xl font-black text-foreground leading-none flex items-baseline gap-1">
-                                                {displayPrice ? displayPrice.toFixed(9) : '0.00'}
-                                                <span className="text-[10px] text-green-500 font-bold uppercase tracking-tighter">SOL</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">24h Vol</div>
-                                            <div className="text-sm font-bold text-foreground leading-none">
-                                                {t.pools?.[0]?.txns?.volume ? `$${(t.pools[0].txns.volume / 1000).toFixed(1)}K` : 'N/A'}
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">Liquidity</div>
-                                            <div className="text-sm font-bold text-foreground leading-none">
-                                                {t.pools?.[0]?.liquidity?.usd ? `$${(t.pools[0].liquidity.usd / 1000).toFixed(1)}K` : 'N/A'}
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">MKT Cap</div>
-                                            <div className="text-sm font-bold text-foreground leading-none">
-                                                {t.pools?.[0]?.marketCap?.usd ? `$${(t.pools[0].marketCap.usd / 1000).toFixed(1)}K` : 'N/A'}
-                                            </div>
-                                        </div>
+                            <div className="flex items-center gap-3">
+                                <div className="text-right lg:hidden">
+                                    <div className="text-sm font-black text-foreground">
+                                        {displayPrice ? displayPrice.toFixed(9) : '0.00'}
                                     </div>
+                                    <div className="text-[8px] text-green-500 font-bold uppercase">SOL</div>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="lg:hidden h-8 w-8 p-0"
+                                    onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+                                >
+                                    {isHeaderCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                                </Button>
+                            </div>
+                        </div>
 
-                                    <div className="hidden lg:flex items-center gap-2 ml-auto">
-                                        <a href={`https://dexscreener.com/solana/${mint}`} target="_blank" rel="noopener noreferrer">
-                                            <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest px-3 border-2">
-                                                <ExternalLink className="w-3 h-3 mr-1" />
-                                                DexScreener
-                                            </Button>
-                                        </a>
-                                    </div>
-                                </>
-                            );
-                        })()}
+                        {(!isHeaderCollapsed || (typeof window !== 'undefined' && window.innerWidth >= 1024)) && (
+                            <div className={cn("flex flex-wrap items-center gap-6 lg:gap-8 pt-4 lg:pt-0 border-t border-border/30 lg:border-0", isHeaderCollapsed && "hidden lg:flex")}>
+                                {(() => {
+                                    const t = token as any;
+                                    return (
+                                        <>
+                                            <div className="h-12 w-px bg-border/50 hidden lg:block" />
+                                            <div className="flex-1 flex flex-wrap items-center gap-6 lg:gap-8">
+                                                <div className="space-y-1 hidden lg:block">
+                                                    <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">Live Price</div>
+                                                    <div className="text-xl font-black text-foreground leading-none flex items-baseline gap-1">
+                                                        {displayPrice ? displayPrice.toFixed(9) : '0.00'}
+                                                        <span className="text-[10px] text-green-500 font-bold uppercase tracking-tighter">SOL</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <div className="text-[9px] lg:text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">24h Vol</div>
+                                                    <div className="text-xs lg:text-sm font-bold text-foreground leading-none">
+                                                        {t.pools?.[0]?.txns?.volume ? `$${(t.pools[0].txns.volume / 1000).toFixed(1)}K` : 'N/A'}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <div className="text-[9px] lg:text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">Liquidity</div>
+                                                    <div className="text-xs lg:text-sm font-bold text-foreground leading-none">
+                                                        {t.pools?.[0]?.liquidity?.usd ? `$${(t.pools[0].liquidity.usd / 1000).toFixed(1)}K` : 'N/A'}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <div className="text-[9px] lg:text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">MKT Cap</div>
+                                                    <div className="text-xs lg:text-sm font-bold text-foreground leading-none">
+                                                        {t.pools?.[0]?.marketCap?.usd ? `$${(t.pools[0].marketCap.usd / 1000).toFixed(1)}K` : 'N/A'}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 ml-auto">
+                                                <a href={`https://dexscreener.com/solana/${mint}`} target="_blank" rel="noopener noreferrer">
+                                                    <Button variant="outline" size="sm" className="h-8 text-[9px] lg:text-[10px] font-black uppercase tracking-widest px-3 border-2">
+                                                        <ExternalLink className="w-3 h-3 mr-1" />
+                                                        DexScreener
+                                                    </Button>
+                                                </a>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        )}
                     </>
                 ) : (
                     <div className="flex items-center space-x-3 py-1">
@@ -136,7 +164,8 @@ function ActiveTradeSession({ mint }: { mint: string }) {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Main Trading Layout */}
+            <div className="hidden lg:grid lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-9 flex flex-col space-y-4">
                     <div className="bg-background rounded-2xl overflow-hidden min-h-[550px]">
                         <LightweightTradingChart
@@ -159,6 +188,49 @@ function ActiveTradeSession({ mint }: { mint: string }) {
                     />
                     <RugCheckSecurity mint={mint} />
                 </div>
+            </div>
+
+            {/* Mobile Trading Layout: Tabs */}
+            <div className="lg:hidden">
+                <Tabs defaultValue="chart" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 bg-muted/30 p-1 rounded-xl h-auto border border-border/50">
+                        <TabsTrigger value="chart" className="py-2 text-[10px] font-bold uppercase tracking-wider">
+                            Chart
+                        </TabsTrigger>
+                        <TabsTrigger value="trade" className="py-2 text-[10px] font-bold uppercase tracking-wider">
+                            Trade
+                        </TabsTrigger>
+                        <TabsTrigger value="history" className="py-2 text-[10px] font-bold uppercase tracking-wider">
+                            History
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="chart" className="mt-4 space-y-4 ring-0 focus-visible:ring-0">
+                        <div className="bg-background rounded-2xl overflow-hidden h-[450px] border border-border/50 shadow-lg">
+                            <LightweightTradingChart
+                                mint={mint}
+                                symbol={(token as any)?.token?.symbol}
+                                onPriceUpdate={setLivePrice}
+                            />
+                        </div>
+                        <RugCheckSecurity mint={mint} />
+                    </TabsContent>
+
+                    <TabsContent value="trade" className="mt-4 ring-0 focus-visible:ring-0">
+                        <TradeExecutionForm
+                            mint={mint}
+                            symbol={(token as any)?.token?.symbol}
+                            className="h-auto"
+                            currentPrice={displayPrice}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="history" className="mt-4 ring-0 focus-visible:ring-0">
+                        <div className="h-[500px] overflow-hidden border border-border/50 rounded-2xl shadow-lg">
+                            <OrderHistory className="h-full" mint={mint} />
+                        </div>
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
     );
