@@ -101,9 +101,7 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
         priority: 'high',
       });
       showSuccess('Order Placed', `Sell order for ${trade.tokenMint.slice(0, 4)}... sent successfully.`);
-      setTimeout(() => {
-        fetchOpenTrades();
-      }, 2000);
+      // No need to re-fetch — the POSITION_CLOSED WebSocket event will update the list
     } catch (err: any) {
       console.error('Failed to sell:', err);
       showError('Sell Failed', err.message || 'Could not execute sell order');

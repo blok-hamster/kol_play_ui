@@ -145,7 +145,7 @@ function ActiveTradeSession({ mint }: { mint: string }) {
                             onPriceUpdate={setLivePrice}
                         />
                     </div>
-                    <div className="min-h-[400px]">
+                    <div className="h-[500px] overflow-hidden">
                         <OrderHistory className="h-full" mint={mint} />
                     </div>
                 </div>

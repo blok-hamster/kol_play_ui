@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,8 +61,34 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
     const [priority, setPriority] = useState<'high' | 'medium' | 'low'>('high');
     const [slippage, setSlippage] = useState<number>(0.5);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [tokenBalance, setTokenBalance] = useState<number | null>(null);
+    const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
     const solPresets = [0.1, 0.2, 0.5, 1];
+    const sellPercentPresets = [25, 50, 75, 100];
+
+    // Fetch token balance when switching to sell mode
+    const fetchTokenBalance = useCallback(async () => {
+        const walletAddr = user?.accountDetails?.address || user?.walletAddress;
+        if (!walletAddr || !mint || side !== 'sell') {
+            setTokenBalance(null);
+            return;
+        }
+        try {
+            setIsLoadingBalance(true);
+            const balance = await BalanceService.getTokenBalance(walletAddr, mint, isPaperTrading);
+            setTokenBalance(balance);
+        } catch (e) {
+            console.error('Failed to fetch token balance:', e);
+            setTokenBalance(null);
+        } finally {
+            setIsLoadingBalance(false);
+        }
+    }, [user, mint, side, isPaperTrading]);
+
+    useEffect(() => {
+        fetchTokenBalance();
+    }, [fetchTokenBalance]);
 
     useEffect(() => {
         if (currentPrice > 0 && percentChange && orderType === 'limit') {
@@ -320,6 +346,16 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
 
                 {/* Amount Input */}
                 <div className="space-y-2">
+                    {/* Token balance display for sell mode */}
+                    {side === 'sell' && (
+                        <div className="flex items-center justify-between px-1">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Token Balance</span>
+                            <span className="text-[11px] font-bold text-foreground font-mono">
+                                {isLoadingBalance ? '...' : tokenBalance !== null ? tokenBalance.toLocaleString(undefined, { maximumFractionDigits: 4 }) : 'N/A'}
+                            </span>
+                        </div>
+                    )}
+
                     <div className="relative">
                         <Input
                             placeholder="0"
@@ -328,22 +364,41 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
                             className="h-12 bg-background border-border text-foreground text-lg font-bold pr-12 rounded-xl focus-visible:ring-primary"
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                            SOL
+                            {side === 'sell' ? 'TOKENS' : 'SOL'}
                         </div>
                     </div>
 
                     <div className="grid grid-cols-4 gap-2">
-                        {solPresets.map(val => (
-                            <Button
-                                key={val}
-                                variant="outline"
-                                size="sm"
-                                className="text-[10px] h-8 font-bold border-border/50 bg-muted/10 hover:bg-primary/10 hover:border-primary/50"
-                                onClick={() => setAmount(val.toString())}
-                            >
-                                {val}
-                            </Button>
-                        ))}
+                        {side === 'sell' ? (
+                            sellPercentPresets.map(pct => (
+                                <Button
+                                    key={pct}
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-[10px] h-8 font-bold border-border/50 bg-muted/10 hover:bg-red-500/10 hover:border-red-500/50"
+                                    onClick={() => {
+                                        if (tokenBalance !== null && tokenBalance > 0) {
+                                            setAmount((tokenBalance * pct / 100).toString());
+                                        }
+                                    }}
+                                    disabled={tokenBalance === null || tokenBalance <= 0}
+                                >
+                                    {pct}%
+                                </Button>
+                            ))
+                        ) : (
+                            solPresets.map(val => (
+                                <Button
+                                    key={val}
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-[10px] h-8 font-bold border-border/50 bg-muted/10 hover:bg-primary/10 hover:border-primary/50"
+                                    onClick={() => setAmount(val.toString())}
+                                >
+                                    {val}
+                                </Button>
+                            ))
+                        )}
                     </div>
                 </div>
 

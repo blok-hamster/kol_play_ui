@@ -123,11 +123,19 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
     const handleEvent = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail?.type === 'POSITION_CLOSED') {
-        console.log('🔄 [ClosedTrades] Trade closed event received, refreshing...');
-        fetchClosedTrades();
+        const { trade } = customEvent.detail.data || {};
+        if (trade) {
+          // Insert the closed trade directly into state — no full re-fetch
+          setClosedTrades(prev => {
+            if (prev.some(t => t.id === trade.id)) return prev;
+            return [trade, ...prev];
+          });
+          if (trade.tokenMint) loadTokens([trade.tokenMint]);
+        } else {
+          // Fallback if event payload doesn't include the trade object
+          fetchClosedTrades();
+        }
       }
-
-      // Also potentially handle TRADE_OPENED/FAILED if relevant, but primarily CLOSED matters here
     };
 
     window.addEventListener('kolplay_user_event', handleEvent);

@@ -30,7 +30,7 @@ export function AfkTerminal() {
     const [terminalLogs, setTerminalLogs] = useState<{ msg: string, type: 'info' | 'success' | 'warning' | 'error' | 'exec' }[]>([]);
     const [, setActiveTab] = useState('open');
 
-    const terminalEndRef = useRef<HTMLDivElement>(null);
+    const logContainerRef = useRef<HTMLDivElement>(null);
     const token = AuthService.getToken();
 
     const { connect, disconnect } = useEnhancedWebSocket({
@@ -124,12 +124,15 @@ export function AfkTerminal() {
             } else if (event.type === 'POSITION_CLOSED') {
                 const { tradeId, trade } = event.data;
                 setOpenTrades(prev => prev.filter(t => t.id !== tradeId && t.originalTradeId !== tradeId));
-                if (trade && trade.tags?.includes('afk')) {
-                    setClosedTrades(prev => [trade, ...prev]);
+                if (trade) {
+                    // Only add to closed list if it's an AFK trade (or if we can't tell, skip it)
+                    if (trade.tags?.includes('afk')) {
+                        setClosedTrades(prev => {
+                            if (prev.some(t => t.id === trade.id)) return prev;
+                            return [trade, ...prev];
+                        });
+                    }
                     addLog(`SETTLEMENT: Position Closed [${trade.tokenMint.slice(0, 8)}...] | PnL: ${trade.realizedPnLPercentage}%`, 'success');
-                } else {
-                    // Refresh if tag info is missing in event
-                    fetchTrades();
                 }
             }
         };
@@ -139,7 +142,10 @@ export function AfkTerminal() {
     }, [isPaperTrading]);
 
     useEffect(() => {
-        terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const container = logContainerRef.current;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     }, [terminalLogs]);
 
     return (
@@ -176,7 +182,7 @@ export function AfkTerminal() {
                         <Zap className="w-3 h-3" />
                         Kernel Logs
                     </div>
-                    <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                    <div ref={logContainerRef} className="flex-1 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                         {terminalLogs.map((log, i) => (
                             <div key={i} className={cn(
                                 "text-[10px] leading-relaxed break-all",
@@ -190,7 +196,6 @@ export function AfkTerminal() {
                                 {log.msg}
                             </div>
                         ))}
-                        <div ref={terminalEndRef} />
                     </div>
                 </div>
 
