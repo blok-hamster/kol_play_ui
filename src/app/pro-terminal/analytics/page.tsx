@@ -185,6 +185,7 @@ export default function AnalyticsDashboardPage() {
                                     limit={50}
                                     className="h-full"
                                     filterWallets={showSubscribedOnly ? (subscriptions?.length > 0 ? subscriptions.map(s => s.kolWallet) : []) : null}
+                                    viewMode="list"
                                     compactMode
                                 />
                                 {/* Overlay gradient for fade effect at bottom */}

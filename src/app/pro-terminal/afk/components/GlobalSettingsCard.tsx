@@ -102,9 +102,9 @@ export function GlobalSettingsCard() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group">
+                    <div className="flex flex-wrap items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group gap-3">
                         <div className="flex items-center gap-3">
                             <div className={cn(
                                 "p-2 rounded-lg transition-all group-hover:bg-purple-500/20",
@@ -127,7 +127,7 @@ export function GlobalSettingsCard() {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group">
+                    <div className="flex flex-wrap items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group gap-3">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-yellow-500/10 rounded-lg group-hover:bg-yellow-500/20 transition-colors">
                                 <Zap className="w-4 h-4 text-yellow-500" />
@@ -148,7 +148,7 @@ export function GlobalSettingsCard() {
                 </div>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group">
+                    <div className="flex flex-wrap items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group gap-3">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
                                 <ShieldCheck className="w-4 h-4 text-blue-500" />
@@ -170,7 +170,7 @@ export function GlobalSettingsCard() {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group">
+                    <div className="flex flex-wrap items-center justify-between p-4 bg-muted/10 rounded-2xl border border-border/20 hover:bg-muted/20 transition-all group gap-3">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-green-500/10 rounded-lg group-hover:bg-green-500/20 transition-colors">
                                 <Wallet className="w-4 h-4 text-green-500" />

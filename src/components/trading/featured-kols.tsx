@@ -6,11 +6,14 @@ import { KOLLeaderboardItem } from '@/types';
 import { Trophy, TrendingUp, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useKOLStore } from '@/stores/use-kol-store';
-import { formatWalletAddress } from '@/lib/utils'; // Assumes formatWalletAddress exists or will be added
+import { formatWalletAddress } from '@/lib/utils';
+import KOLTradesModal from './kol-trades-modal';
 
 export default function FeaturedKols() {
     const [leaderboard, setLeaderboard] = useState<KOLLeaderboardItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedKOL, setSelectedKOL] = useState<any>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const router = useRouter();
     const { getKOLMetadata, ensureKOLs } = useKOLStore();
 
@@ -99,10 +102,18 @@ export default function FeaturedKols() {
                         const avatarUrl = metadata?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${item.address}`;
                         const isPositive = item.stats.totalPnL >= 0;
 
+                        const handleCardClick = () => {
+                            setSelectedKOL({
+                                wallet: item.address,
+                                metadata
+                            });
+                            setIsModalOpen(true);
+                        };
+
                         return (
                             <div
                                 key={item.address}
-                                onClick={() => router.push(`/kols/${item.address}`)}
+                                onClick={handleCardClick}
                                 className="group relative bg-card/50 backdrop-blur-sm border border-border/50 hover:border-primary/50 transition-all duration-300 rounded-xl p-3 sm:p-4 cursor-pointer hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 overflow-hidden w-[220px] sm:w-auto shrink-0"
                             >
                                 {/* Rank Badge */}
@@ -192,6 +203,14 @@ export default function FeaturedKols() {
                     })}
                 </div>
             </div>
+
+            {selectedKOL && (
+                <KOLTradesModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    walletAddress={selectedKOL.wallet}
+                />
+            )}
         </div>
     );
 }

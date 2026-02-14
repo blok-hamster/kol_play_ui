@@ -349,7 +349,9 @@ export class TradingService {
           settings.tokenBlacklist !== undefined ||
           settings.dexWhitelist !== undefined ||
           settings.minKOLConvergence !== undefined ||
-          settings.convergenceWindowMinutes !== undefined) {
+          settings.convergenceWindowMinutes !== undefined ||
+          settings.enableTimeRestrictions !== undefined ||
+          settings.tradingHours !== undefined) {
         
         structuredBody.tradeConfig = {
           slippage: settings.slippage,
@@ -367,7 +369,9 @@ export class TradingService {
           dexWhitelist: settings.dexWhitelist,
           minKOLConvergence: settings.minKOLConvergence,
           convergenceWindowMinutes: settings.convergenceWindowMinutes,
-          afkEnabled: settings.afkEnabled
+          afkEnabled: settings.afkEnabled,
+          enableTimeRestrictions: settings.enableTimeRestrictions,
+          tradingHours: settings.tradingHours
         };
       }
 

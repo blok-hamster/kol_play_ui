@@ -14,12 +14,15 @@ interface TopTradersProps {
   limit?: number;
   className?: string;
   filterWallets?: string[] | null;
+  compactMode?: boolean;
+  viewMode?: 'grid' | 'list';
 }
 
 const TopTraders: React.FC<TopTradersProps> = ({
   limit = 50,
   className = '',
   filterWallets,
+  viewMode = 'grid',
 }) => {
   const [traders, setTraders] = useState<TopTrader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,8 +61,6 @@ const TopTraders: React.FC<TopTradersProps> = ({
             }
           }));
         } else {
-          // If we have filters but no simple way to get stats individually (without getWalletStats)
-          // we just show them with basic info for now, or fetch what we can.
           resultTraders = filterWallets.map(wallet => ({
             wallet,
             summary: {
@@ -140,6 +141,65 @@ const TopTraders: React.FC<TopTradersProps> = ({
 
     const isPositive = summary.total >= 0;
 
+    if (viewMode === 'list') {
+      return (
+        <div
+          key={wallet}
+          className="bg-muted/10 border-b border-border/50 p-3 hover:bg-muted/20 transition-all cursor-pointer group flex items-center gap-4"
+          onClick={() => handleViewProfile(wallet)}
+        >
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${index === 0 ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+            index === 1 ? 'bg-gray-400/20 text-gray-400 border border-gray-400/30' :
+              index === 2 ? 'bg-amber-600/20 text-amber-600 border border-amber-600/30' :
+                'bg-muted/40 text-muted-foreground border border-border/30'
+            }`}>
+            {index + 1}
+          </div>
+
+          <div className="w-10 h-10 rounded-lg bg-black/40 overflow-hidden border border-white/5 shrink-0">
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${wallet}`; }}
+            />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+              {displayName}
+            </h3>
+            <p className="text-xs text-muted-foreground truncate opacity-60">
+              {twitterHandle || formatWalletAddress(wallet)}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-6 shrink-0">
+            <div className="text-right">
+              <p className="text-[10px] text-muted-foreground uppercase">Win Rate</p>
+              <p className="text-sm font-semibold">{formatNumber(summary.winPercentage, 0)}%</p>
+            </div>
+            <div className="text-right min-w-[80px]">
+              <p className="text-[10px] text-muted-foreground uppercase">Total PnL</p>
+              <p className={`text-sm font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                {isPositive ? '+' : ''}{summary.total.toFixed(2)} SOL
+              </p>
+            </div>
+            <div className="opacity-0 group-hover:opacity-100 transition-all">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={(e) => { e.stopPropagation(); handleCopyWallet(wallet); }}
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         key={wallet}
@@ -214,13 +274,13 @@ const TopTraders: React.FC<TopTradersProps> = ({
   return (
     <div className={className}>
       {isLoading ? (
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className={viewMode === 'list' ? "space-y-3" : "grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}>
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-20 bg-muted/20 animate-pulse rounded-xl border border-border/50" />
+            <div key={i} className={viewMode === 'list' ? "h-14 bg-muted/20 animate-pulse rounded-lg border border-border/50" : "h-20 bg-muted/20 animate-pulse rounded-xl border border-border/50"} />
           ))}
         </div>
       ) : traders.length > 0 ? (
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className={viewMode === 'list' ? "flex flex-col border border-border/50 rounded-xl overflow-hidden bg-background/50 backdrop-blur-sm" : "grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}>
           {traders.map(renderTraderCard)}
         </div>
       ) : (
