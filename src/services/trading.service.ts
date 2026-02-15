@@ -370,6 +370,8 @@ export class TradingService {
           minKOLConvergence: settings.minKOLConvergence,
           convergenceWindowMinutes: settings.convergenceWindowMinutes,
           afkEnabled: settings.afkEnabled,
+          afkBuyAmount: settings.afkBuyAmount,
+          maxConcurrentTrades: settings.maxConcurrentTrades,
           enableTimeRestrictions: settings.enableTimeRestrictions,
           tradingHours: settings.tradingHours
         };
