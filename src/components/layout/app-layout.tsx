@@ -6,7 +6,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 import Header from './header';
 import { SolanaService } from '@/services/solana.service';
-import { Twitter, Send, MessageCircle, Github } from 'lucide-react';
+import Link from 'next/link';
+import { Twitter, Send, MessageCircle, Github, Code2 } from 'lucide-react';
 import { ModeSwitchLoading } from '@/components/ui/mode-switch-loading';
 
 interface AppLayoutProps {
@@ -110,6 +111,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, className }) => {
               <Github className="h-4 w-4" aria-hidden="true" />
               <span>GitHub</span>
             </a>
+            <Link href="/developers/docs" className="text-primary hover:text-primary/80 inline-flex items-center gap-2 font-bold ml-2">
+              <Code2 className="h-4 w-4" aria-hidden="true" />
+              <span>Developers</span>
+            </Link>
           </div>
           {/* Metrics */}
           <div className="flex items-center gap-4 text-white/80">
