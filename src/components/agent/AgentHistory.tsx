@@ -1,4 +1,6 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Plus, MessageCircle, Clock, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -60,12 +62,14 @@ export const AgentHistory: React.FC<AgentHistoryProps> = ({
                                     currentThreadId === thread.id ? "text-primary" : "text-muted-foreground group-hover:text-primary"
                                 )} />
                                 <div className="flex-1 min-w-0">
-                                    <p className={cn(
-                                        "text-xs font-semibold truncate",
+                                    <div className={cn(
+                                        "text-xs font-semibold truncate sidebar-markdown-preview",
                                         currentThreadId === thread.id ? "text-primary" : "text-foreground"
                                     )}>
-                                        {thread.preview || "Untitled Chat"}
-                                    </p>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {thread.preview || "Untitled Chat"}
+                                        </ReactMarkdown>
+                                    </div>
                                     <p className="text-[10px] text-muted-foreground mt-1 flex justify-between">
                                         <span>ID: {thread.id?.substring(0, 8) || '...'}</span>
                                         <span>{thread.timestamp ? new Date(thread.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>

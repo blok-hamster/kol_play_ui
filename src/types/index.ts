@@ -270,6 +270,7 @@ export interface TradingSettings {
     end: string;
     timezone: string;
   };
+  agentSettings?: TradingSettings;
 }
 
 export interface SwapData {

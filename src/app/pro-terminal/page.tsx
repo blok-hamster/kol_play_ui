@@ -6,55 +6,145 @@ import { TokenService } from '@/services/token.service';
 import { SolanaService } from '@/services/solana.service';
 import { SearchTokenResult } from '@/types';
 import LiveTradesFeed from '@/components/trading/live-trades-feed';
-import { Zap, TrendingUp, Clock, ArrowRight } from 'lucide-react';
+import { Zap, TrendingUp, Clock, ArrowRight, BarChart3, Activity, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 import { usePumpPortalStream } from '@/hooks/use-pumpportal-stream';
+import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
+import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
+import { useNotifications } from '@/stores/use-ui-store';
 
 const TokenCard: React.FC<{ token: SearchTokenResult }> = ({ token }) => {
     const [imgError, setImgError] = useState(false);
+    const [isBuying, setIsBuying] = useState(false);
+    const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
+    const { showSuccess, showError } = useNotifications();
     const imageUrl = !imgError ? (token.image || (token as any).logoURI) : null;
 
+    const handleInstantBuy = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (isBuying) return;
+
+        try {
+            const configCheck = await checkTradeConfig();
+            if (!configCheck.hasConfig) {
+                setShowTradeConfigPrompt(true);
+                return;
+            }
+
+            setIsBuying(true);
+            const result = await executeInstantBuy(token.mint, token.symbol);
+
+            if (result.success) {
+                showSuccess(
+                    'Buy Order Executed',
+                    `Successfully bought ${token.symbol} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
+                );
+            } else {
+                showError('Buy Error', result.error || 'Failed to execute buy order');
+            }
+        } catch (error: any) {
+            showError('Buy Error', error.message || 'An unexpected error occurred');
+        } finally {
+            setIsBuying(false);
+        }
+    };
+
+    const handleAnalyze = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.href = `/pro-terminal/analytics?address=${token.mint}`;
+    };
+
+    const handleTerminal = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.href = `/pro-terminal/trade?mint=${token.mint}`;
+    };
+
     return (
-        <Link href={`/pro-terminal/trade?mint=${token.mint}`} className="block">
-            <div className="bg-card hover:bg-muted/50 border border-border p-3 rounded-xl transition-all group group-hover:border-primary/50">
-                <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                        {imageUrl ? (
-                            <img
-                                src={imageUrl}
-                                alt={token.symbol}
-                                className="w-8 h-8 rounded-full object-cover"
-                                onError={() => setImgError(true)}
-                            />
-                        ) : (
-                            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center font-bold text-xs">
-                                {token.symbol?.slice(0, 2).toUpperCase()}
-                            </div>
-                        )}
-                        <div>
-                            <div className="font-bold text-sm text-foreground truncate max-w-[100px]">{token.symbol}</div>
-                            <div className="text-[10px] text-muted-foreground truncate max-w-[80px]">{token.name}</div>
+        <div className="bg-card hover:bg-muted/50 border border-border p-3 rounded-xl transition-all group group-hover:border-primary/50 cursor-pointer" onClick={handleTerminal}>
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                    {imageUrl ? (
+                        <img
+                            src={imageUrl}
+                            alt={token.symbol}
+                            className="w-8 h-8 rounded-full object-cover"
+                            onError={() => setImgError(true)}
+                        />
+                    ) : (
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center font-bold text-xs">
+                            {token.symbol?.slice(0, 2).toUpperCase()}
                         </div>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-sm font-bold text-foreground">
-                            {token.price ? formatCurrency(token.price) : 'N/A'}
-                        </div>
-                        {token.priceChange24h !== undefined && (
-                            <div className={`text-[10px] font-medium ${token.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
-                            </div>
-                        )}
+                    )}
+                    <div>
+                        <div className="font-bold text-sm text-foreground truncate max-w-[100px]">{token.symbol}</div>
+                        <div className="text-[10px] text-muted-foreground truncate max-w-[80px]">{token.name}</div>
                     </div>
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>Vol: {token.volume24h ? formatCurrency(token.volume24h) : 'N/A'}</span>
-                    <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                <div className="text-right">
+                    <div className="text-sm font-bold text-foreground">
+                        {token.price ? formatCurrency(token.price) : 'N/A'}
+                    </div>
+                    {token.priceChange24h !== undefined && (
+                        <div className={`text-[10px] font-medium ${token.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+                        </div>
+                    )}
                 </div>
             </div>
-        </Link>
+
+            <div className="flex flex-col gap-2 mt-3">
+                <Button
+                    size="sm"
+                    onClick={handleInstantBuy}
+                    disabled={isBuying}
+                    className="w-full h-8 bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-[10px]"
+                >
+                    {isBuying ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                        <Zap className="h-3 w-3 mr-1" />
+                    )}
+                    {isBuying ? 'Buying...' : 'Instant Buy'}
+                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAnalyze}
+                        className="flex-1 h-7 text-[9px] font-black uppercase tracking-widest"
+                    >
+                        <BarChart3 className="h-3 w-3 mr-1" /> Analyze
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleTerminal}
+                        className="flex-1 h-7 text-[9px] font-black uppercase tracking-widest"
+                    >
+                        <Activity className="h-3 w-3 mr-1" /> Terminal
+                    </Button>
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2">
+                <span>Vol: {token.volume24h ? formatCurrency(token.volume24h) : 'N/A'}</span>
+                <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+            </div>
+
+            {showTradeConfigPrompt && (
+                <TradeConfigPrompt
+                    isOpen={showTradeConfigPrompt}
+                    onClose={() => setShowTradeConfigPrompt(false)}
+                    tokenSymbol={token.symbol}
+                />
+            )}
+        </div>
     );
 };
 

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function GlobalSettingsCard() {
+export function GlobalSettingsCard({ mode = 'copy' }: { mode?: 'copy' | 'agent' }) {
     const { tradingSettings, updateTradingSettings, saveTradingSettings, fetchTradingSettings } = useTradingStore();
 
     // Fetch settings on mount
@@ -22,40 +22,52 @@ export function GlobalSettingsCard() {
     }, [fetchTradingSettings]);
 
     // Check if tradingSettings exists before destructuring
+    const currentSettings = mode === 'agent' ? tradingSettings?.agentSettings : tradingSettings;
+
     const {
         afkEnabled = false,
         paperTrading = true,
         maxConcurrentTrades = 3,
         slippage = 1.0,
         afkBuyAmount = 0.1
-    } = tradingSettings || {};
+    } = currentSettings || {};
+
+    const handleUpdate = (updates: any) => {
+        if (mode === 'agent') {
+            updateTradingSettings({
+                agentSettings: { ...tradingSettings.agentSettings, ...updates }
+            } as any);
+        } else {
+            updateTradingSettings(updates);
+        }
+    };
 
     const handleToggleAfk = async (checked: boolean) => {
-        updateTradingSettings({ afkEnabled: checked });
+        handleUpdate({ afkEnabled: checked });
         await saveTradingSettings();
     };
 
     const handleTogglePaper = async (checked: boolean) => {
-        updateTradingSettings({ paperTrading: checked });
+        handleUpdate({ paperTrading: checked });
         await saveTradingSettings();
     };
 
     const handleUpdateMaxConcurrent = async (val: string) => {
         const num = parseInt(val);
         if (isNaN(num)) return;
-        updateTradingSettings({ maxConcurrentTrades: num });
+        handleUpdate({ maxConcurrentTrades: num });
     };
 
     const handleUpdateSlippage = async (val: string) => {
         const num = parseFloat(val);
         if (isNaN(num)) return;
-        updateTradingSettings({ slippage: num });
+        handleUpdate({ slippage: num });
     };
 
     const handleUpdateBuyAmount = async (val: string) => {
         const num = parseFloat(val);
         if (isNaN(num)) return;
-        updateTradingSettings({ afkBuyAmount: num });
+        handleUpdate({ afkBuyAmount: num });
     };
 
     const handleSaveGlobal = async () => {

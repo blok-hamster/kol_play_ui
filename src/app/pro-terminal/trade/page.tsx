@@ -21,10 +21,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 // --- Active Trading View (When mint is selected) ---
 function ActiveTradeSession({ mint }: { mint: string }) {
     const [token, setToken] = React.useState<SearchTokenResult | null>(null);
-
-    // Live price updates
     const [livePrice, setLivePrice] = React.useState<number | null>(null);
     const [isHeaderCollapsed, setIsHeaderCollapsed] = React.useState(true);
+    const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
         const fetchToken = async () => {
@@ -32,10 +31,13 @@ function ActiveTradeSession({ mint }: { mint: string }) {
             setLoading(true);
             try {
                 const res = await TokenService.getToken(mint);
-                setToken(res.data as any);
-                // Use quote price (SOL) as default
-                if ((res.data as any)?.pools?.[0]?.price?.quote) {
-                    setLivePrice((res.data as any).pools[0].price.quote);
+                if (res && res.data) {
+                    setToken(res.data as any);
+                    // Use quote price (SOL) as default
+                    const tokenData = res.data as any;
+                    if (tokenData.pools?.[0]?.price?.quote) {
+                        setLivePrice(tokenData.pools[0].price.quote);
+                    }
                 }
             } catch (e) {
                 console.error('Failed to fetch token metadata', e);

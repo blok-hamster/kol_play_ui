@@ -425,26 +425,26 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
                 </div>
 
                 {/* Right: Actions & P&L */}
-                <div className="flex flex-col items-end space-y-4">
+                <div className="flex flex-col items-end justify-between self-stretch">
                   <div className="text-right">
                     <div className={cn(
-                      'text-lg font-bold leading-none',
+                      'text-lg sm:text-xl font-bold leading-none',
                       trade.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     )}>
                       {trade.unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(trade.unrealizedPnL * solPrice)}
                     </div>
                     <div className={cn(
-                      'text-xs font-medium mt-1',
+                      'text-xs sm:text-sm font-medium mt-1',
                       trade.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     )}>
                       {trade.unrealizedPnL >= 0 ? '+' : ''}{formatPercentage(trade.unrealizedPnLPercentage)}
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 mt-auto">
                     {/* Sell Conditions Tooltips/Indicators */}
                     {(trade.sellConditions.takeProfitPercentage || trade.sellConditions.stopLossPercentage) && (
-                      <div className="flex space-x-1 mr-2 bg-muted/30 p-1 rounded">
+                      <div className="hidden sm:flex space-x-1 mr-2 bg-muted/30 p-1 rounded">
                         {trade.sellConditions.takeProfitPercentage && <span className="text-[9px] text-green-500 font-bold" title="TP">+{trade.sellConditions.takeProfitPercentage}%</span>}
                         {trade.sellConditions.stopLossPercentage && <span className="text-[9px] text-red-500 font-bold" title="SL">-{trade.sellConditions.stopLossPercentage}%</span>}
                       </div>
@@ -453,11 +453,11 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
                     <Button
                       size="sm"
                       variant="destructive"
-                      className="h-9 px-4 font-bold shadow-lg"
+                      className="h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm font-bold shadow-lg"
                       onClick={e => { e.stopPropagation(); handleInstantSell(trade); }}
                       disabled={sellingTradeId === trade.id}
                     >
-                      {sellingTradeId === trade.id ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Sell Now'}
+                      {sellingTradeId === trade.id ? <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> : 'Sell Now'}
                     </Button>
                   </div>
                 </div>

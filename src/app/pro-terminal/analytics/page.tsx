@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/layout/app-layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, TrendingUp, ShieldCheck, Activity, User, Target, Zap } from 'lucide-react';
+import { Politics, Users, AlertCircle, Search, TrendingUp, ShieldCheck, Activity, User, Target, Zap } from 'lucide-react';
 import { AnalyticsService, SentimentAnalysisResult } from '@/services/analytics.service';
 // Components
 import { SentimentGauge } from './_components/SentimentGauge';
@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils'; // Assuming global util
 
 export default function AnalyticsDashboardPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const addressParam = searchParams.get('address');
     const [tokenInput, setTokenInput] = useState('');
     const [activeToken, setActiveToken] = useState(''); // Used to trigger cards
 
@@ -35,17 +37,33 @@ export default function AnalyticsDashboardPage() {
     const [showSubscribedOnly, setShowSubscribedOnly] = useState(false);
     const { subscriptions } = useTradingStore();
 
-    // Pre-initialize the agent socket to avoid double-click issue
+    // Set token input if address is in URL
+    useEffect(() => {
+        if (addressParam) {
+            setTokenInput(addressParam);
+        }
+    }, [addressParam]);
+
+    // Pre-initialize the agent socket and handle auto-analyze
     useEffect(() => {
         console.log('[Analytics] Pre-initializing AnalyticsService agent socket...');
         AnalyticsService['getAgentSocket']();
-    }, []);
 
-    const handleAnalyze = async () => {
-        if (!tokenInput) return;
+        if (addressParam) {
+            // Tiny delay to ensure state is synchronized
+            setTimeout(() => {
+                const btn = document.getElementById('analyze-trigger-btn');
+                if (btn) btn.click();
+            }, 500);
+        }
+    }, [addressParam]);
+
+    const handleAnalyze = async (manualInput?: string) => {
+        const targetToken = manualInput || tokenInput;
+        if (!targetToken) return;
 
         // Validate Solana address format (base58, typically 32-44 characters)
-        if (tokenInput.length < 32 || tokenInput.length > 44) {
+        if (targetToken.length < 32 || targetToken.length > 44) {
             setSentimentError("Please enter a valid Solana token address (32-44 characters), not a symbol.");
             return;
         }
@@ -146,8 +164,9 @@ export default function AnalyticsDashboardPage() {
                             />
                         </div>
                         <Button
+                            id="analyze-trigger-btn"
                             size="sm"
-                            onClick={handleAnalyze}
+                            onClick={() => handleAnalyze()}
                             className="h-10 px-4 text-xs font-bold uppercase tracking-wider bg-primary/20 hover:bg-primary/30 text-primary border border-primary/20"
                         >
                             Analyze
@@ -220,8 +239,9 @@ export default function AnalyticsDashboardPage() {
                                         />
                                     </div>
                                     <Button
+                                        id="analyze-trigger-btn-desktop"
                                         size="sm"
-                                        onClick={handleAnalyze}
+                                        onClick={() => handleAnalyze()}
                                         className="h-7 text-[10px] font-bold uppercase tracking-wider bg-primary/20 hover:bg-primary/30 text-primary border border-primary/20 hover:border-primary/50"
                                     >
                                         Analyze

@@ -381,6 +381,31 @@ export class TradingService {
         structuredBody.watchConfig = settings.watchConfig;
       }
 
+      if (settings.agentSettings) {
+        structuredBody.agentConfig = {
+          slippage: settings.agentSettings.slippage,
+          minSpend: settings.agentSettings.minSpend,
+          maxSpend: settings.agentSettings.maxSpend,
+          useWatchConfig: settings.agentSettings.useWatchConfig,
+          paperTrading: settings.agentSettings.paperTrading,
+          useTurboPriority: settings.agentSettings.useTurboPriority,
+          enableMarketCapFilter: settings.agentSettings.enableMarketCapFilter,
+          minMarketCap: settings.agentSettings.minMarketCap,
+          maxMarketCap: settings.agentSettings.maxMarketCap,
+          enableLiquidityFilter: settings.agentSettings.enableLiquidityFilter,
+          minLiquidity: settings.agentSettings.minLiquidity,
+          tokenBlacklist: settings.agentSettings.tokenBlacklist,
+          dexWhitelist: settings.agentSettings.dexWhitelist,
+          minKOLConvergence: settings.agentSettings.minKOLConvergence,
+          convergenceWindowMinutes: settings.agentSettings.convergenceWindowMinutes,
+          afkEnabled: settings.agentSettings.afkEnabled,
+          afkBuyAmount: settings.agentSettings.afkBuyAmount,
+          maxConcurrentTrades: settings.agentSettings.maxConcurrentTrades,
+          enableTimeRestrictions: settings.agentSettings.enableTimeRestrictions,
+          tradingHours: settings.agentSettings.tradingHours
+        };
+      }
+
       const response = await apiClient.post<{
         message: string;
         settings: TradingSettings;

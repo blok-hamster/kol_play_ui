@@ -14,8 +14,10 @@ import {
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-export function TradeFiltersCard() {
+export function TradeFiltersCard({ mode = 'copy' }: { mode?: 'copy' | 'agent' }) {
     const { tradingSettings, updateTradingSettings, saveTradingSettings } = useTradingStore();
+
+    const currentSettings = mode === 'agent' ? tradingSettings?.agentSettings : tradingSettings;
 
     // Safety destructuring
     const {
@@ -24,17 +26,27 @@ export function TradeFiltersCard() {
         maxMarketCap = 10000000,
         enableLiquidityFilter = false,
         minLiquidity = 10000
-    } = tradingSettings || {};
+    } = currentSettings || {};
+
+    const handleUpdate = (updates: any) => {
+        if (mode === 'agent') {
+            updateTradingSettings({
+                agentSettings: { ...tradingSettings.agentSettings, ...updates }
+            } as any);
+        } else {
+            updateTradingSettings(updates);
+        }
+    };
 
     const handleToggle = async (key: string, val: boolean) => {
-        updateTradingSettings({ [key]: val });
+        handleUpdate({ [key]: val });
         await saveTradingSettings();
     };
 
     const handleUpdateNum = async (key: string, val: string) => {
         const num = parseFloat(val);
         if (isNaN(num)) return;
-        updateTradingSettings({ [key]: num });
+        handleUpdate({ [key]: num });
     };
 
     const handleSave = async () => {

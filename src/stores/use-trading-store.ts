@@ -13,6 +13,41 @@ import {
 import { STORAGE_KEYS } from '@/lib/constants';
 import { TradingService } from '@/services/trading.service';
 import type { UpdateUserSubscriptionRequest } from '@/services/trading.service';
+import { TradingSettings as ITradingSettings } from '@/types';
+
+const DEFAULT_AGENT_SETTINGS: ITradingSettings = {
+  slippage: 0.5,
+  minSpend: 0.01,
+  maxSpend: 1.0,
+  useWatchConfig: true,
+  watchConfig: {
+    takeProfitPercentage: 50,
+    stopLossPercentage: 15,
+    enableTrailingStop: false,
+    trailingPercentage: 10,
+    maxHoldTimeMinutes: 1440,
+  },
+  enableMarketCapFilter: true,
+  minMarketCap: 10000,
+  maxMarketCap: 50000000,
+  enableLiquidityFilter: true,
+  minLiquidity: 50000,
+  tokenBlacklist: [],
+  dexWhitelist: ['Raydium', 'Jupiter', 'Orca', 'Pump.fun'],
+  useTurboPriority: false,
+  paperTrading: false,
+  maxConcurrentTrades: 3,
+  minKOLConvergence: 1,
+  convergenceWindowMinutes: 60,
+  afkEnabled: false,
+  afkBuyAmount: 0.1,
+  enableTimeRestrictions: false,
+  tradingHours: {
+    start: '00:00',
+    end: '23:59',
+    timezone: 'UTC',
+  },
+};
 
 interface TradingState {
   // KOL Subscriptions
@@ -137,6 +172,7 @@ export const useTradingStore = create<TradingState>()(
           end: '23:59',
           timezone: 'UTC',
         },
+        agentSettings: DEFAULT_AGENT_SETTINGS,
       },
       isPaperTrading: false, // Default to Real execution, user can toggle
       error: null,
@@ -534,6 +570,39 @@ export const useTradingStore = create<TradingState>()(
                 end: '23:59',
                 timezone: 'UTC',
               },
+              agentSettings: backendSettings.agentConfig ? {
+                slippage: backendSettings.agentConfig.slippage ?? 0.5,
+                minSpend: backendSettings.agentConfig.minSpend ?? 0.01,
+                maxSpend: backendSettings.agentConfig.maxSpend ?? 1.0,
+                useWatchConfig: backendSettings.agentConfig.useWatchConfig ?? true,
+                paperTrading: backendSettings.agentConfig.paperTrading ?? false,
+                useTurboPriority: backendSettings.agentConfig.useTurboPriority ?? false,
+                enableMarketCapFilter: backendSettings.agentConfig.enableMarketCapFilter ?? true,
+                minMarketCap: backendSettings.agentConfig.minMarketCap ?? 10000,
+                maxMarketCap: backendSettings.agentConfig.maxMarketCap ?? 50000000,
+                enableLiquidityFilter: backendSettings.agentConfig.enableLiquidityFilter ?? true,
+                minLiquidity: backendSettings.agentConfig.minLiquidity ?? 50000,
+                tokenBlacklist: backendSettings.agentConfig.tokenBlacklist ?? [],
+                dexWhitelist: backendSettings.agentConfig.dexWhitelist ?? ['Raydium', 'Jupiter', 'Orca', 'Pump.fun'],
+                maxConcurrentTrades: backendSettings.agentConfig.maxConcurrentTrades ?? 3,
+                minKOLConvergence: backendSettings.agentConfig.minKOLConvergence ?? 1,
+                convergenceWindowMinutes: backendSettings.agentConfig.convergenceWindowMinutes ?? 60,
+                afkEnabled: backendSettings.agentConfig.afkEnabled ?? false,
+                afkBuyAmount: backendSettings.agentConfig.afkBuyAmount ?? 0.1,
+                enableTimeRestrictions: backendSettings.agentConfig.enableTimeRestrictions ?? false,
+                tradingHours: backendSettings.agentConfig.tradingHours ?? {
+                  start: '00:00',
+                  end: '23:59',
+                  timezone: 'UTC',
+                },
+                watchConfig: backendSettings.agentConfig.watchConfig ?? {
+                  takeProfitPercentage: backendSettings.agentConfig.takeProfitPercentage ?? 50,
+                  stopLossPercentage: backendSettings.agentConfig.stopLossPercentage ?? 15,
+                  enableTrailingStop: backendSettings.agentConfig.enableTrailingStop ?? false,
+                  trailingPercentage: backendSettings.agentConfig.trailingPercentage ?? 10,
+                  maxHoldTimeMinutes: backendSettings.agentConfig.maxHoldTimeMinutes ?? 1440,
+                },
+              } : (get().tradingSettings.agentSettings || DEFAULT_AGENT_SETTINGS),
             };
             
             set({ 

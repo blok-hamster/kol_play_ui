@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, TrendingUp, DollarSign, Clock, Loader2, Radio } from 'lucide-react';
+import { Users, TrendingUp, DollarSign, Clock, Loader2, Radio, Zap, BarChart3, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TokenService } from '@/services/token.service';
 import SolanaService from '@/services/solana.service';
@@ -79,14 +79,12 @@ interface TokenListFilters extends TokenFilters {
 
 const TokenList: React.FC<TokenListProps> = ({
   category,
-  title,
-  description,
   className = '',
   limit = 50,
   showFilters = true,
   timeframe = '24h',
 }) => {
-  const router = useRouter();
+  // const router = useRouter();
   const { isLoading, setLoading } = useLoading();
   const { showError, showSuccess } = useNotifications();
   const { cacheTokens } = useTokenStore();
@@ -153,29 +151,21 @@ const TokenList: React.FC<TokenListProps> = ({
         if (currentFilters.sortOrder)
           requestFilters.sortOrder = currentFilters.sortOrder;
 
-        void 0 && (
-          `🔍 TokenList: Fetching ${category} tokens with filters:`,
-          requestFilters
-        );
-
         switch (category) {
           case 'trending':
-            void 0 && ('📈 Calling SolanaService.getTrendingTokens');
             response = { data: await SolanaService.getTrendingTokens() };
             break;
           case 'volume':
-            void 0 && ('📊 Calling SolanaService.getHighVolumeTokens');
             response = { data: await SolanaService.getHighVolumeTokens() };
             break;
           case 'latest':
-            void 0 && ('🆕 Calling SolanaService.getNewTokens');
             response = { data: await SolanaService.getNewTokens() };
             break;
           default:
             throw new Error('Invalid token category');
         }
 
-        void 0 && (`✅ ${category} tokens response:`, response);
+        // Prepend to token list (limit to maxTokensRef)
 
         // Normalize to DiscoveryItem[] regardless of backend shape
         const normalize = (arr: any[]): DiscoveryItem[] => {
@@ -576,28 +566,50 @@ const TokenList: React.FC<TokenListProps> = ({
               </div>
             </div>
 
-            {/* Right section - Buy button */}
-            <Button
-              size="sm"
-              disabled={isBuying}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-medium flex items-center space-x-1.5 sm:space-x-2 min-w-[70px] sm:min-w-[80px] h-8 sm:h-10 text-xs sm:text-sm"
-              onClick={e => handleQuickBuy({ mint: t.mint, symbol: t.symbol } as any, e)}
-            >
-              {isBuying ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-                  <span className="hidden xs:inline">Buying...</span>
-                  <span className="xs:hidden">Buy</span>
-                </>
-              ) : (
-                <>
-                  <span className="w-3.5 h-3.5 sm:w-4 sm:h-4 bg-green-400 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-green-900 font-bold text-[8px] sm:text-xs">⚡</span>
-                  </span>
-                  <span>Buy</span>
-                </>
-              )}
-            </Button>
+            {/* Right section - Actions */}
+            <div className="flex flex-col space-y-1.5 sm:space-y-2">
+              <Button
+                size="sm"
+                disabled={isBuying}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-3 sm:px-6 py-1 h-7 sm:h-9 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-1 sm:space-x-2"
+                onClick={e => handleQuickBuy({ mint: t.mint, symbol: t.symbol } as any, e)}
+              >
+                {isBuying ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <>
+                    <Zap className="w-3 h-3 text-green-300" />
+                    <span>Buy</span>
+                  </>
+                )}
+              </Button>
+              <div className="flex space-x-1 sm:space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-7 sm:h-8 px-1.5 sm:px-3 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest border-border/50 hover:bg-accent-from/10 hover:text-accent-from hover:border-accent-from/30 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.href = `/pro-terminal/analytics?address=${t.mint}`;
+                  }}
+                >
+                  <BarChart3 className="w-3 h-3 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Analyze</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-7 sm:h-8 px-1.5 sm:px-3 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest border-border/50 hover:bg-blue-500/10 hover:text-blue-500 hover:border-blue-500/30 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.href = `/pro-terminal/trade?mint=${t.mint}`;
+                  }}
+                >
+                  <Activity className="w-3 h-3 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Terminal</span>
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Stats row */}
@@ -652,7 +664,7 @@ const TokenList: React.FC<TokenListProps> = ({
             </div>
             <div className="text-muted-foreground flex items-center space-x-1">
               <Clock className="w-2.5 h-2.5 sm:w-3 h-3" />
-              <span>{item.pools?.[0]?.timeframe || '24h'}</span>
+              <span>{timeframe}</span>
             </div>
             {category === 'trending' && (
               <div className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded text-xs font-medium">

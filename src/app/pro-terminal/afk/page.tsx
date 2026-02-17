@@ -21,6 +21,8 @@ import { RiskManagementCard } from './components/RiskManagementCard';
 import { AfkTerminal } from './components/AfkTerminal';
 
 import { TradingHoursCard } from './components/TradingHoursCard';
+import { AfkSetupForm } from './components/AfkSetupForm';
+import { AgentTerminal } from './components/AgentTerminal';
 
 // Component Placeholders (Will be implemented in Phase 4)
 const CopyTradingTab = () => (
@@ -77,50 +79,51 @@ const CopyTradingTab = () => (
 );
 
 const AgenticTradingTab = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 space-y-6">
-            <Card className="p-6 bg-card/50 border-border/50 backdrop-blur-sm">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/10 rounded-lg">
-                            <Bot className="w-5 h-5 text-blue-500" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-foreground italic uppercase">Autonomous Agent Manager</h2>
-                            <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider opacity-60">Deploy and monitor autonomous trading agents</p>
-                        </div>
-                    </div>
-                    <Badge variant="outline" className="border-blue-500/20 text-blue-500 bg-blue-500/5 uppercase tracking-widest px-3">Beta</Badge>
-                </div>
-
-                <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-border/50 rounded-2xl bg-muted/20">
-                    <Bot className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
-                    <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground opacity-40">No Autonomous Agents Active</p>
-                    <button className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20">
-                        Spawn New Agent
-                    </button>
-                </div>
-            </Card>
+    <div className="space-y-6">
+        {/* Desktop View */}
+        <div className="hidden lg:grid lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8">
+                <AgentTerminal />
+            </div>
+            <div className="lg:col-span-4 space-y-6">
+                <GlobalSettingsCard mode="agent" />
+                <TradingHoursCard mode="agent" />
+                <RiskManagementCard mode="agent" />
+                <TradeFiltersCard mode="agent" />
+            </div>
         </div>
 
-        <div className="lg:col-span-4 space-y-6">
-            <Card className="p-6 bg-card/50 border-border/50 backdrop-blur-sm">
-                <h3 className="font-bold text-foreground uppercase tracking-tight mb-4 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-blue-500" />
-                    Autonomous Log
-                </h3>
-                <div className="space-y-4 opacity-30">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="flex gap-3">
-                            <div className="w-1 bg-blue-500/50 rounded-full" />
-                            <div className="space-y-1">
-                                <div className="h-3 w-20 bg-muted rounded" />
-                                <div className="h-3 w-40 bg-muted rounded" />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </Card>
+        {/* Mobile View: Inner Tabs */}
+        <div className="lg:hidden -mx-2">
+            <Tabs defaultValue="terminal" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-muted/30 p-1 rounded-xl h-auto border border-border/50 mb-6">
+                    <TabsTrigger value="terminal" className="py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest gap-2 px-2">
+                        <Activity className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Terminal
+                    </TabsTrigger>
+                    <TabsTrigger value="config" className="py-2 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest gap-2 px-2">
+                        <Settings className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Config
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="terminal" className="space-y-6 focus-visible:outline-none ring-0">
+                    <AgentTerminal />
+                </TabsContent>
+
+                <TabsContent value="config" className="space-y-6 focus-visible:outline-none ring-0">
+                    <Tabs defaultValue="global" className="w-full">
+                        <TabsList className="grid w-full grid-cols-4 bg-muted/20 p-0.5 rounded-lg h-auto border border-border/40 mb-4 [&>*]:px-0.5">
+                            <TabsTrigger value="global" className="py-1.5 text-[8px] font-bold uppercase"><Settings className="w-3 h-3" /></TabsTrigger>
+                            <TabsTrigger value="hours" className="py-1.5 text-[8px] font-bold uppercase"><Clock className="w-3 h-3" /></TabsTrigger>
+                            <TabsTrigger value="risk" className="py-1.5 text-[8px] font-bold uppercase"><Shield className="w-3 h-3" /></TabsTrigger>
+                            <TabsTrigger value="filters" className="py-1.5 text-[8px] font-bold uppercase"><Filter className="w-3 h-3" /></TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="global" className="focus-visible:outline-none ring-0"><GlobalSettingsCard mode="agent" /></TabsContent>
+                        <TabsContent value="hours" className="focus-visible:outline-none ring-0"><TradingHoursCard mode="agent" /></TabsContent>
+                        <TabsContent value="risk" className="focus-visible:outline-none ring-0"><RiskManagementCard mode="agent" /></TabsContent>
+                        <TabsContent value="filters" className="focus-visible:outline-none ring-0"><TradeFiltersCard mode="agent" /></TabsContent>
+                    </Tabs>
+                </TabsContent>
+            </Tabs>
         </div>
     </div>
 );

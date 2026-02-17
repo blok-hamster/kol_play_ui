@@ -3,11 +3,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useLoading, useNotifications, useSubscriptions, useKOLStore } from '@/stores';
 import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
-import { TradeFilters, KOLTradeUnion, SocketKOLTrade, KOLTrade } from '@/types';
+import { TradeFilters, KOLTradeUnion, SocketKOLTrade } from '@/types';
 import { cn } from '@/lib/utils';
-import { Filter, LayoutGrid, List, Brain, Clock, ArrowRight } from 'lucide-react';
+import { Filter, LayoutGrid, List, Brain, Clock, ArrowRight, Zap, BarChart3, Activity, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
+import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 
 // Helper to check if a trade is a SocketKOLTrade (has tradeData)
 const isSocketTrade = (trade: any): trade is SocketKOLTrade => {
@@ -20,10 +21,11 @@ const TradeCard: React.FC<{
 }> = ({ trade, subscriptions }) => {
   const isSocket = isSocketTrade(trade);
   const { getKOLMetadata } = useKOLStore();
+  const [isBuying, setIsBuying] = useState(false);
+  const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
+  const { showSuccess, showError } = useNotifications();
 
   // Extract essential data correctly - accommodate both flat and nested structures
-  // Some structures have it in tradeData, others (KOLTrade from types) have it at top level
-  // We prefer tradeData but fall back to the top level
   const tradeData = isSocket ? trade.tradeData : (trade as any);
   const tradeType = tradeData?.tradeType || (trade as any).tradeType || 'buy';
   const isBuy = tradeType === 'buy';
@@ -58,8 +60,51 @@ const TradeCard: React.FC<{
   // Extract token mint for the trade link
   const tokenMint = tradeData?.mint || (isBuy ? tradeData?.tokenOut : tradeData?.tokenIn) || '';
 
+  const handleInstantBuy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isBuying) return;
+
+    try {
+      const configCheck = await checkTradeConfig();
+      if (!configCheck.hasConfig) {
+        setShowTradeConfigPrompt(true);
+        return;
+      }
+
+      setIsBuying(true);
+      const result = await executeInstantBuy(tokenMint, tradeData?.symbol);
+
+      if (result.success) {
+        showSuccess(
+          'Buy Order Executed',
+          `Successfully bought ${tradeData?.symbol || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
+        );
+      } else {
+        showError('Buy Error', result.error || 'Failed to execute buy order');
+      }
+    } catch (error: any) {
+      showError('Buy Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsBuying(false);
+    }
+  };
+
+  const handleAnalyze = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = `/pro-terminal/analytics?address=${tokenMint}`;
+  };
+
+  const handleTerminal = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = `/pro-terminal/trade?mint=${tokenMint}`;
+  };
+
   return (
-    <div className="bg-card hover:bg-muted/50 border border-border p-3 rounded-xl transition-all group group-hover:border-primary/50 relative overflow-hidden">
+    <div className="bg-card hover:bg-muted/50 border border-border p-3 rounded-xl transition-all group group-hover:border-primary/50 relative overflow-hidden cursor-pointer" onClick={handleTerminal}>
       <div className="flex items-center justify-between mb-2 pl-1 sm:pl-2">
         <div className="flex items-center space-x-3">
           {/* Identity Stack: Token and KOL */}
@@ -135,7 +180,41 @@ const TradeCard: React.FC<{
         </div>
       </div>
 
-      <div className="flex items-center justify-between pl-1 sm:pl-2 mt-2 pt-1">
+      <div className="flex flex-col gap-2 mt-3 pl-1 sm:pl-2">
+        <Button
+          size="sm"
+          onClick={handleInstantBuy}
+          disabled={isBuying}
+          className="w-full h-7 bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-[9px]"
+        >
+          {isBuying ? (
+            <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" />
+          ) : (
+            <Zap className="h-2.5 w-2.5 mr-1" />
+          )}
+          {isBuying ? 'Buying...' : 'Instant Buy'}
+        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAnalyze}
+            className="flex-1 h-6 text-[8px] font-black uppercase tracking-widest border-border/60"
+          >
+            <BarChart3 className="h-2.5 w-2.5 mr-1" /> Analyze
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTerminal}
+            className="flex-1 h-6 text-[8px] font-black uppercase tracking-widest border-border/60"
+          >
+            <Activity className="h-2.5 w-2.5 mr-1" /> Terminal
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pl-1 sm:pl-2 mt-2 pt-1 border-t border-border/10">
         {prediction ? (
           <div className="flex items-center space-x-1 px-1.5 py-0.5 bg-purple-500/10 rounded-lg border border-purple-500/10">
             <Brain className="w-2.5 h-2.5 text-purple-500" />
@@ -148,18 +227,17 @@ const TradeCard: React.FC<{
         )}
 
         <div className="flex space-x-1">
-          <Link href={`/pro-terminal/trade?mint=${tokenMint}`}>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 text-[9px] px-3 hover:bg-primary/10 hover:text-primary hover:border-primary/40 font-black tracking-tight border-border/60 transition-colors gap-1"
-            >
-              TRADE
-              <ArrowRight className="w-2.5 h-2.5" />
-            </Button>
-          </Link>
+          <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
         </div>
       </div>
+
+      {showTradeConfigPrompt && (
+        <TradeConfigPrompt
+          isOpen={showTradeConfigPrompt}
+          onClose={() => setShowTradeConfigPrompt(false)}
+          tokenSymbol={tradeData?.symbol}
+        />
+      )}
     </div>
   );
 };
@@ -261,32 +339,6 @@ const LiveTradesFeed: React.FC<{
     const handleFilterChange = useCallback((key: keyof TradeFilters, value: any) => {
       setFilters(prev => ({ ...prev, [key]: value }));
     }, []);
-
-    const handleQuickTrade = useCallback(
-      async (trade: KOLTradeUnion, type: 'buy' | 'sell') => {
-        try {
-          const tradeData = isSocketTrade(trade) ? trade.tradeData : trade;
-          if (!tradeData) throw new Error('Invalid trade data');
-
-          const kolWallet = trade.kolWallet;
-          if (!kolWallet) throw new Error('KOL wallet not found');
-
-          const subscription = subscriptions.find(s => s.kolWallet === kolWallet);
-          if (!subscription) throw new Error('Not subscribed to this KOL');
-
-          // Implementation of swap would go here
-          notifySuccess('Trade Executing', `Initiating ${type} of ${tradeData.symbol || 'token'}`);
-
-          setTimeout(() => {
-            notifySuccess('Trade Completed', `Successfully copy-traded ${tradeData.symbol}`);
-          }, 2000);
-
-        } catch (err: any) {
-          notifyError('Trade Error', err.message || 'Failed to execute quick trade');
-        }
-      },
-      [notifySuccess, notifyError, subscriptions]
-    );
 
     const isInitialLoading = Object.values(loading).some(v => v) && recentTrades.length === 0;
 

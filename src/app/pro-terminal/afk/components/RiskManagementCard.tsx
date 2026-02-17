@@ -15,8 +15,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function RiskManagementCard() {
+export function RiskManagementCard({ mode = 'copy' }: { mode?: 'copy' | 'agent' }) {
     const { tradingSettings, updateTradingSettings, saveTradingSettings } = useTradingStore();
+
+    const currentSettings = mode === 'agent' ? tradingSettings?.agentSettings : tradingSettings;
 
     const {
         useWatchConfig = false,
@@ -27,15 +29,25 @@ export function RiskManagementCard() {
             trailingPercentage: 5,
             maxHoldTimeMinutes: 60
         }
-    } = tradingSettings || {};
+    } = currentSettings || {};
+
+    const handleUpdate = (updates: any) => {
+        if (mode === 'agent') {
+            updateTradingSettings({
+                agentSettings: { ...tradingSettings.agentSettings, ...updates }
+            } as any);
+        } else {
+            updateTradingSettings(updates);
+        }
+    };
 
     const handleToggleMaster = async (val: boolean) => {
-        updateTradingSettings({ useWatchConfig: val });
+        handleUpdate({ useWatchConfig: val });
         await saveTradingSettings();
     };
 
     const handleUpdateWatchConfig = async (updates: Partial<typeof watchConfig>) => {
-        updateTradingSettings({
+        handleUpdate({
             watchConfig: { ...watchConfig, ...updates }
         });
     };

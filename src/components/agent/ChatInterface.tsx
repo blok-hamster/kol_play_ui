@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Bot, User, Send, RefreshCw } from 'lucide-react';
@@ -105,14 +107,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             {m.role === 'user' ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-primary" />}
                         </div>
                         <div className={cn(
-                            "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm backdrop-blur-sm",
+                            "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm backdrop-blur-sm prose prose-invert max-w-none",
                             m.role === 'user'
                                 ? "bg-gradient-to-br from-[#9945ff] to-[#7c3aed] text-white rounded-tr-none border border-white/10"
                                 : "bg-card/50 border border-border/50 text-foreground rounded-tl-none"
                         )}>
-                            <div className="whitespace-pre-wrap selection:bg-primary/30">
-                                {String(m.content || '(Empty Message)')}
-                            </div>
+                            {m.role === 'assistant' ? (
+                                <div className="markdown-content">
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                    >
+                                        {m.content || '(Empty Message)'}
+                                    </ReactMarkdown>
+                                </div>
+                            ) : (
+                                <div className="whitespace-pre-wrap selection:bg-primary/30">
+                                    {String(m.content || '(Empty Message)')}
+                                </div>
+                            )}
                             <div className={cn(
                                 "mt-1.5 text-[10px] opacity-40 font-mono",
                                 m.role === 'user' ? "text-right" : "text-left"
@@ -129,8 +141,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         <div className="w-8 h-8 rounded-full bg-muted/80 border border-border/50 flex items-center justify-center shrink-0">
                             <Bot className={cn("w-4 h-4 text-primary", isStreaming && "animate-pulse")} />
                         </div>
-                        <div className="px-4 py-3 rounded-2xl rounded-tl-none text-sm leading-relaxed bg-card/50 border border-border/50 text-foreground shadow-sm backdrop-blur-sm">
-                            <div className="whitespace-pre-wrap">{streamingContent}</div>
+                        <div className="px-4 py-3 rounded-2xl rounded-tl-none text-sm leading-relaxed bg-card/50 border border-border/50 text-foreground shadow-sm backdrop-blur-sm prose prose-invert max-w-none">
+                            <div className="markdown-content">
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                >
+                                    {streamingContent}
+                                </ReactMarkdown>
+                            </div>
                             {isStreaming && (
                                 <div className="mt-2 flex gap-1">
                                     <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />

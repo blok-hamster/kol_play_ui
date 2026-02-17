@@ -404,29 +404,39 @@ const ClosedTrades: React.FC<ClosedTradesProps> = ({
               </div>
 
               {/* Realized P&L */}
-              <div className="text-right ml-2">
-                <div
-                  className={cn(
-                    'text-lg font-bold',
-                    (trade.realizedPnL || 0) >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  )}
-                >
-                  {(trade.realizedPnL || 0) >= 0 ? '+' : ''}
-                  {formatCurrency((trade.realizedPnL || 0) * solPrice)}
+              <div className="text-right flex flex-col justify-between self-stretch">
+                <div>
+                  <div
+                    className={cn(
+                      'text-lg sm:text-xl font-bold leading-none',
+                      (trade.realizedPnL || 0) >= 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    )}
+                  >
+                    {(trade.realizedPnL || 0) >= 0 ? '+' : ''}
+                    {formatCurrency((trade.realizedPnL || 0) * solPrice)}
+                  </div>
+                  <div
+                    className={cn(
+                      'text-xs sm:text-sm font-medium mt-1',
+                      (trade.realizedPnL || 0) >= 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    )}
+                  >
+                    {(trade.realizedPnLPercentage || 0) >= 0 ? '+' : ''}
+                    {formatPercentage(trade.realizedPnLPercentage || 0)}
+                  </div>
                 </div>
-                <div
-                  className={cn(
-                    'text-sm',
-                    (trade.realizedPnL || 0) >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  )}
-                >
-                  {(trade.realizedPnLPercentage || 0) >= 0 ? '+' : ''}
-                  {formatPercentage(trade.realizedPnLPercentage || 0)}
-                </div>
+
+                {trade.isSimulation && (
+                  <div className="mt-auto pt-2">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 uppercase tracking-tight">
+                      Paper
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

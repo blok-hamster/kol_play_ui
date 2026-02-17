@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function TradingHoursCard() {
+export function TradingHoursCard({ mode = 'copy' }: { mode?: 'copy' | 'agent' }) {
     const { tradingSettings, updateTradingSettings, saveTradingSettings } = useTradingStore();
+
+    const currentSettings = mode === 'agent' ? tradingSettings?.agentSettings : tradingSettings;
 
     const {
         enableTimeRestrictions = false,
@@ -23,27 +25,37 @@ export function TradingHoursCard() {
             end: '23:59',
             timezone: 'UTC'
         }
-    } = tradingSettings || {};
+    } = currentSettings || {};
+
+    const handleUpdate = (updates: any) => {
+        if (mode === 'agent') {
+            updateTradingSettings({
+                agentSettings: { ...tradingSettings.agentSettings, ...updates }
+            } as any);
+        } else {
+            updateTradingSettings(updates);
+        }
+    };
 
     const handleToggleRestrictions = async (checked: boolean) => {
-        updateTradingSettings({ enableTimeRestrictions: checked });
+        handleUpdate({ enableTimeRestrictions: checked });
         await saveTradingSettings();
     };
 
     const handleUpdateStartTime = (val: string) => {
-        updateTradingSettings({
+        handleUpdate({
             tradingHours: { ...tradingHours, start: val }
         });
     };
 
     const handleUpdateEndTime = (val: string) => {
-        updateTradingSettings({
+        handleUpdate({
             tradingHours: { ...tradingHours, end: val }
         });
     };
 
     const handleUpdateTimezone = (val: string) => {
-        updateTradingSettings({
+        handleUpdate({
             tradingHours: { ...tradingHours, timezone: val }
         });
     };

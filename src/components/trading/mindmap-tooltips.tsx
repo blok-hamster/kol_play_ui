@@ -1,22 +1,25 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import * as ReactDOM from 'react-dom/client';
 import { cn } from '@/lib/utils';
-import { 
-  CircleDollarSign, 
-  UserCheck, 
-  TrendingUp, 
-  Activity, 
-  Wallet,
+import {
+  CircleDollarSign,
+  UserCheck,
+  TrendingUp,
+  Activity,
   BadgeDollarSign,
   Users,
   Target,
   Zap,
-  Clock,
-  BarChart3
+  BarChart3,
+  UserPlus
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
+import { useNotifications } from '@/stores/use-ui-store';
+import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 
 interface UnifiedNode {
   id: string;
@@ -66,6 +69,128 @@ interface ConnectionTooltipProps {
   targetNode: UnifiedNode;
   className?: string;
 }
+
+// Action buttons component for Token Tooltip
+const TokenTooltipActions: React.FC<{ node: UnifiedNode }> = ({ node }) => {
+  const [isBuying, setIsBuying] = useState(false);
+  const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
+  const { showSuccess, showError } = useNotifications();
+
+  const handleInstantBuy = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isBuying) return;
+
+    try {
+      const configCheck = await checkTradeConfig();
+      if (!configCheck.hasConfig) {
+        setShowTradeConfigPrompt(true);
+        return;
+      }
+
+      setIsBuying(true);
+      const result = await executeInstantBuy(node.id, node.symbol || node.name);
+
+      if (result.success) {
+        showSuccess(
+          'Buy Order Executed',
+          `Successfully bought ${node.symbol || node.name || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
+        );
+      } else {
+        showError('Buy Error', result.error || 'Failed to execute buy order');
+      }
+    } catch (error: any) {
+      showError('Buy Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsBuying(false);
+    }
+  }, [node.id, node.symbol, node.name, isBuying, showSuccess, showError]);
+
+  const handleAnalyze = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = `/pro-terminal/analytics?address=${node.id}`;
+  };
+
+  const handleTerminal = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = `/pro-terminal/trade?mint=${node.id}`;
+  };
+
+  return (
+    <div className="p-3 pt-0 space-y-2">
+      <Button
+        size="sm"
+        onClick={handleInstantBuy}
+        disabled={isBuying}
+        className="w-full h-8 bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-[10px]"
+      >
+        {isBuying ? 'Buying...' : (
+          <><Zap className="h-3 w-3 mr-1" /> Instant Buy</>
+        )}
+      </Button>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAnalyze}
+          className="flex-1 h-7 text-[9px] font-black uppercase tracking-widest"
+        >
+          <BarChart3 className="h-3 w-3 mr-1" /> Analyze
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTerminal}
+          className="flex-1 h-7 text-[9px] font-black uppercase tracking-widest"
+        >
+          <Activity className="h-3 w-3 mr-1" /> Terminal
+        </Button>
+      </div>
+
+      {showTradeConfigPrompt && (
+        <TradeConfigPrompt
+          isOpen={showTradeConfigPrompt}
+          onClose={() => setShowTradeConfigPrompt(false)}
+          tokenSymbol={node.symbol || node.name}
+        />
+      )}
+    </div>
+  );
+};
+
+// Action buttons component for KOL Tooltip
+const KOLTooltipActions: React.FC<{ node: UnifiedNode }> = ({ node }) => {
+  const handleSubscribe = () => {
+    window.dispatchEvent(new CustomEvent('open-kol-modal', { detail: { kolId: node.id } }));
+  };
+
+  const handleViewDetails = () => {
+    window.dispatchEvent(new CustomEvent('open-kol-modal', { detail: { kolId: node.id } }));
+  };
+
+  return (
+    <div className="p-3 pt-0 flex gap-2">
+      <Button
+        size="sm"
+        onClick={handleSubscribe}
+        className="flex-1 h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase tracking-widest text-[10px]"
+      >
+        <UserPlus className="h-3 w-3 mr-1" /> Subscribe
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleViewDetails}
+        className="flex-1 h-8 text-[9px] font-black uppercase tracking-widest"
+      >
+        <Activity className="h-3 w-3 mr-1" /> View Details
+      </Button>
+    </div>
+  );
+};
 
 // Enhanced Token Tooltip with rich metadata
 export const TokenTooltip: React.FC<TokenTooltipProps> = ({ node, className }) => {
@@ -117,9 +242,9 @@ export const TokenTooltip: React.FC<TokenTooltipProps> = ({ node, className }) =
       <div className="px-3 pt-3">
         <div className="flex items-center gap-3">
           {node.image ? (
-            <img 
-              src={node.image} 
-              alt={node.name || node.symbol || 'Token'} 
+            <img
+              src={node.image}
+              alt={node.name || node.symbol || 'Token'}
               className="w-8 h-8 rounded-full border border-border"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
@@ -197,20 +322,10 @@ export const TokenTooltip: React.FC<TokenTooltipProps> = ({ node, className }) =
             )}
           </div>
         )}
-
-        {/* Network Position Indicator */}
-        <div className="pt-2 border-t border-border/30">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Network Position</span>
-            <div className="flex items-center gap-1">
-              {node.connections > 10 && <span className="text-green-500">Hub</span>}
-              {node.connections > 5 && node.connections <= 10 && <span className="text-yellow-500">Active</span>}
-              {node.connections <= 5 && <span className="text-muted-foreground">Emerging</span>}
-              <Target className="h-3 w-3 text-muted-foreground" />
-            </div>
-          </div>
-        </div>
       </div>
+
+      {/* Actions */}
+      <TokenTooltipActions node={node} />
     </div>
   );
 };
@@ -268,9 +383,9 @@ export const KOLTooltip: React.FC<KOLTooltipProps> = ({ node, className }) => {
       <div className="px-3 pt-3">
         <div className="flex items-center gap-3">
           {node.image ? (
-            <img 
-              src={node.image} 
-              alt={node.name || 'KOL'} 
+            <img
+              src={node.image}
+              alt={node.name || 'KOL'}
               className="w-10 h-10 rounded-full border-2 border-primary/20"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
@@ -335,14 +450,14 @@ export const KOLTooltip: React.FC<KOLTooltipProps> = ({ node, className }) => {
             <span className="text-muted-foreground">Connected Tokens</span>
             <span className="font-medium">{node.relatedTokens?.length || 0}</span>
           </div>
-          
+
           {node.winRate && (
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Win Rate</span>
               <span className={cn(
                 "font-medium",
-                node.winRate > 60 ? "text-green-500" : 
-                node.winRate > 40 ? "text-yellow-500" : "text-red-500"
+                node.winRate > 60 ? "text-green-500" :
+                  node.winRate > 40 ? "text-yellow-500" : "text-red-500"
               )}>
                 {node.winRate.toFixed(1)}%
               </span>
@@ -374,7 +489,7 @@ export const KOLTooltip: React.FC<KOLTooltipProps> = ({ node, className }) => {
               <span>Trading Activity</span>
               <div className="flex items-center gap-1">
                 <div className="w-12 h-1 bg-muted rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-blue-500 rounded-full"
                     style={{ width: `${Math.min(100, (node.tradeCount || 0) / 10)}%` }}
                   />
@@ -388,7 +503,7 @@ export const KOLTooltip: React.FC<KOLTooltipProps> = ({ node, className }) => {
               <span>Network Position</span>
               <div className="flex items-center gap-1">
                 <div className="w-12 h-1 bg-muted rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-green-500 rounded-full"
                     style={{ width: `${Math.min(100, node.connections * 10)}%` }}
                   />
@@ -401,16 +516,19 @@ export const KOLTooltip: React.FC<KOLTooltipProps> = ({ node, className }) => {
           </div>
         </div>
       </div>
+
+      {/* Actions */}
+      <KOLTooltipActions node={node} />
     </div>
   );
 };
 
 // Connection Strength Tooltip with metadata context
-export const ConnectionTooltip: React.FC<ConnectionTooltipProps> = ({ 
-  link, 
-  sourceNode, 
-  targetNode, 
-  className 
+export const ConnectionTooltip: React.FC<ConnectionTooltipProps> = ({
+  link,
+  sourceNode,
+  targetNode,
+  className
 }) => {
   const formatVolume = (volume: number) => {
     if (volume >= 1000000) return `${(volume / 1000000).toFixed(1)}M`;
@@ -505,7 +623,7 @@ export const ConnectionTooltip: React.FC<ConnectionTooltipProps> = ({
             <span className={connectionStrength.color}>{connectionStrength.label}</span>
           </div>
           <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-            <div 
+            <div
               className={cn(
                 "h-full rounded-full transition-all duration-300",
                 connectionStrength.color.replace('text-', 'bg-')
@@ -523,7 +641,7 @@ export const ConnectionTooltip: React.FC<ConnectionTooltipProps> = ({
               {formatVolume(link.volume / Math.max(1, link.tradeCount))} SOL
             </span>
           </div>
-          
+
           {link.frequency && (
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Trade Frequency</span>
@@ -545,8 +663,8 @@ export const ConnectionTooltip: React.FC<ConnectionTooltipProps> = ({
         <div className="pt-2 border-t border-border/30">
           <div className="text-xs text-muted-foreground mb-1">Relationship Context</div>
           <div className="text-xs">
-            This KOL has made <span className="font-medium text-foreground">{link.tradeCount}</span> trades 
-            with this token, representing{' '}
+            This KOL has made <span className="font-medium text-foreground">{link.tradeCount}</span> trades
+            with this token, representing {' '}
             <span className="font-medium text-accent-from">{formatVolume(link.volume)} SOL</span> in volume.
             {link.tradeCount > 10 && (
               <span className="text-green-500"> This is a significant trading relationship.</span>
@@ -587,7 +705,7 @@ export class TooltipManager {
     this.tooltipTimeout = setTimeout(() => {
       // Create tooltip container
       this.currentTooltip = document.createElement('div');
-      this.currentTooltip.className = 'fixed z-50 pointer-events-none';
+      this.currentTooltip.className = 'fixed z-50 pointer-events-auto';
       this.currentTooltip.style.left = `${position.x}px`;
       this.currentTooltip.style.top = `${position.y}px`;
 

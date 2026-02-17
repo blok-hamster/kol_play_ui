@@ -11,12 +11,14 @@
   --popover: #ffffff;
   --popover-foreground: #1a1a1a;
   --primary: #1a1a1a;
+  --primary-rgb: 26, 26, 26;
   --primary-foreground: #ffffff;
   --secondary: #f8f9fa;
-  --secondary-foreground: #1a1a1a;
   --muted: #f8f9fa;
+  --muted-rgb: 248, 249, 250;
   --muted-foreground: #6b7280;
   --border: #e5e7eb;
+  --border-rgb: 229, 231, 235;
   --input: #e5e7eb;
   --ring: #1a1a1a;
 }
@@ -30,12 +32,14 @@
   --popover: #1f1f1f;
   --popover-foreground: #f5f5f5;
   --primary: #f5f5f5;
+  --primary-rgb: 245, 245, 245;
   --primary-foreground: #171616;
   --secondary: #2a2a2a;
-  --secondary-foreground: #f5f5f5;
   --muted: #2a2a2a;
+  --muted-rgb: 42, 42, 42;
   --muted-foreground: #9ca3af;
   --border: #374151;
+  --border-rgb: 55, 65, 81;
   --input: #374151;
   --ring: #f5f5f5;
 }
@@ -61,12 +65,14 @@ html {
     --popover: #1f1f1f;
     --popover-foreground: #f5f5f5;
     --primary: #f5f5f5;
+    --primary-rgb: 245, 245, 245;
     --primary-foreground: #171616;
     --secondary: #2a2a2a;
-    --secondary-foreground: #f5f5f5;
     --muted: #2a2a2a;
+    --muted-rgb: 42, 42, 42;
     --muted-foreground: #9ca3af;
     --border: #374151;
+    --border-rgb: 55, 65, 81;
     --input: #374151;
     --ring: #f5f5f5;
   }
@@ -77,15 +83,22 @@ html {
   body {
     @apply font-semibold;
   }
-  header, nav, header a, nav a {
+
+  header,
+  nav,
+  header a,
+  nav a {
     font-weight: 600 !important;
   }
+
   h1 {
     font-size: clamp(2.25rem, 5vw, 3.75rem);
     line-height: 1.1;
   }
+
   /* If a hero wrapper/class exists, make hero titles larger */
-  .hero h1, .hero-title {
+  .hero h1,
+  .hero-title {
     font-size: clamp(2.5rem, 6vw, 4.5rem);
     line-height: 1.05;
   }
@@ -143,7 +156,7 @@ body {
     padding: 1px;
   }
 
-  .gradient-border > * {
+  .gradient-border>* {
     background: var(--background);
     border-radius: 6px;
   }
@@ -224,10 +237,13 @@ body {
 
 /* Real-time update animations */
 @keyframes realtime-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.7;
     transform: scale(1.05);
@@ -239,10 +255,12 @@ body {
     background-color: rgba(59, 130, 246, 0.1);
     border-color: rgba(59, 130, 246, 0.3);
   }
+
   50% {
     background-color: rgba(59, 130, 246, 0.2);
     border-color: rgba(59, 130, 246, 0.5);
   }
+
   100% {
     background-color: rgba(59, 130, 246, 0.1);
     border-color: rgba(59, 130, 246, 0.3);
@@ -255,4 +273,129 @@ body {
 
 .new-data-highlight {
   animation: new-data-flash 1s ease-in-out 3;
+}
+
+/* Premium Markdown Styles */
+.markdown-content {
+  @apply space-y-4 leading-relaxed;
+}
+
+.markdown-content h1 {
+  @apply text-xl font-bold mt-6 mb-2 pb-1;
+  color: var(--primary);
+  border-bottom: 1px solid rgba(var(--border-rgb, 255, 255, 255), 0.3);
+}
+
+.markdown-content h2 {
+  @apply text-lg font-bold mt-5 mb-2;
+  color: var(--foreground);
+}
+
+.markdown-content h3 {
+  @apply text-base font-bold mt-4 mb-2;
+  color: var(--foreground);
+}
+
+.markdown-content p {
+  @apply mb-3 text-sm;
+  color: rgba(var(--foreground-rgb, 255, 255, 255), 0.9);
+}
+
+.markdown-content ul {
+  @apply list-disc pl-5 space-y-2 mb-4 text-sm;
+}
+
+.markdown-content ol {
+  @apply list-decimal pl-5 space-y-2 mb-4 text-sm;
+}
+
+.markdown-content li {
+  @apply leading-relaxed;
+}
+
+.markdown-content blockquote {
+  @apply pl-4 italic my-4;
+  border-left: 2px solid rgba(var(--primary-rgb, 255, 255, 255), 0.5);
+  color: var(--muted-foreground);
+}
+
+.markdown-content code {
+  @apply px-1.5 py-0.5 rounded-md font-mono text-xs;
+  background-color: rgba(var(--muted-rgb, 128, 128, 128), 0.5);
+  color: var(--foreground);
+}
+
+.markdown-content pre {
+  @apply p-4 rounded-xl overflow-x-auto my-4;
+  background-color: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(var(--border-rgb, 255, 255, 255), 0.3);
+}
+
+.markdown-content pre code {
+  @apply bg-transparent p-0 block whitespace-pre;
+  color: var(--foreground);
+}
+
+.markdown-content table {
+  @apply w-full border-collapse my-4 text-sm overflow-hidden rounded-xl;
+  border: 1px solid rgba(var(--border-rgb, 255, 255, 255), 0.3);
+}
+
+.markdown-content th {
+  @apply px-4 py-2 text-left font-bold text-xs uppercase tracking-wider;
+  background-color: rgba(var(--muted-rgb, 128, 128, 128), 0.5);
+  border-bottom: 1px solid rgba(var(--border-rgb, 255, 255, 255), 0.3);
+}
+
+.markdown-content td {
+  @apply px-4 py-2;
+  border-bottom: 1px solid rgba(var(--border-rgb, 255, 255, 255), 0.2);
+  color: rgba(var(--foreground-rgb, 255, 255, 255), 0.8);
+}
+
+.markdown-content tr:last-child td {
+  @apply border-b-0;
+}
+
+.markdown-content tr:hover td {
+  background-color: rgba(var(--muted-rgb, 128, 128, 128), 0.2);
+}
+
+.markdown-content a {
+  @apply font-bold transition-all;
+  color: var(--primary);
+}
+
+.markdown-content a:hover {
+  @apply underline;
+}
+
+.markdown-content hr {
+  @apply my-6;
+  border-top: 1px solid rgba(var(--border-rgb, 255, 255, 255), 0.3);
+}
+
+.markdown-content strong {
+  @apply font-black;
+  color: var(--foreground);
+}
+
+.markdown-content em {
+  color: rgba(var(--foreground-rgb, 255, 255, 255), 0.8);
+}
+
+/* Sidebar Markdown Preview Fixes */
+.sidebar-markdown-preview p {
+  margin: 0;
+  display: inline;
+}
+
+.sidebar-markdown-preview * {
+  display: inline;
+  font: inherit;
+  color: inherit;
+}
+
+.sidebar-markdown-preview strong {
+  font-weight: bold;
 }
