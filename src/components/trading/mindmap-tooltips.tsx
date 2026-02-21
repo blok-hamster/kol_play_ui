@@ -705,12 +705,19 @@ export class TooltipManager {
     this.tooltipTimeout = setTimeout(() => {
       // Create tooltip container
       this.currentTooltip = document.createElement('div');
-      this.currentTooltip.className = 'fixed z-50 pointer-events-auto';
-      this.currentTooltip.style.left = `${position.x}px`;
-      this.currentTooltip.style.top = `${position.y}px`;
+      // pointer-events-none on container prevents tooltip from stealing mouse events from SVG nodes
+      this.currentTooltip.className = 'fixed z-50 pointer-events-none';
+      // Offset tooltip 15px from cursor to avoid overlapping the node
+      this.currentTooltip.style.left = `${position.x + 15}px`;
+      this.currentTooltip.style.top = `${position.y + 15}px`;
 
-      // Render React content
-      const root = ReactDOM.createRoot(this.currentTooltip);
+      // Wrap content in a pointer-events-auto div so buttons inside remain clickable
+      const interactiveWrapper = document.createElement('div');
+      interactiveWrapper.className = 'pointer-events-auto';
+      this.currentTooltip.appendChild(interactiveWrapper);
+
+      // Render React content into the interactive wrapper
+      const root = ReactDOM.createRoot(interactiveWrapper);
       root.render(content);
 
       // Add to DOM
@@ -744,8 +751,9 @@ export class TooltipManager {
 
   updatePosition(position: { x: number; y: number }) {
     if (this.currentTooltip) {
-      this.currentTooltip.style.left = `${position.x}px`;
-      this.currentTooltip.style.top = `${position.y}px`;
+      // Apply same 15px offset as showTooltip
+      this.currentTooltip.style.left = `${position.x + 15}px`;
+      this.currentTooltip.style.top = `${position.y + 15}px`;
     }
   }
 }

@@ -41,6 +41,8 @@ const DEFAULT_AGENT_SETTINGS: ITradingSettings = {
   convergenceWindowMinutes: 60,
   afkEnabled: false,
   afkBuyAmount: 0.1,
+  runFrequency: 60,
+  workflowTemplate: 'FULL_AUTONOMY',
   enableTimeRestrictions: false,
   tradingHours: {
     start: '00:00',
@@ -166,6 +168,7 @@ export const useTradingStore = create<TradingState>()(
         convergenceWindowMinutes: 60,
         afkEnabled: false,
         afkBuyAmount: 0.1,
+        runFrequency: 60,
         enableTimeRestrictions: false,
         tradingHours: {
           start: '00:00',
@@ -564,6 +567,7 @@ export const useTradingStore = create<TradingState>()(
               convergenceWindowMinutes: tradeConfig.convergenceWindowMinutes ?? 60,
               afkEnabled: tradeConfig.afkEnabled ?? false,
               afkBuyAmount: tradeConfig.afkBuyAmount ?? 0.1,
+              runFrequency: tradeConfig.runFrequency ?? 60,
               enableTimeRestrictions: tradeConfig.enableTimeRestrictions ?? false,
               tradingHours: tradeConfig.tradingHours ?? {
                 start: '00:00',
@@ -589,6 +593,7 @@ export const useTradingStore = create<TradingState>()(
                 convergenceWindowMinutes: backendSettings.agentConfig.convergenceWindowMinutes ?? 60,
                 afkEnabled: backendSettings.agentConfig.afkEnabled ?? false,
                 afkBuyAmount: backendSettings.agentConfig.afkBuyAmount ?? 0.1,
+                runFrequency: backendSettings.agentConfig.runFrequency ?? 60,
                 enableTimeRestrictions: backendSettings.agentConfig.enableTimeRestrictions ?? false,
                 tradingHours: backendSettings.agentConfig.tradingHours ?? {
                   start: '00:00',

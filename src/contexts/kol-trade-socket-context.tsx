@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
 import type { KOLTrade, MindmapUpdate } from '@/hooks/use-kol-trade-socket';
 
@@ -29,6 +29,7 @@ interface KOLTradeSocketProviderProps {
 
 export const KOLTradeSocketProvider: React.FC<KOLTradeSocketProviderProps> = ({ children }) => {
   // Only use the hook once at the provider level
+  // The hook already memoizes its return value internally via ref caching
   const socketData = useKOLTradeSocket();
 
   return (

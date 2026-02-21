@@ -264,6 +264,8 @@ export interface TradingSettings {
   convergenceWindowMinutes?: number | undefined;
   afkEnabled?: boolean;
   afkBuyAmount?: number;
+  runFrequency?: number;
+  workflowTemplate?: string;
   enableTimeRestrictions?: boolean;
   tradingHours?: {
     start: string;
@@ -1021,6 +1023,7 @@ export interface TradeStats {
   closedTrades: number;
   winningTrades: number;
   losingTrades: number;
+  breakEvenTrades: number;
   winRate: number;
   totalPnL: number;
   totalPnLPercentage?: number;

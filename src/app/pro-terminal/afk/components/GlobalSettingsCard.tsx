@@ -204,6 +204,7 @@ export function GlobalSettingsCard({ mode = 'copy' }: { mode?: 'copy' | 'agent' 
                             <span className="text-xs font-bold text-muted-foreground">SOL</span>
                         </div>
                     </div>
+
                 </div>
             </div>
         </Card>

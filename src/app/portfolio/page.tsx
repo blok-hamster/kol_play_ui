@@ -141,8 +141,43 @@ const PortfolioPage: React.FC = () => {
   const fetchPaperData = async () => {
     try {
       const res = await PortfolioService.getPaperBalance();
-      if (res.data && res.data.SOL !== undefined) {
-        setPaperBalance(res.data.SOL);
+      if (res.data) {
+        if (res.data.SOL !== undefined) {
+          setPaperBalance(res.data.SOL);
+        }
+
+        // Populate enhancedWalletData for paper trading tokens
+        const paperTokens: any[] = [];
+        const solVal = res.data.SOL || 0;
+
+        Object.entries(res.data).forEach(([mint, amount]) => {
+          if (mint !== 'SOL' && mint !== 'So11111111111111111111111111111111111111112' && amount > 0.00001) {
+            paperTokens.push({
+              mintAddress: mint,
+              balance: amount,
+              uiAmount: amount,
+              decimals: 6, // default or approximate
+              name: 'Unknown',
+              symbol: 'Unknown',
+              logoURI: undefined,
+            });
+          }
+        });
+
+        if (paperTokens.length > 0) {
+          const mints = paperTokens.map(t => t.mintAddress);
+          loadTokens(mints);
+        }
+
+        setEnhancedWalletData({
+          address: user?.accountDetails?.address || 'Paper Wallet',
+          solBalance: solVal,
+          tokens: paperTokens,
+          totalTokens: paperTokens.length,
+          totalValueUsd: 0,
+          solValueUsd: 0,
+          enrichedTokens: false
+        });
       }
     } catch (err: any) {
       console.error('Failed to fetch paper balance:', err);
@@ -593,6 +628,7 @@ const PortfolioPage: React.FC = () => {
                           {portfolioMetrics.stats && (
                             <p className="text-xs text-muted-foreground/70 mt-1">
                               {portfolioMetrics.stats.winningTrades || 0}W · {portfolioMetrics.stats.losingTrades || 0}L
+                              {(portfolioMetrics.stats.breakEvenTrades || 0) > 0 && ` · ${portfolioMetrics.stats.breakEvenTrades}BE`}
                             </p>
                           )}
                         </div>

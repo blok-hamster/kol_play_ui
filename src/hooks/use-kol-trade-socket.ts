@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 import { useNotifications } from '@/stores/use-ui-store';
@@ -137,15 +137,39 @@ const CLEANUP_INTERVAL = 300000; // 5 minutes
 // Global listeners for state updates
 const listeners = new Set<() => void>();
 
+// Throttled notifyListeners using requestAnimationFrame
+// Multiple WebSocket events within the same frame are batched into one re-render
+let notifyScheduled = false;
 function notifyListeners() {
-  listeners.forEach(listener => {
-    try {
-      listener();
-    } catch (error) {
-      console.error('Listener notification failed:', error);
-    }
-  });
+  globalDataVersion++;
+  if (notifyScheduled) return;
+  notifyScheduled = true;
+  if (typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(() => {
+      notifyScheduled = false;
+      listeners.forEach(listener => {
+        try {
+          listener();
+        } catch (error) {
+          console.error('Listener notification failed:', error);
+        }
+      });
+    });
+  } else {
+    // SSR fallback
+    notifyScheduled = false;
+    listeners.forEach(listener => {
+      try {
+        listener();
+      } catch (error) {
+        console.error('Listener notification failed:', error);
+      }
+    });
+  }
 }
+
+// Snapshot version counter — incremented on every real data change
+let globalDataVersion = 0;
 
 // Memory cleanup function
 function cleanupOldData() {
@@ -453,6 +477,9 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
   // Local state that syncs with global state
   const [, forceUpdate] = useState({});
   const rerender = useCallback(() => forceUpdate({}), []);
+
+  // Track last seen data version to detect actual changes
+  const lastVersionRef = useRef(globalDataVersion);
 
   // Subscribe to global state changes
   useEffect(() => {
@@ -932,12 +959,8 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
         }
       });
 
-      // Generic event handler to catch mindmap-related events
-      socket.onAny((eventName: string, ...args: any[]) => {
-        if (eventName.includes('mindmap') || eventName.includes('network')) {
-          console.log(`🗺️ Mindmap-related WebSocket event: ${eventName}`, args);
-        }
-      });
+      // Debug handler removed to prevent console spam
+      // (Was: socket.onAny logging all mindmap/network events)
 
       // Real-time stats updates
       socket.on('stats_update', (newStats: any) => {
@@ -1228,30 +1251,39 @@ export const useKOLTradeSocket = (): UseKOLTradeSocketReturn => {
     };
   }, [initializeOnce]);
 
-  return {
-    socket: globalState.socket,
-    isConnected: globalState.isConnected,
-    recentTrades: globalState.data.trades,
-    allMindmapData: globalState.data.mindmapData,
-    trendingTokens: globalState.data.trendingTokens,
-    isLoadingInitialData: globalState.isLoadingInitialData,
-    loadingPhase: globalState.loadingPhase,
-    connectionState: {
+  // Memoize return value to prevent unnecessary re-renders in consumers
+  // Only create a new object reference when data actually changes
+  const cachedReturnRef = useRef<UseKOLTradeSocketReturn | null>(null);
+
+  const currentVersion = globalDataVersion;
+  if (!cachedReturnRef.current || lastVersionRef.current !== currentVersion) {
+    lastVersionRef.current = currentVersion;
+    cachedReturnRef.current = {
+      socket: globalState.socket,
       isConnected: globalState.isConnected,
-      isConnecting: false,
-      retryCount: 0,
-      lastError: null,
-      connectionHealth: globalState.isConnected ? 'healthy' : 'unstable',
-    },
-    stats: globalState.data.stats,
-    // Enhanced subscription management
-    featuredKOLs: globalState.subscriptions.featuredKOLs,
-    subscribedKOLs: globalState.subscriptions.subscribedKOLs,
-    relevantKOLs: globalState.subscriptions.relevantKOLs,
-    subscriptionManager: {
-      subscribeToKOL: handleSubscribeToKOL,
-      unsubscribeFromKOL: handleUnsubscribeFromKOL,
-      refreshSubscriptions,
-    },
-  };
+      recentTrades: globalState.data.trades,
+      allMindmapData: globalState.data.mindmapData,
+      trendingTokens: globalState.data.trendingTokens,
+      isLoadingInitialData: globalState.isLoadingInitialData,
+      loadingPhase: globalState.loadingPhase,
+      connectionState: {
+        isConnected: globalState.isConnected,
+        isConnecting: false,
+        retryCount: 0,
+        lastError: null,
+        connectionHealth: globalState.isConnected ? 'healthy' : 'unstable',
+      },
+      stats: globalState.data.stats,
+      featuredKOLs: globalState.subscriptions.featuredKOLs,
+      subscribedKOLs: globalState.subscriptions.subscribedKOLs,
+      relevantKOLs: globalState.subscriptions.relevantKOLs,
+      subscriptionManager: {
+        subscribeToKOL: handleSubscribeToKOL,
+        unsubscribeFromKOL: handleUnsubscribeFromKOL,
+        refreshSubscriptions,
+      },
+    };
+  }
+
+  return cachedReturnRef.current;
 };

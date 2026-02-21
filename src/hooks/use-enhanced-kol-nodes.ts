@@ -80,9 +80,13 @@ export const useEnhancedKOLNodes = (
   } = options;
 
   const kolStore = useKOLStore();
+  // Use refs for loading state to prevent parent re-renders during processing
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const activeRequests = useRef(0);
+
+  // Cache for batch results: keyed by sorted wallet addresses
+  const batchCacheRef = useRef<Map<string, EnhancedUnifiedNode[]>>(new Map());
 
   /**
    * Creates an enhanced KOL node with metadata integration
@@ -198,6 +202,14 @@ export const useEnhancedKOLNodes = (
     setIsLoading(true);
     setLoadingProgress(0);
 
+    // Check cache first
+    const cacheKey = kolDataArray.map(k => k.kolWallet || k.walletAddress || k.id).sort().join(',');
+    const cached = batchCacheRef.current.get(cacheKey);
+    if (cached) {
+      setIsLoading(false);
+      return cached;
+    }
+
     try {
       const results: EnhancedUnifiedNode[] = [];
       const totalItems = kolDataArray.length;
@@ -254,6 +266,15 @@ export const useEnhancedKOLNodes = (
       }
 
       console.log(`[useEnhancedKOLNodes] Batch process complete. Enhanced ${results.length} nodes.`);
+
+      // Cache results
+      batchCacheRef.current.set(cacheKey, results);
+      // Limit cache size to prevent memory leaks
+      if (batchCacheRef.current.size > 10) {
+        const firstKey = batchCacheRef.current.keys().next().value;
+        if (firstKey) batchCacheRef.current.delete(firstKey);
+      }
+
       return results;
     } catch (error) {
       console.error('Failed to batch create enhanced KOL nodes:', error);

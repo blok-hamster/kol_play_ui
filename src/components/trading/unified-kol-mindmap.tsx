@@ -53,7 +53,7 @@ import {
   DetailedInfoPanel,
 } from './mindmap-interactions';
 import { SolanaService } from '@/services/solana.service';
-import { useKOLTradeSocket } from '@/hooks/use-kol-trade-socket';
+// import removed: useKOLTradeSocket no longer used directly in this component
 
 interface UnifiedNode extends d3.SimulationNodeDatum {
   id: string;
@@ -102,15 +102,16 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
   height = 800,
   className,
 }) => {
-  const { allMindmapData, trendingTokens: hookTrendingTokens, recentTrades } = useKOLTradeSocket();
+  // REMOVED: duplicate useKOLTradeSocket() call — data comes via props from progressive-kol-trades
+  // const { allMindmapData, trendingTokens: hookTrendingTokens, recentTrades } = useKOLTradeSocket();
 
   // Stabilize empty array reference
-  const EMPTY_ARRAY = useMemo(() => [], []);
+  const EMPTY_ARRAY = useMemo(() => [] as string[], []);
 
-  // Use props if provided, otherwise fallback to internal hooks/defaults
-  const activeTokensData = tokensData || allMindmapData;
+  // Use props if provided, otherwise fallback to empty defaults
+  const activeTokensData = tokensData || {};
   // Use stable empty array for fallback
-  const activeTrendingTokens = trendingTokens || hookTrendingTokens || EMPTY_ARRAY;
+  const activeTrendingTokens = trendingTokens || EMPTY_ARRAY;
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -123,7 +124,6 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
   const { isSubscribedToKOL, subscriptions } = useSubscriptions();
   const { getKOL, loadAllKOLs } = useKOLStore();
   const { getTokenByMint } = useTokenStore();
-  // recentTrades already called at top
 
   // Track subscription changes for real-time updates
   const previousSubscriptionsRef = useRef<typeof subscriptions>([]);
@@ -132,6 +132,13 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
     batchSize: 6,
     maxConcurrentRequests: 2,
   });
+
+  // Stable ref for batchCreateEnhancedKOLNodes to avoid useEffect dependency churn
+  const batchCreateRef = useRef(enhancedKOLNodes.batchCreateEnhancedKOLNodes);
+  batchCreateRef.current = enhancedKOLNodes.batchCreateEnhancedKOLNodes;
+
+  // Cache of already-processed KOL wallet sets to prevent infinite re-processing
+  const processedKOLsRef = useRef<string>('');
 
   // Load all KOLs once on component mount
   useEffect(() => {
@@ -342,7 +349,6 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
       return;
     }
 
-    console.log('[UnifiedMindmap] Rendering:', processedData.nodes.length, 'nodes,', processedData.links.length, 'links');
 
     const { nodes, links } = processedData;
     const { width: svgWidth, height: svgHeight } = dimensions;
@@ -393,10 +399,8 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
       const centerForce = d3.forceCenter(svgWidth / 2, svgHeight / 2);
       simulationRef.current.force('center', centerForce);
 
-      // Restart with moderate alpha to animate changes
-      simulationRef.current.alpha(0.5).alphaTarget(0).restart();
-
-      console.log('[UnifiedMindmap] Simulation restarted with', nodes.length, 'nodes');
+      // Restart with LOW alpha to gently animate changes instead of "exploding" the layout
+      simulationRef.current.alpha(0.1).alphaTarget(0).restart();
     }
 
     // 2. Define colors (definitions)
@@ -503,27 +507,10 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
     const nodeSelection = nodeGroupRef.current.selectAll<SVGGElement, UnifiedNode>('g.node-group')
       .data(nodes, d => d.id);
 
-    // Enter selection
+    // Enter selection — NO drag here, drag is applied to nodeMerge below
     const nodeEnter = nodeSelection.enter().append('g')
       .attr('class', 'node-group')
-      .style('cursor', 'pointer')
-      .call(
-        d3.drag<SVGGElement, UnifiedNode>()
-          .on('start', (event, d) => {
-            if (!event.active && simulationRef.current) simulationRef.current.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-          })
-          .on('drag', (event, d) => {
-            d.fx = event.x;
-            d.fy = event.y;
-          })
-          .on('end', (event, d) => {
-            if (!event.active && simulationRef.current) simulationRef.current.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-          })
-      );
+      .style('cursor', 'grab');
 
     // --- Node Visuals Construction (Enter only) ---
     // Helper for radius calculation
@@ -617,6 +604,32 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
 
     const nodeMerge = nodeEnter.merge(nodeSelection);
 
+    // Apply drag behavior to ALL nodes (merged = new + existing)
+    // This ensures drag persists across D3 data joins/re-renders
+    const isDraggingRef = { current: false };
+    nodeMerge.call(
+      d3.drag<SVGGElement, UnifiedNode>()
+        .on('start', (event, d) => {
+          isDraggingRef.current = true;
+          tooltipManager.hideTooltip(); // Hide tooltip immediately on drag start
+          d3.select(event.sourceEvent.target.closest('.node-group')).style('cursor', 'grabbing');
+          if (!event.active && simulationRef.current) simulationRef.current.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on('drag', (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on('end', (event, d) => {
+          isDraggingRef.current = false;
+          d3.select(event.sourceEvent.target.closest('.node-group')).style('cursor', 'grab');
+          if (!event.active && simulationRef.current) simulationRef.current.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        })
+    );
+
     // Update visuals on merge
     nodeMerge.select('circle.bg-circle')
       .transition().duration(500)
@@ -673,16 +686,19 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
     // Interaction Listeners (Update on merge to capture latest state/highlightMode)
     let hoverTimeout: NodeJS.Timeout | null = null;
 
+    // Use mouseenter/mouseleave instead of mouseover/mouseout
+    // mouseenter/mouseleave don't fire when crossing child SVG element boundaries
     nodeMerge
-      .on('mouseover', (event, d) => {
+      .on('mouseenter', (event, d) => {
+        if (isDraggingRef.current) return; // Suppress tooltip during drag
         if (hoverTimeout) clearTimeout(hoverTimeout);
         if (selectedNode) return;
 
-        // FIX: Use client coordinates
         const mouseX = event.clientX;
         const mouseY = event.clientY;
 
         hoverTimeout = setTimeout(() => {
+          if (isDraggingRef.current) return; // Re-check after delay
           try {
             // Highlight
             nodeMerge.style('opacity', n => n === d || isConnected(n, d, links) ? 1 : 0.3);
@@ -697,21 +713,23 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
         }, 50);
       })
       .on('mousemove', event => {
-        // FIX: Use client coordinates
+        if (isDraggingRef.current) return; // Suppress during drag
         tooltipManager.updatePosition({ x: event.clientX, y: event.clientY });
       })
-      .on('mouseout', () => {
+      .on('mouseleave', () => {
         if (hoverTimeout) clearTimeout(hoverTimeout);
         if (!selectedNode) {
+          // Increased delay from 50ms to 200ms so user can reach tooltip buttons
           setTimeout(() => {
             tooltipManager.hideTooltip();
             nodeMerge.style('opacity', 1);
             linkMerge.style('opacity', d => Math.min(0.7, Math.log(d.tradeCount + 1) * 0.15));
-          }, 50);
+          }, 200);
         }
       })
       .on('click', (event, d) => {
-        if (Math.abs(d.vx || 0) > 0.1 || Math.abs(d.vy || 0) > 0.1) return; // ignore clicks if moving fast/dragging
+        if (isDraggingRef.current) return; // Suppress click during drag
+        if (Math.abs(d.vx || 0) > 0.1 || Math.abs(d.vy || 0) > 0.1) return;
         event.preventDefault();
         event.stopPropagation();
         tooltipManager.hideTooltip();
@@ -800,14 +818,6 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
   }, [processedData, dimensions, highlightMode, showSubscribedOnly, selectedNode]);
 
 
-
-
-  // Handle recent trades updates with debouncing to prevent infinite loops
-  const recentTradesRef = useRef(recentTrades);
-  useEffect(() => {
-    recentTradesRef.current = recentTrades;
-  }, [recentTrades]);
-
   // Determine device-specific limits for performance optimization
   const isMobile = dimensions.width < 768;
 
@@ -890,25 +900,6 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
 
       // 2. ENHANCED RENDER: Process nodes with metadata in background (Unblocking)
       const processNodesWithMetadata = async () => {
-        // First, collect token metadata from recent trades (real-time data)
-        const tradeMetadataMap = new Map();
-        recentTradesRef.current.forEach(trade => {
-          if (trade.tradeData && trade.tradeData.mint) {
-            const { mint, name, symbol, image, metadataUri } = trade.tradeData;
-
-            // Only store if we have meaningful metadata
-            if (name || symbol || image) {
-              tradeMetadataMap.set(mint, {
-                name: name || undefined,
-                symbol: symbol || undefined,
-                logoURI: image || undefined,
-                metadataUri: metadataUri || undefined,
-                decimals: undefined, // This will be filled by SolanaService
-              });
-            }
-          }
-        });
-
         // Separate nodes by type
         const tokenNodes = networkData.nodes.filter(n => n.type === 'token');
         const kolNodes = networkData.nodes.filter(n => n.type === 'kol');
@@ -930,20 +921,29 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
 
         if (!isMounted) return;
 
-        // B. Process KOLs (Progressive Loading via Hook)
+        // B. Process KOLs — SKIP if the same set of KOLs was already processed
         const kolDataForHook = kolNodes.map(n => ({
           ...n,
           kolWallet: n.id,
           walletAddress: n.id
         }));
 
-        // Use the hook's batch creator to avoid UI freezing
+        const kolKeyString = kolNodes.map(n => n.id).sort().join(',');
         let enhancedKOLs: EnhancedUnifiedNode[] = [];
-        try {
-          enhancedKOLs = await enhancedKOLNodes.batchCreateEnhancedKOLNodes(kolDataForHook);
-        } catch (e) {
-          console.warn("KOL batch processing failed, falling back to basic details. Error:", e);
-          enhancedKOLs = [];
+
+        // Only re-process KOLs if the set has actually changed
+        if (kolKeyString !== processedKOLsRef.current) {
+          processedKOLsRef.current = kolKeyString;
+          try {
+            // Use the ref to avoid dependency on the hook's changing reference
+            enhancedKOLs = await batchCreateRef.current(kolDataForHook);
+          } catch (e) {
+            console.warn("KOL batch processing failed, falling back to basic details. Error:", e);
+            enhancedKOLs = [];
+          }
+        } else {
+          // Same KOLs — skip re-processing, just return without updating processedData
+          return;
         }
 
         if (!isMounted) return;
@@ -962,15 +962,14 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
           const pos = currentPositions.get(node.id);
 
           if (node.type === 'token') {
-            const tradeMetadata = tradeMetadataMap.get(node.id);
             const solanaMetadata = tokenMetadataMap.get(node.id);
             const tokenData = getTokenByMint(node.id);
             // safe access
             const baseImg = node.image;
 
-            const name = tradeMetadata?.name || solanaMetadata?.name || tokenData?.name || node.name;
-            const symbol = tradeMetadata?.symbol || solanaMetadata?.symbol || tokenData?.symbol || node.label;
-            const image = tradeMetadata?.logoURI || solanaMetadata?.logoURI || tokenData?.logoURI || baseImg;
+            const name = solanaMetadata?.name || tokenData?.name || node.name;
+            const symbol = solanaMetadata?.symbol || tokenData?.symbol || node.label;
+            const image = solanaMetadata?.logoURI || tokenData?.logoURI || baseImg;
 
             return {
               ...node, // default props first
@@ -981,7 +980,6 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
               image: image || undefined,
               symbol: symbol || undefined,
               decimals: solanaMetadata?.decimals || tokenData?.decimals, // Decimals from blockchain data
-              metadataUri: tradeMetadata?.metadataUri,
               x: pos?.x,
               y: pos?.y,
               vx: pos?.vx,
@@ -1029,18 +1027,21 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
           volume: link.volume,
         }));
 
-        // Debug: Log token and KOL nodes with images
-        const tokenNodesWithImages = nodes.filter(n => n.type === 'token' && n.image);
-        const tokenNodesWithoutImages = nodes.filter(n => n.type === 'token' && !n.image);
-        const kolNodesWithImages = nodes.filter(n => n.type === 'kol' && n.image);
-        const kolNodesWithoutImages = nodes.filter(n => n.type === 'kol' && !n.image);
-
-        console.log(`Token nodes with images: ${tokenNodesWithImages.length}`, tokenNodesWithImages.map(n => ({ name: n.name, symbol: n.symbol, image: n.image?.substring(0, 50) + '...' })));
-        console.log(`Token nodes without images: ${tokenNodesWithoutImages.length}`, tokenNodesWithoutImages.map(n => ({ name: n.name, id: n.id.substring(0, 8) })));
-        console.log(`KOL nodes with images: ${kolNodesWithImages.length}`, kolNodesWithImages.map(n => ({ name: n.name, image: n.image?.substring(0, 50) + '...' })));
-        console.log(`KOL nodes without images: ${kolNodesWithoutImages.length}`, kolNodesWithoutImages.map(n => ({ name: n.name, id: n.id.substring(0, 8) })));
-
-        setProcessedData({ nodes, links });
+        // Only update processedData if nodes actually changed (prevents redundant D3 restarts)
+        setProcessedData(prev => {
+          // Quick check: if same count and same node IDs, skip update
+          if (prev.nodes.length === nodes.length && prev.links.length === links.length) {
+            const prevIds = prev.nodes.map(n => n.id).join(',');
+            const newIds = nodes.map(n => n.id).join(',');
+            // Also check if images changed (metadata enrichment)
+            const prevImages = prev.nodes.map(n => n.image || '').join(',');
+            const newImages = nodes.map(n => n.image || '').join(',');
+            if (prevIds === newIds && prevImages === newImages) {
+              return prev;
+            }
+          }
+          return { nodes, links };
+        });
       };
 
       // Execute the async metadata processing
@@ -1106,6 +1107,7 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
 
     return () => { isMounted = false; };
   }, [debouncedFilteredData, activeTrendingTokens, isMobile, showSubscribedOnly, getTokenByMint, getKOL]);
+  // NOTE: batchCreateRef and processedKOLsRef are refs, so they don't need to be in dependencies
 
 
   const isConnected = (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useProgressiveLoading } from '@/hooks/use-progressive-loading';
 import { useKOLTradeSocketContext } from '@/contexts/kol-trade-socket-context';
 import { KOLTradeCard } from './kol-trade-card';
@@ -83,31 +83,19 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
   });
   const finalTrendingTokens = socketTrendingTokens.length > 0 ? socketTrendingTokens : (essentialData?.trendingTokens || []);
 
-  // Merge both socket and progressive mindmap data for maximum coverage
-  const finalMindmapData = {
+  // Memoize merged mindmap data to avoid creating new references on every render
+  const socketMindmapKeys = Object.keys(socketMindmapData).sort().join(',');
+  const progressiveMindmapKeys = Object.keys(progressiveMindmapData).sort().join(',');
+  const finalMindmapData = useMemo(() => ({
     ...progressiveMindmapData,
     ...socketMindmapData, // Socket data takes priority
-  };
+  }), [socketMindmapKeys, progressiveMindmapKeys]);
 
   const finalIsLoading = socketLoading && (loadingState.trades === 'loading' || loadingState.trades === 'idle');
 
   // Check if we have mindmap data available
   const hasMindmapData = Object.keys(finalMindmapData).length > 0;
   const mindmapTokenCount = Object.keys(finalMindmapData).length;
-
-  // Debug mindmap data
-  React.useEffect(() => {
-    console.log('🔄 Progressive component mindmap data:', {
-      socketMindmapCount: Object.keys(socketMindmapData).length,
-      progressiveMindmapCount: Object.keys(progressiveMindmapData).length,
-      finalMindmapCount: mindmapTokenCount,
-      hasMindmapData,
-      socketKeys: Object.keys(socketMindmapData).slice(0, 5),
-      progressiveKeys: Object.keys(progressiveMindmapData).slice(0, 5),
-      finalKeys: Object.keys(finalMindmapData).slice(0, 5)
-    });
-  }, [socketMindmapData, progressiveMindmapData, finalMindmapData, mindmapTokenCount, hasMindmapData]);
-
 
 
   // Start progressive loading on mount

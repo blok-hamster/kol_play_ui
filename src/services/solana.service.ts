@@ -478,11 +478,12 @@ export class SolanaService {
         }
       );
 
-      // Filter out zero balance accounts and prepare mint addresses
+      // Filter out zero/dust balance accounts and prepare mint addresses
       const validTokenAccounts = tokenAccounts.value.filter(tokenAccount => {
         const accountData = tokenAccount.account.data as ParsedAccountData;
         const parsedInfo = accountData.parsed.info;
-        return parsedInfo.tokenAmount.uiAmount > 0;
+        // Filter out dust balances (less than 0.00001) which often remain after full sells
+        return parsedInfo.tokenAmount.uiAmount > 0.00001;
       });
 
       if (validTokenAccounts.length === 0) {
