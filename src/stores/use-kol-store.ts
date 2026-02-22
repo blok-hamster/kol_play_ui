@@ -29,12 +29,8 @@ function extractTwitterUsername(profileUrl?: string): string | null {
 function getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
   const username = extractTwitterUsername(twitterUrl);
   if (!username) return undefined;
-  const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
-  if (fallbackSeed && fallbackSeed.trim().length > 0) {
-    const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
-    return `${base}?fallback=${encodeURIComponent(fallback)}`;
-  }
-  return base;
+  // We no longer append ?fallback= since LazyAvatar handles client-side fallbacks via onError
+  return `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
 }
 
 function findTwitterUrlFromText(text?: string): string | undefined {

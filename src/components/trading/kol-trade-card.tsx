@@ -21,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import { useKOLStore, useSubscriptions } from '@/stores';
 
 // Local helpers to derive Twitter avatar URL similar to other components
+import { LazyAvatar } from '@/components/ui/lazy-avatar';
+
 function extractTwitterUsername(profileUrl?: string): string | null {
   if (!profileUrl) return null;
   try {
@@ -42,12 +44,8 @@ function extractTwitterUsername(profileUrl?: string): string | null {
 function getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
   const username = extractTwitterUsername(twitterUrl);
   if (!username) return undefined;
-  const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
-  if (fallbackSeed && fallbackSeed.trim().length > 0) {
-    const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
-    return `${base}?fallback=${encodeURIComponent(fallback)}`;
-  }
-  return base;
+  // Let LazyAvatar handle the dicebear fallback locally
+  return `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
 }
 
 function findTwitterUrlFromText(text?: string): string | undefined {
@@ -478,10 +476,11 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
             {/* Left: KOL Info */}
             <div className="flex items-center space-x-2 flex-1 min-w-0">
               {avatarUrl ? (
-                <img
+                <LazyAvatar
                   src={avatarUrl}
+                  fallbackSeed={displayName}
                   alt={displayName}
-                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                  className="w-8 h-8 rounded-full flex-shrink-0"
                 />
               ) : (
                 <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
@@ -596,10 +595,11 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
           <div className="flex items-center space-x-3 flex-1 min-w-0 max-w-[300px]">
             {/* Avatar */}
             {avatarUrl ? (
-              <img
+              <LazyAvatar
                 src={avatarUrl}
+                fallbackSeed={displayName}
                 alt={displayName}
-                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                className="w-10 h-10 rounded-full flex-shrink-0 border bg-background"
               />
             ) : (
               <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
@@ -795,14 +795,11 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
           <div className="flex items-center justify-center mt-2 pt-2 border-t border-border/40">
             <div className="flex items-center space-x-1.5 bg-muted/20 px-2 py-1 rounded-full border border-white/5">
               {tradeData.image && !tradeData.image.includes('dicebear') ? (
-                <img
+                <LazyAvatar
                   src={tradeData.image}
+                  fallbackSeed={tradeData.symbol || 'Token'}
                   alt="Token"
-                  className="w-4 h-4 rounded-full object-cover shadow-sm"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                    ((e.target as HTMLImageElement).nextSibling as HTMLElement).style.display = 'flex';
-                  }}
+                  className="w-4 h-4 rounded-full shadow-sm bg-background border"
                 />
               ) : null}
 
@@ -901,11 +898,12 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
             {/* Avatar with Ring */}
             <div className="relative">
               {avatarUrl ? (
-                <img
+                <LazyAvatar
                   src={avatarUrl}
+                  fallbackSeed={displayName}
                   alt={displayName}
                   className={cn(
-                    "w-10 h-10 rounded-full object-cover border-2 shadow-sm",
+                    "w-10 h-10 rounded-full border-2 shadow-sm bg-background",
                     (tradeData.tradeType ?? 'sell') === 'buy' ? "border-green-500/20" : "border-red-500/20"
                   )}
                 />
@@ -988,14 +986,11 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
             <div className="flex items-center justify-between pt-2 border-t border-dashed border-border/40">
               <div className="flex items-center space-x-2">
                 {tradeData.image && !tradeData.image.includes('dicebear') ? (
-                  <img
+                  <LazyAvatar
                     src={tradeData.image}
+                    fallbackSeed={tradeData.symbol || 'Token'}
                     alt="Token"
-                    className="w-5 h-5 rounded-full object-cover shadow-sm bg-background/50"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      ((e.target as HTMLImageElement).nextSibling as HTMLElement).style.display = 'flex';
-                    }}
+                    className="w-5 h-5 rounded-full shadow-sm bg-background border"
                   />
                 ) : null}
                 {/* Fallback Icon */}

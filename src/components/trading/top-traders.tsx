@@ -9,6 +9,7 @@ import { formatNumber, copyToClipboard, formatWalletAddress } from '@/lib/utils'
 import KOLTradesModal from './kol-trades-modal';
 import type { TopTrader } from '@/types';
 import { useKOLStore } from '@/stores/use-kol-store';
+import { LazyAvatar } from '@/components/ui/lazy-avatar';
 
 interface TopTradersProps {
   limit?: number;
@@ -157,11 +158,11 @@ const TopTraders: React.FC<TopTradersProps> = ({
           </div>
 
           <div className="w-10 h-10 rounded-lg bg-black/40 overflow-hidden border border-white/5 shrink-0">
-            <img
+            <LazyAvatar
               src={avatarUrl}
+              fallbackSeed={wallet}
               alt={displayName}
-              className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${wallet}`; }}
+              className="w-full h-full bg-background"
             />
           </div>
 
@@ -216,11 +217,11 @@ const TopTraders: React.FC<TopTradersProps> = ({
           </div>
 
           <div className="w-9 h-9 rounded-lg bg-black/40 overflow-hidden border border-white/5 shrink-0">
-            <img
+            <LazyAvatar
               src={avatarUrl}
+              fallbackSeed={wallet}
               alt={displayName}
-              className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${wallet}`; }}
+              className="w-full h-full bg-background"
             />
           </div>
 

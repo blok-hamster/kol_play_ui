@@ -913,12 +913,8 @@ export class EnhancedNodeRenderer {
   private getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
     const username = this.extractTwitterUsername(twitterUrl);
     if (!username) return undefined;
-    const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
-    if (fallbackSeed && fallbackSeed.trim().length > 0) {
-      const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
-      return `${base}?fallback=${encodeURIComponent(fallback)}`;
-    }
-    return base;
+    // The renderer handles fallback locally by intercepting onError, avoiding CORB
+    return `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
   }
 
   private findTwitterUrlFromText(text?: string): string | undefined {

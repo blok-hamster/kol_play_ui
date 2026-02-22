@@ -99,7 +99,6 @@ export const RecentAnalysisList: React.FC<RecentAnalysisListProps> = ({ classNam
 
         console.log('[RecentAnalysisList] 🔄 Setting up polling...');
         const interval = setInterval(() => {
-            console.log('[RecentAnalysisList] 🔄 Polling for threads...');
             socket.emit('agent:threads');
         }, 10000);
 

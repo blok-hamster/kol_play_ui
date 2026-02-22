@@ -31,6 +31,7 @@ import SubscriptionControls from './subscription-controls';
 import type { KOLWallet, TopTrader } from '@/types';
 import { useKOLStore } from '@/stores';
 import { SolanaService } from '@/services/solana.service';
+import { LazyAvatar } from '@/components/ui/lazy-avatar';
 
 // Helpers to unify avatar resolution similar to other KOL components
 function extractTwitterUsername(profileUrl?: string): string | null {
@@ -54,12 +55,8 @@ function extractTwitterUsername(profileUrl?: string): string | null {
 function getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
   const username = extractTwitterUsername(twitterUrl);
   if (!username) return undefined;
-  const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
-  if (fallbackSeed && fallbackSeed.trim().length > 0) {
-    const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
-    return `${base}?fallback=${encodeURIComponent(fallback)}`;
-  }
-  return base;
+  // Let LazyAvatar handle the dicebear fallback locally
+  return `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
 }
 
 function findTwitterUrlFromText(text?: string): string | undefined {
@@ -363,10 +360,11 @@ const KOLTradesModal: React.FC<KOLTradesModalProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-3">
               {preferredAvatar ? (
-                <img
+                <LazyAvatar
                   src={preferredAvatar}
+                  fallbackSeed={resolvedName || walletAddress}
                   alt={resolvedName || 'KOL Avatar'}
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-muted"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-muted bg-background"
                 />
               ) : (
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center border-2 border-muted">

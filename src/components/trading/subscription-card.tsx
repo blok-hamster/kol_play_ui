@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { useKOLStore } from '@/stores';
+import { LazyAvatar } from '@/components/ui/lazy-avatar';
 
 // Local helpers to derive Twitter avatar URL and extract username
 function extractTwitterUsername(profileUrl?: string): string | null {
@@ -48,12 +49,8 @@ function extractTwitterUsername(profileUrl?: string): string | null {
 function getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
   const username = extractTwitterUsername(twitterUrl);
   if (!username) return undefined;
-  const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
-  if (fallbackSeed && fallbackSeed.trim().length > 0) {
-    const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
-    return `${base}?fallback=${encodeURIComponent(fallback)}`;
-  }
-  return base;
+  // Let LazyAvatar handle the dicebear fallback locally
+  return `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
 }
 
 function findTwitterUrlFromText(text?: string): string | undefined {
@@ -204,10 +201,11 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
           <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
             {/* Avatar */}
             {avatarUrl ? (
-              <img
+              <LazyAvatar
                 src={avatarUrl}
+                fallbackSeed={displayName}
                 alt={displayName}
-                className={`${isList ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-9 h-9 sm:w-12 sm:h-12'} rounded-full object-cover flex-shrink-0`}
+                className={`${isList ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-9 h-9 sm:w-12 sm:h-12'} rounded-full flex-shrink-0 bg-background`}
               />
             ) : (
               <div className={`${isList ? 'w-7 h-7 sm:w-8 sm:h-8' : 'w-9 h-9 sm:w-12 sm:h-12'} bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0`}>

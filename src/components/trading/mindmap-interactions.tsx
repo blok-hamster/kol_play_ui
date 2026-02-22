@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
@@ -116,6 +118,7 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [buyingNodeId, setBuyingNodeId] = useState<string | null>(null);
   const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
+  const router = useRouter();
 
   const { showSuccess, showError } = useNotifications();
   const { setLoading } = useLoading();
@@ -186,16 +189,16 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
   const handleAnalyze = useCallback(() => {
     const mintOrId = node.type === 'token' ? node.id : node.tokenMint;
     if (mintOrId) {
-      window.location.href = `/pro-terminal/analytics?address=${mintOrId}`;
+      router.push(`/pro-terminal/analytics?address=${mintOrId}`);
     }
-  }, [node.id, node.type, node.tokenMint]);
+  }, [node.id, node.type, node.tokenMint, router]);
 
   const handleTerminal = useCallback(() => {
     const mintOrId = node.type === 'token' ? node.id : node.tokenMint;
     if (mintOrId) {
-      window.location.href = `/pro-terminal/trade?mint=${mintOrId}`;
+      router.push(`/pro-terminal/trade?mint=${mintOrId}`);
     }
-  }, [node.id, node.type, node.tokenMint]);
+  }, [node.id, node.type, node.tokenMint, router]);
 
   const relatedConnections = connections.filter(link =>
     (typeof link.source === 'object' ? link.source.id : link.source) === node.id ||

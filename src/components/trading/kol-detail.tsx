@@ -10,9 +10,9 @@ import { KOLTrade } from '@/types';
 import { APP_CONFIG } from '@/lib/constants';
 import SubscriptionControls from './subscription-controls';
 import MindShareWidget from './mind-share-widget';
-import { safeToFixed } from '@/lib/utils';
 import { Copy, Clock } from 'lucide-react';
 import React from 'react';
+import { LazyAvatar } from '@/components/ui/lazy-avatar';
 
 // Helpers to derive Twitter avatar URL (same logic as kol-list)
 function extractTwitterUsername(profileUrl?: string): string | null {
@@ -37,12 +37,8 @@ function extractTwitterUsername(profileUrl?: string): string | null {
 function getTwitterAvatarUrl(twitterUrl?: string, fallbackSeed?: string): string | undefined {
   const username = extractTwitterUsername(twitterUrl);
   if (!username) return undefined;
-  const base = `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
-  if (fallbackSeed && fallbackSeed.trim().length > 0) {
-    const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackSeed)}`;
-    return `${base}?fallback=${encodeURIComponent(fallback)}`;
-  }
-  return base;
+  // Let LazyAvatar handle the dicebear fallback locally
+  return `https://unavatar.io/twitter/${encodeURIComponent(username)}`;
 }
 
 function findTwitterUrlFromText(text?: string): string | undefined {
@@ -177,8 +173,8 @@ const KOLRealtimeTradesFiltered: React.FC<KOLRealtimeTradesFilteredProps> = ({
             <button
               onClick={() => setViewMode('cards')}
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2 ${viewMode === 'cards'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,8 +185,8 @@ const KOLRealtimeTradesFiltered: React.FC<KOLRealtimeTradesFilteredProps> = ({
             <button
               onClick={() => setViewMode('list')}
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2 ${viewMode === 'list'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,7 +234,7 @@ const KOLRealtimeTradesFiltered: React.FC<KOLRealtimeTradesFilteredProps> = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           {trade.kolAvatar ? (
-                            <img src={trade.kolAvatar} alt={displayName} className="w-8 h-8 rounded-full" />
+                            <LazyAvatar src={trade.kolAvatar} fallbackSeed={displayName} alt={displayName} className="w-8 h-8 rounded-full" />
                           ) : (
                             <div className="w-8 h-8 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full flex items-center justify-center">
                               <span className="text-white font-bold text-xs">{(displayName?.slice(0, 2) || 'KO').toUpperCase()}</span>
@@ -318,7 +314,7 @@ const KOLRealtimeTradesFiltered: React.FC<KOLRealtimeTradesFilteredProps> = ({
                       {/* Left: KOL Avatar and Info */}
                       <div className="flex items-center space-x-3 flex-shrink-0">
                         {trade.kolAvatar ? (
-                          <img src={trade.kolAvatar} alt={displayName} className="w-10 h-10 rounded-full" />
+                          <LazyAvatar src={trade.kolAvatar} fallbackSeed={displayName} alt={displayName} className="w-10 h-10 rounded-full" />
                         ) : (
                           <div className="w-10 h-10 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full flex items-center justify-center">
                             <span className="text-white font-bold text-xs">
@@ -988,12 +984,12 @@ export default function KOLDetail({
           <div className="text-center">
             <p
               className={`text-2xl font-bold ${kolData.winRate != null && !isNaN(kolData.winRate)
-                  ? (kolData.winRate >= 60
-                    ? 'text-green-600 dark:text-green-400'
-                    : kolData.winRate >= 40
-                      ? 'text-yellow-600 dark:text-yellow-400'
-                      : 'text-red-600 dark:text-red-400')
-                  : 'text-gray-500 dark:text-gray-400'
+                ? (kolData.winRate >= 60
+                  ? 'text-green-600 dark:text-green-400'
+                  : kolData.winRate >= 40
+                    ? 'text-yellow-600 dark:text-yellow-400'
+                    : 'text-red-600 dark:text-red-400')
+                : 'text-gray-500 dark:text-gray-400'
                 }`}
             >
               {safeToFixed(kolData.winRate, 1, 'N/A') !== 'N/A' ? `${safeToFixed(kolData.winRate, 1)}%` : 'N/A'}
@@ -1004,10 +1000,10 @@ export default function KOLDetail({
           <div className="text-center">
             <p
               className={`text-2xl font-bold ${kolData.totalPnL != null && !isNaN(kolData.totalPnL)
-                  ? (kolData.totalPnL >= 0
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400')
-                  : 'text-gray-500 dark:text-gray-400'
+                ? (kolData.totalPnL >= 0
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400')
+                : 'text-gray-500 dark:text-gray-400'
                 }`}
             >
               {safeToFixed(kolData.totalPnL, 2, 'N/A') !== 'N/A'
@@ -1043,8 +1039,8 @@ export default function KOLDetail({
               key={tab.id}
               onClick={() => handleTabChange(tab.id as any)}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
             >
               {tab.label}
@@ -1244,8 +1240,8 @@ export default function KOLDetail({
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${trade.tradeType === 'buy'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                               }`}
                           >
                             {trade.tradeType.toUpperCase()}

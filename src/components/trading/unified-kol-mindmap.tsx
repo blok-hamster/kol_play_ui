@@ -139,6 +139,11 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
 
   // Cache of already-processed KOL wallet sets to prevent infinite re-processing
   const processedKOLsRef = useRef<string>('');
+  // Cache of already-processed token mint sets to prevent redundant metadata fetches
+  const processedTokensRef = useRef<string>('');
+  // Persistent cache of fetched node metadata (name/image/symbol/label) keyed by node ID.
+  // This survives across re-renders and is always synchronously readable, unlike React state.
+  const nodeMetadataCacheRef = useRef<Map<string, { name?: string; image?: string; symbol?: string; label?: string }>>(new Map());
 
   // Load all KOLs once on component mount
   useEffect(() => {
@@ -839,6 +844,7 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
       );
 
       // 1. IMMEDIATE RENDER: Set basic data first so the user sees something instantly
+      //    IMPORTANT: Preserve metadata from previous render to prevent flash-then-disappear
       const currentPositions = new Map<string, { x?: number; y?: number; vx?: number; vy?: number }>();
       if (simulationRef.current) {
         simulationRef.current.nodes().forEach(n => {
@@ -846,17 +852,21 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
         });
       }
 
-      // Create basic nodes preserving positions
+      // Create basic nodes preserving positions AND previously-fetched metadata
+      const metadataCache = nodeMetadataCacheRef.current;
+
       const basicNodes: UnifiedNode[] = networkData.nodes.map(node => {
         const existingPos = currentPositions.get(node.id);
+        const cached = metadataCache.get(node.id);
 
-        // Basic node construction
+        // Basic node construction — use cached metadata as primary fallback
         let baseNode: UnifiedNode = {
           id: node.id,
           type: node.type,
-          label: node.label,
-          name: node.name,
-          image: node.image,
+          label: cached?.label || node.label,
+          name: cached?.name || node.name,
+          image: cached?.image || node.image,
+          symbol: (cached?.symbol || undefined) as any,
           value: node.value,
           connections: node.connections,
           totalVolume: node.totalVolume,
@@ -895,7 +905,7 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
         volume: link.volume,
       }));
 
-      // Render immediately with basic data
+      // Render immediately with basic data (includes cached metadata)
       setProcessedData({ nodes: basicNodes, links: basicLinks });
 
       // 2. ENHANCED RENDER: Process nodes with metadata in background (Unblocking)
@@ -906,18 +916,26 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
 
         // A. Process Tokens (Batch Fetch)
         const tokenMints = tokenNodes.map(n => n.id);
+        const tokenKeyString = tokenMints.slice().sort().join(',');
 
         if (!isMounted) return;
 
+        // If BOTH tokens AND KOLs are unchanged, skip entirely
+        const kolKeyString = kolNodes.map(n => n.id).sort().join(',');
+        if (tokenKeyString === processedTokensRef.current && kolKeyString === processedKOLsRef.current) {
+          return;
+        }
+
         // Fetch token metadata in batch using SolanaService
         let tokenMetadataMap = new Map();
-        if (tokenMints.length > 0) {
+        if (tokenMints.length > 0 && tokenKeyString !== processedTokensRef.current) {
           try {
             tokenMetadataMap = await SolanaService.fetchTokenMetadataBatch(tokenMints);
           } catch (error) {
             console.warn('Failed to fetch token metadata batch:', error);
           }
         }
+        processedTokensRef.current = tokenKeyString;
 
         if (!isMounted) return;
 
@@ -928,7 +946,6 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
           walletAddress: n.id
         }));
 
-        const kolKeyString = kolNodes.map(n => n.id).sort().join(',');
         let enhancedKOLs: EnhancedUnifiedNode[] = [];
 
         // Only re-process KOLs if the set has actually changed
@@ -942,8 +959,8 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
             enhancedKOLs = [];
           }
         } else {
-          // Same KOLs — skip re-processing, just return without updating processedData
-          return;
+          // Same KOLs — reuse existing KOL data, but still apply token metadata below
+          enhancedKOLs = [];
         }
 
         if (!isMounted) return;
@@ -958,28 +975,32 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
           });
         }
 
+        // Read from the persistent metadata cache ref (always synchronous)
+        const cachedMeta = nodeMetadataCacheRef.current;
+
         const nodes: UnifiedNode[] = networkData.nodes.map(node => {
           const pos = currentPositions.get(node.id);
+          const cached = cachedMeta.get(node.id);
 
           if (node.type === 'token') {
             const solanaMetadata = tokenMetadataMap.get(node.id);
             const tokenData = getTokenByMint(node.id);
-            // safe access
             const baseImg = node.image;
 
-            const name = solanaMetadata?.name || tokenData?.name || node.name;
-            const symbol = solanaMetadata?.symbol || tokenData?.symbol || node.label;
-            const image = solanaMetadata?.logoURI || tokenData?.logoURI || baseImg;
+            // Cascade: fresh fetch → store → cached ref → raw node data
+            const name = solanaMetadata?.name || tokenData?.name || cached?.name || node.name;
+            const symbol = solanaMetadata?.symbol || tokenData?.symbol || cached?.symbol || node.label;
+            const image = solanaMetadata?.logoURI || tokenData?.logoURI || cached?.image || baseImg;
 
             return {
-              ...node, // default props first
+              ...node,
               id: node.id,
               type: 'token',
               name: name || undefined,
               label: symbol || name || node.label,
               image: image || undefined,
               symbol: symbol || undefined,
-              decimals: solanaMetadata?.decimals || tokenData?.decimals, // Decimals from blockchain data
+              decimals: solanaMetadata?.decimals || tokenData?.decimals,
               x: pos?.x,
               y: pos?.y,
               vx: pos?.vx,
@@ -1001,15 +1022,15 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
                 vy: pos?.vy
               } as UnifiedNode;
             }
-            // Fallback
+            // Fallback: cached ref → store → raw node
             const kolDetails = getKOL(node.id);
             return {
               ...node,
               id: node.id,
               type: 'kol',
-              label: kolDetails?.name || node.label,
-              name: kolDetails?.name || node.name || undefined,
-              image: kolDetails?.avatar || node.image || undefined,
+              label: kolDetails?.name || cached?.label || node.label,
+              name: kolDetails?.name || cached?.name || node.name || undefined,
+              image: kolDetails?.avatar || cached?.image || node.image || undefined,
               x: pos?.x,
               y: pos?.y,
               vx: pos?.vx,
@@ -1027,13 +1048,23 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
           volume: link.volume,
         }));
 
+        // Write fetched metadata to the persistent cache so it survives future re-renders
+        nodes.forEach(n => {
+          if (n.name || n.image || (n as any).symbol) {
+            nodeMetadataCacheRef.current.set(n.id, {
+              name: n.name,
+              image: n.image,
+              symbol: (n as any).symbol,
+              label: n.label,
+            });
+          }
+        });
+
         // Only update processedData if nodes actually changed (prevents redundant D3 restarts)
         setProcessedData(prev => {
-          // Quick check: if same count and same node IDs, skip update
           if (prev.nodes.length === nodes.length && prev.links.length === links.length) {
             const prevIds = prev.nodes.map(n => n.id).join(',');
             const newIds = nodes.map(n => n.id).join(',');
-            // Also check if images changed (metadata enrichment)
             const prevImages = prev.nodes.map(n => n.image || '').join(',');
             const newImages = nodes.map(n => n.image || '').join(',');
             if (prevIds === newIds && prevImages === newImages) {

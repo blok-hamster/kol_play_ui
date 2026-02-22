@@ -6,6 +6,8 @@ import { ApiResponse } from '@/types';
 
 export interface SentimentAnalysisResult {
   score: number;
+  decision: "GOOD" | "BAD" | "NEUTRAL";
+  confidence: number;
   positiveWords: string[];
   negativeWords: string[];
   sampleTweets: string[];
@@ -138,6 +140,8 @@ export class AnalyticsService {
                       
                       resolve({
                         score: typeof parsed.score === 'number' ? parsed.score : 50,
+                        decision: parsed.decision || (parsed.score >= 65 ? "GOOD" : parsed.score <= 35 ? "BAD" : "NEUTRAL"),
+                        confidence: typeof parsed.confidence === 'number' ? parsed.confidence : Math.abs((parsed.score || 50) - 50) * 2,
                         positiveWords: parsed.positiveWords || [],
                         negativeWords: parsed.negativeWords || [],
                         sampleTweets: parsed.sampleTweets || [],
@@ -145,11 +149,40 @@ export class AnalyticsService {
                         mindmap_aura: parsed.mindmap_aura
                       });
                     } catch (e) {
-                      console.warn("[AnalyticsService] Failed to parse structured JSON, falling back to raw content:", e);
+                      console.warn("[AnalyticsService] JSON parse failed, extracting sentiment from markdown content");
+                      
+                      // Smart fallback: extract sentiment from markdown text
+                      const lower = content.toLowerCase();
+                      const bullishWords = ['bullish', 'moon', 'pump', 'buy', 'long', 'breakout', 'gains', 'rally', 'gem', 'growth', 'upside', 'positive', 'strong', 'euphoric', 'fomo'];
+                      const bearishWords = ['bearish', 'dump', 'sell', 'short', 'crash', 'rug', 'scam', 'down', 'loss', 'fear', 'negative', 'risk', 'caution', 'weak', 'declining'];
+                      
+                      const foundPositive = bullishWords.filter(w => lower.includes(w));
+                      const foundNegative = bearishWords.filter(w => lower.includes(w));
+                      
+                      // Derive score from keyword balance
+                      const posCount = foundPositive.length;
+                      const negCount = foundNegative.length;
+                      const total = posCount + negCount || 1;
+                      let derivedScore = 50 + ((posCount - negCount) / total) * 40; // 10-90 range
+                      derivedScore = Math.max(10, Math.min(90, Math.round(derivedScore)));
+                      
+                      // Check for explicit sentiment labels in the text
+                      const strongBullish = /strongly bullish|very bullish|extremely bullish/i.test(content);
+                      const strongBearish = /strongly bearish|very bearish|extremely bearish/i.test(content);
+                      if (strongBullish) derivedScore = Math.max(derivedScore, 75);
+                      if (strongBearish) derivedScore = Math.min(derivedScore, 25);
+                      
+                      const decision: "GOOD" | "BAD" | "NEUTRAL" = derivedScore >= 65 ? "GOOD" : derivedScore <= 35 ? "BAD" : "NEUTRAL";
+                      const confidence = Math.min(90, Math.abs(derivedScore - 50) * 2 + (total > 3 ? 20 : 0));
+                      
+                      console.log(`[AnalyticsService] Markdown fallback: score=${derivedScore}, decision=${decision}, confidence=${confidence}, pos=${posCount}, neg=${negCount}`);
+                      
                       resolve({
-                        score: 0.5,
-                        positiveWords: [],
-                        negativeWords: [],
+                        score: derivedScore,
+                        decision,
+                        confidence,
+                        positiveWords: foundPositive,
+                        negativeWords: foundNegative,
                         sampleTweets: [],
                         summary: content
                       });
