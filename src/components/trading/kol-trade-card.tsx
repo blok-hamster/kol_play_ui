@@ -10,15 +10,12 @@ import {
   ExternalLink,
   Copy,
   Clock,
-  DollarSign,
-  ArrowRightLeft,
   Zap,
-  Brain,
-  Target
 } from 'lucide-react';
 import { useNotifications } from '@/stores/use-ui-store';
 import { Button } from '@/components/ui/button';
 import { useKOLStore, useSubscriptions } from '@/stores';
+import { PredictButton } from '@/components/features/predict-button';
 
 // Local helpers to derive Twitter avatar URL similar to other components
 import { LazyAvatar } from '@/components/ui/lazy-avatar';
@@ -255,11 +252,6 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     return tradeData.fee ? lamportsToSol(tradeData.fee) : 0;
   }, [tradeData.fee]);
 
-  // Get the prediction from the extracted trade data
-  const prediction = tradeData.prediction;
-
-  // Only show prediction for buy trades
-  const shouldShowPrediction = prediction && (tradeData.tradeType === 'buy');
 
 
 
@@ -283,10 +275,16 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     return { level: 'New', color: 'bg-gray-500', textColor: 'text-gray-500' };
   };
 
-  const influence = React.useMemo(() =>
-    additionalData.mindmapContribution ? getInfluenceLevel(additionalData.mindmapContribution.kolInfluenceScore) : null,
-    [additionalData.mindmapContribution]
-  );
+  const influence = React.useMemo(() => {
+    const contribution = additionalData.mindmapContribution;
+    if (contribution && typeof contribution === 'object') {
+      const score = (contribution as any).kolInfluenceScore;
+      if (typeof score === 'number') {
+        return getInfluenceLevel(score);
+      }
+    }
+    return null;
+  }, [additionalData.mindmapContribution]);
 
   // Get KOL details from enriched trade or store, then compute display name and avatar
   const kolDetails: KOLWallet | undefined = React.useMemo(() => {
@@ -351,32 +349,6 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
     }
   };
 
-  // Helper function to get prediction color based on probability
-  const getPredictionColor = (probability: number) => {
-    if (probability >= 0.8) return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900';
-    if (probability >= 0.6) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900';
-    return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900';
-  };
-
-  // Helper function to get prediction icon
-  const getPredictionIcon = (classLabel: string | undefined | null) => {
-    if (!classLabel) {
-      return <Target className="w-3 h-3" />;
-    }
-
-    switch (classLabel.toLowerCase()) {
-      case 'bullish':
-      case 'buy':
-      case 'positive':
-        return <TrendingUp className="w-3 h-3" />;
-      case 'bearish':
-      case 'sell':
-      case 'negative':
-        return <TrendingDown className="w-3 h-3" />;
-      default:
-        return <Target className="w-3 h-3" />;
-    }
-  };
 
   if (variant === 'list') {
     // Simplified list layout when hiding KOL info (used in modal realtime view)
@@ -434,29 +406,13 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
             </div>
           </div>
 
-          {/* AI Prediction (minimal) */}
-          {shouldShowPrediction && prediction && (
-            <div className="mt-2 flex items-center justify-between">
-              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Brain className="w-3 h-3 text-purple-500" />
-                <span>AI Prediction</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    'flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium',
-                    getPredictionColor(prediction.probability)
-                  )}
-                >
-                  {getPredictionIcon(prediction.classLabel)}
-                  <span>{prediction.classLabel}</span>
-                </div>
-                <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400">
-                  {(prediction.probability * 100).toFixed(1)}%
-                </span>
-              </div>
-            </div>
-          )}
+          <div className="mt-2 flex justify-end">
+            <PredictButton
+              mint={tradeData.mint}
+              className="h-6 w-6 rounded-full"
+              label=""
+            />
+          </div>
         </div>
       );
     }
@@ -532,44 +488,13 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
             </div>
           )}
 
-          {/* ML Prediction - Mobile (with skeleton for sell trades) */}
-          {shouldShowPrediction ? (
-            <div className="mb-2 p-2 bg-muted/20 rounded-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1">
-                  <Brain className="w-3 h-3 text-purple-500" />
-                  <span className="text-xs font-medium text-muted-foreground">AI Prediction (Buy):</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className={cn(
-                    'flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium',
-                    getPredictionColor(prediction.probability)
-                  )}>
-                    {getPredictionIcon(prediction.classLabel)}
-                    <span>{prediction.classLabel}</span>
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {(prediction.probability * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            // Skeleton placeholder matching buy design (no data)
-            <div className="mb-2 p-2 bg-muted/20 rounded-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-muted/40 rounded animate-pulse" />
-                  <div className="w-28 h-3 bg-muted/40 rounded animate-pulse" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-20 h-5 bg-muted/40 rounded-full animate-pulse" />
-                  <div className="w-10 h-3 bg-muted/40 rounded animate-pulse" />
-                </div>
-              </div>
-            </div>
-          )}
-
+          <div className="mb-2 flex justify-end">
+            <PredictButton
+              mint={tradeData.mint}
+              className="h-5 w-5 rounded-full"
+              label=""
+            />
+          </div>
           {/* Bottom: Amount and Time */}
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center space-x-3">
@@ -587,27 +512,29 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
               </span>
             </div>
           </div>
-        </div>
+        </div >
 
         {/* Desktop Layout */}
-        <div className="hidden sm:flex items-center justify-between">
+        < div className="hidden sm:flex items-center justify-between" >
           {/* Left: KOL Info */}
-          <div className="flex items-center space-x-3 flex-1 min-w-0 max-w-[300px]">
+          < div className="flex items-center space-x-3 flex-1 min-w-0 max-w-[300px]" >
             {/* Avatar */}
-            {avatarUrl ? (
-              <LazyAvatar
-                src={avatarUrl}
-                fallbackSeed={displayName}
-                alt={displayName}
-                className="w-10 h-10 rounded-full flex-shrink-0 border bg-background"
-              />
-            ) : (
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-primary-foreground font-bold text-xs">
-                  {displayName.slice(0, 2).toUpperCase()}
-                </span>
-              </div>
-            )}
+            {
+              avatarUrl ? (
+                <LazyAvatar
+                  src={avatarUrl}
+                  fallbackSeed={displayName}
+                  alt={displayName}
+                  className="w-10 h-10 rounded-full flex-shrink-0 border bg-background"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-primary-foreground font-bold text-xs">
+                    {displayName.slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              )
+            }
 
             {/* Info */}
             <div className="min-w-0 flex-1">
@@ -636,10 +563,10 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
                 </button>
               </div>
             </div>
-          </div>
+          </div >
 
           {/* Center: Trade Details - Fixed width for consistent alignment */}
-          <div className="flex items-center space-x-4 text-sm flex-shrink-0 min-w-[400px] justify-center">
+          < div className="flex items-center space-x-4 text-sm flex-shrink-0 min-w-[400px] justify-center" >
             <div className={cn(
               'flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-semibold text-white',
               (tradeData.tradeType ?? 'sell') === 'buy' ? 'bg-green-500' : 'bg-red-500'
@@ -653,23 +580,25 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
             </div>
 
             {/* Token pill (desktop) */}
-            {(tradeData.symbol || tradeData.name || tradeData.image || tradeData.mint) && (
-              <div className="flex items-center space-x-2 min-w-[120px]">
-                {tradeData.image && (
-                  <img src={tradeData.image} alt={tradeData.symbol || tradeData.name || 'Token'} className="w-5 h-5 rounded" />
-                )}
-                <span className="text-xs font-medium">
-                  {(() => {
-                    const name = tradeData.name?.trim();
-                    const symbol = tradeData.symbol?.trim();
-                    if (name && symbol && symbol !== 'UNK' && symbol !== 'Unknown') return `${name} (${symbol})`;
-                    if (name) return name;
-                    if (symbol) return symbol;
-                    return tradeData.mint ? `${tradeData.mint.slice(0, 8)}...${tradeData.mint.slice(-4)}` : 'Token';
-                  })()}
-                </span>
-              </div>
-            )}
+            {
+              (tradeData.symbol || tradeData.name || tradeData.image || tradeData.mint) && (
+                <div className="flex items-center space-x-2 min-w-[120px]">
+                  {tradeData.image && (
+                    <img src={tradeData.image} alt={tradeData.symbol || tradeData.name || 'Token'} className="w-5 h-5 rounded" />
+                  )}
+                  <span className="text-xs font-medium">
+                    {(() => {
+                      const name = tradeData.name?.trim();
+                      const symbol = tradeData.symbol?.trim();
+                      if (name && symbol && symbol !== 'UNK' && symbol !== 'Unknown') return `${name} (${symbol})`;
+                      if (name) return name;
+                      if (symbol) return symbol;
+                      return tradeData.mint ? `${tradeData.mint.slice(0, 8)}...${tradeData.mint.slice(-4)}` : 'Token';
+                    })()}
+                  </span>
+                </div>
+              )
+            }
 
             <div className="text-center min-w-[80px]">
               <p className="text-xs text-muted-foreground">Amount</p>
@@ -681,66 +610,42 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
               </p>
             </div>
 
-            {/* ML Prediction - Desktop */}
-            {shouldShowPrediction ? (
-              <div className="text-center min-w-[120px]">
-                <p className="text-xs text-muted-foreground flex items-center justify-center space-x-1">
-                  <Brain className="w-3 h-3 text-purple-500" />
-                  <span>AI Prediction (Buy)</span>
-                </p>
-                <div className="flex items-center justify-center space-x-1">
-                  <div className={cn(
-                    'flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium',
-                    getPredictionColor(prediction.probability)
-                  )}>
-                    {getPredictionIcon(prediction.classLabel)}
-                    <span>{prediction.classLabel}</span>
-                  </div>
-                  <span className="text-xs font-medium text-purple-600">
-                    {(prediction.probability * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            ) : (
-              // Skeleton placeholder for consistent desktop layout
-              <div className="text-center min-w-[120px]">
-                <div className="flex items-center justify-center space-x-1 mb-1">
-                  <div className="w-3 h-3 bg-muted/40 rounded animate-pulse" />
-                  <div className="w-16 h-3 bg-muted/40 rounded animate-pulse" />
-                </div>
-                <div className="flex items-center justify-center space-x-1">
-                  <div className="w-12 h-5 bg-muted/40 rounded-full animate-pulse" />
-                  <div className="w-6 h-3 bg-muted/40 rounded animate-pulse" />
-                </div>
-              </div>
-            )}
+            <div className="flex items-center justify-center min-w-[60px]">
+              <PredictButton
+                mint={tradeData.mint}
+                className="h-6 w-6 rounded-full"
+                label=""
+              />
+            </div>
 
-            {tradeData.mint && tradeData.mint.length > 12 && (
-              <div className="flex items-center space-x-1 min-w-[100px]">
-                <span className="text-muted-foreground">Token:</span>
-                <span className="font-mono text-xs">
-                  {tradeData.mint.slice(0, 8)}...{tradeData.mint.slice(-4)}
-                </span>
-                <button
-                  onClick={handleCopyToken}
-                  className="hover:text-foreground transition-colors"
-                  title="Copy token address"
-                >
-                  <Copy className="w-3 h-3" />
-                </button>
-              </div>
-            )}
-          </div>
+            {
+              tradeData.mint && tradeData.mint.length > 12 && (
+                <div className="flex items-center space-x-1 min-w-[100px]">
+                  <span className="text-muted-foreground">Token:</span>
+                  <span className="font-mono text-xs">
+                    {tradeData.mint.slice(0, 8)}...{tradeData.mint.slice(-4)}
+                  </span>
+                  <button
+                    onClick={handleCopyToken}
+                    className="hover:text-foreground transition-colors"
+                    title="Copy token address"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
+              )
+            }
+          </div >
 
           {/* Right: Time & Stats - Fixed width */}
-          <div className="text-right flex-shrink-0 min-w-[150px]">
+          < div className="text-right flex-shrink-0 min-w-[150px]" >
             <div className="flex items-center justify-end text-xs text-muted-foreground">
               <Clock className="h-3 w-3 mr-1" />
               {tradeDate ? formatDistanceToNow(tradeDate, { addSuffix: true }) : 'Unknown time'}
             </div>
-          </div>
-        </div>
-      </div>
+          </div >
+        </div >
+      </div >
     );
   }
 
@@ -825,21 +730,13 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
           </div>
         )}
 
-        {/* AI Prediction minimal */}
-        {shouldShowPrediction && prediction && (
-          <div className="mt-2 flex items-center justify-center gap-1.5">
-            <div className={cn(
-              'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border',
-              getPredictionColor(prediction.probability)
-            )}>
-              {getPredictionIcon(prediction.classLabel)}
-              <span>{prediction.classLabel}</span>
-            </div>
-            <span className="text-[9px] font-bold text-purple-600 dark:text-purple-400">
-              {(prediction.probability * 100).toFixed(0)}%
-            </span>
-          </div>
-        )}
+        <div className="mt-2 flex justify-center">
+          <PredictButton
+            mint={tradeData.mint}
+            className="h-5 w-5 rounded-full"
+            label=""
+          />
+        </div>
 
         {/* Quick Trade Buttons (Compact) */}
         {onTradeClick && (
@@ -1029,24 +926,13 @@ export const KOLTradeCard: React.FC<KOLTradeCardProps> = ({
           )}
         </div>
 
-        {/* AI Prediction (If present) */}
-        {shouldShowPrediction && prediction && (
-          <div className="mb-4">
-            <div className={cn(
-              "flex items-center justify-between p-2 rounded-lg border text-xs font-medium",
-              getPredictionColor(prediction.probability)
-            )}>
-              <div className="flex items-center space-x-1.5">
-                <Brain className="w-3.5 h-3.5" />
-                <span>AI Signal</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <span>{prediction.classLabel}</span>
-                <span className="font-bold ml-1">{(prediction.probability * 100).toFixed(0)}%</span>
-              </div>
-            </div>
-          </div>
-        )}
+        <div className="mb-4 flex justify-end">
+          <PredictButton
+            mint={tradeData.mint}
+            size="sm"
+            className="h-7 text-[10px] px-3"
+          />
+        </div>
 
         {/* Actions Footer */}
         {onTradeClick && (

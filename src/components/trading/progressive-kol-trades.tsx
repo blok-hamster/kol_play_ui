@@ -60,6 +60,8 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
   } = useKOLTradeSocketContext();
 
   const [showLoadingDetails, setShowLoadingDetails] = useState(false);
+  const [tradeSearch, setTradeSearch] = useState('');
+  const [tokenAddressFilter, setTokenAddressFilter] = useState('');
 
   // State for load more
   const [visibleTrades, setVisibleTrades] = useState(maxTrades);
@@ -90,6 +92,30 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
     ...progressiveMindmapData,
     ...socketMindmapData, // Socket data takes priority
   }), [socketMindmapKeys, progressiveMindmapKeys]);
+
+  // Filtering logic
+  const filteredTrades = useMemo(() => {
+    let result = finalTrades;
+
+    if (tradeSearch.trim()) {
+      const query = tradeSearch.toLowerCase().trim();
+      result = result.filter(trade =>
+        trade.kolWallet?.toLowerCase().includes(query) ||
+        trade.tradeData?.name?.toLowerCase().includes(query) ||
+        trade.tradeData?.symbol?.toLowerCase().includes(query) ||
+        trade.tradeData?.mint?.toLowerCase().includes(query)
+      );
+    }
+
+    if (tokenAddressFilter.trim()) {
+      const address = tokenAddressFilter.toLowerCase().trim();
+      result = result.filter(trade =>
+        trade.tradeData?.mint?.toLowerCase() === address
+      );
+    }
+
+    return result;
+  }, [finalTrades, tradeSearch, tokenAddressFilter]);
 
   const finalIsLoading = socketLoading && (loadingState.trades === 'loading' || loadingState.trades === 'idle');
 
@@ -248,54 +274,89 @@ export const ProgressiveKOLTrades: React.FC<ProgressiveKOLTradesProps> = ({
 
       {/* Live Trades Section */}
       {(activeView === 'live-trades' || activeView === 'both') && (
-        <div>
-          {finalTrades.length ? (
-            <div className="space-y-6">
-              <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-                {finalTrades.slice(0, visibleTrades).map((trade, index) => (
-                  <KOLTradeCard
-                    key={`${trade.id}-${index}`}
-                    trade={trade}
-                    onClick={() => { }}
-                    variant="card"
-                  />
-                ))}
-              </div>
-
-              {finalTrades.length > visibleTrades && (
-                <div className="flex justify-center pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={handleLoadMore}
-                    className="min-w-[200px] bg-background/50 backdrop-blur-sm hover:bg-background/80"
-                  >
-                    Load More Trades ({finalTrades.length - visibleTrades} remaining)
-                  </Button>
-                </div>
-              )}
+        <div className="space-y-4">
+          {/* Filters Bar */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Activity className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search KOLs or Tokens..."
+                value={tradeSearch}
+                onChange={(e) => setTradeSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              />
             </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Activity className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  {loadingState.trades === 'error' ? 'API Temporarily Unavailable' : 'No trades available'}
-                </h3>
-                <p className="text-muted-foreground text-center">
-                  {loadingState.trades === 'error'
-                    ? 'The trading data service is currently unavailable. The page will automatically retry when the service is restored.'
-                    : 'Waiting for live trading data...'
-                  }
-                </p>
-                {loadingState.trades === 'error' && (
-                  <Button onClick={handleRetry} size="sm" className="mt-4">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Try Again
-                  </Button>
+            <div className="relative flex-1">
+              <RefreshCw className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Filter by Token Mint..."
+                value={tokenAddressFilter}
+                onChange={(e) => setTokenAddressFilter(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none transition-all font-mono text-sm"
+              />
+            </div>
+            {(tradeSearch || tokenAddressFilter) && (
+              <Button
+                variant="ghost"
+                onClick={() => { setTradeSearch(''); setTokenAddressFilter(''); }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+
+          <div>
+            {filteredTrades.length ? (
+              <div className="space-y-6">
+                <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                  {filteredTrades.slice(0, visibleTrades).map((trade, index) => (
+                    <KOLTradeCard
+                      key={`${trade.id}-${index}`}
+                      trade={trade}
+                      onClick={() => { }}
+                      variant="card"
+                    />
+                  ))}
+                </div>
+
+                {filteredTrades.length > visibleTrades && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={handleLoadMore}
+                      className="min-w-[200px] bg-background/50 backdrop-blur-sm hover:bg-background/80"
+                    >
+                      Load More Trades ({filteredTrades.length - visibleTrades} remaining)
+                    </Button>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">
+                    {loadingState.trades === 'error' ? 'API Temporarily Unavailable' : 'No trades available'}
+                  </h3>
+                  <p className="text-muted-foreground text-center">
+                    {loadingState.trades === 'error'
+                      ? 'The trading data service is currently unavailable. The page will automatically retry when the service is restored.'
+                      : 'Waiting for live trading data...'
+                    }
+                  </p>
+                  {loadingState.trades === 'error' && (
+                    <Button onClick={handleRetry} size="sm" className="mt-4">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Try Again
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       )}
 

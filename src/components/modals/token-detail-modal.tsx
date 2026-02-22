@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { formatNumber, formatRelativeTime, copyToClipboard } from '@/lib/utils';
 import { ExternalLink, Clock, Loader2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNotifications } from '@/stores';
-import { executeInstantBuy, executeBuyWithAmount, checkTradeConfig, getBuyAmountLimits } from '@/lib/trade-utils';
+import { executeInstantBuy, executeBuyWithAmount, getBuyAmountLimits } from '@/lib/trade-utils';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 import BuyAmountPrompt from '@/components/ui/buy-amount-prompt';
 import { TokenMetadataService } from '@/services/token-metadata.service';
+import { PredictButton } from '@/components/features/predict-button';
 
 export interface TokenDetailModalProps {
   isOpen: boolean;
@@ -292,6 +293,12 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                 )}
               </Button>
 
+              <PredictButton
+                mint={mint}
+                size="default"
+                className="w-full sm:w-auto"
+              />
+
               <Button
                 variant="outline"
                 onClick={handleCopyAddress}
@@ -380,10 +387,10 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
         isOpen={showBuyAmountPrompt}
         onClose={handleBuyAmountPromptClose}
         onConfirm={handleBuyWithAmount}
-        tokenSymbol={symbol}
-        tokenName={name}
+        tokenSymbol={symbol || ''}
+        tokenName={name || ''}
         hasTradeConfig={buyAmountLimits.hasConfig}
-        defaultAmount={buyAmountLimits.defaultAmount}
+        defaultAmount={buyAmountLimits.defaultAmount || 0}
         minAmount={buyAmountLimits.minAmount}
         maxAmount={buyAmountLimits.maxAmount}
       />

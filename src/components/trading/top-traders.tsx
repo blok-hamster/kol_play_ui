@@ -28,6 +28,7 @@ const TopTraders: React.FC<TopTradersProps> = ({
   const [traders, setTraders] = useState<TopTrader[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeframe, setTimeframe] = useState<string>('7d');
 
   const [selectedTrader, setSelectedTrader] = useState<TopTrader | null>(null);
   const [isTraderModalOpen, setIsTraderModalOpen] = useState(false);
@@ -74,7 +75,7 @@ const TopTraders: React.FC<TopTradersProps> = ({
       } else {
         // Mode: Global Leaderboard
         const response = await authenticatedRequest(
-          () => TradingService.getLeaderboard(limit),
+          () => TradingService.getLeaderboard(limit, timeframe),
           { priority: 'low', timeout: 15000 }
         );
 
@@ -108,11 +109,11 @@ const TopTraders: React.FC<TopTradersProps> = ({
       setIsLoading(false);
       isCurrentlyFetching.current = false;
     }
-  }, [limit, ensureKOLs, filterWallets]);
+  }, [limit, ensureKOLs, filterWallets, timeframe]);
 
   useEffect(() => {
     fetchTopTraders();
-  }, [fetchTopTraders]);
+  }, [fetchTopTraders, timeframe]);
 
   const handleViewProfile = (wallet: string) => {
     const trader = traders.find(t => t.wallet === wallet);
@@ -274,6 +275,27 @@ const TopTraders: React.FC<TopTradersProps> = ({
 
   return (
     <div className={className}>
+      {/* Timeframe Selector */}
+      {!filterWallets && (
+        <div className="flex items-center justify-end space-x-2 mb-4">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Timeframe:</span>
+          <div className="flex bg-muted/20 p-1 rounded-lg border border-border/50">
+            {['1h', '24h', '7d', '30d', 'all'].map((tf) => (
+              <button
+                key={tf}
+                onClick={() => setTimeframe(tf)}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${timeframe === tf
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
+              >
+                {tf.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className={viewMode === 'list' ? "space-y-3" : "grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}>
           {Array.from({ length: 6 }).map((_, i) => (

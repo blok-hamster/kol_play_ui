@@ -829,6 +829,44 @@ export default function KOLList({
                     <SortAsc className="w-4 h-4" />
                   ))}
               </button>
+
+              <button
+                onClick={() => handleSort('totalTrades')}
+                className={`
+                  flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors
+                  ${filters.sortBy === 'totalTrades'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }
+                `}
+              >
+                <span className="text-sm font-medium">Trades</span>
+                {filters.sortBy === 'totalTrades' &&
+                  (filters.sortOrder === 'desc' ? (
+                    <SortDesc className="w-4 h-4" />
+                  ) : (
+                    <SortAsc className="w-4 h-4" />
+                  ))}
+              </button>
+
+              <button
+                onClick={() => handleSort('winRate')}
+                className={`
+                  flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors
+                  ${filters.sortBy === 'winRate'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }
+                `}
+              >
+                <span className="text-sm font-medium">Win Rate</span>
+                {filters.sortBy === 'winRate' &&
+                  (filters.sortOrder === 'desc' ? (
+                    <SortDesc className="w-4 h-4" />
+                  ) : (
+                    <SortAsc className="w-4 h-4" />
+                  ))}
+              </button>
             </div>
           </div>
         </div>

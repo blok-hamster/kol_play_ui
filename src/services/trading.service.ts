@@ -200,10 +200,14 @@ export class TradingService {
   /**
    * Get KOL leaderboard
    */
-  static async getLeaderboard(limit: number = 10): Promise<ApiResponse<KOLLeaderboardItem[]>> {
+  static async getLeaderboard(limit: number = 10, timeframe?: string): Promise<ApiResponse<KOLLeaderboardItem[]>> {
     try {
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      if (timeframe) params.append('timeframe', timeframe);
+
       const response = await apiClient.get<KOLLeaderboardItem[]>(
-        `${API_ENDPOINTS.FEATURES.GET_LEADERBOARD}?limit=${limit}`
+        `${API_ENDPOINTS.FEATURES.GET_LEADERBOARD}?${params.toString()}`
       );
       return response;
     } catch (error: any) {

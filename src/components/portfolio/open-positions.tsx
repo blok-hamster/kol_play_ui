@@ -163,7 +163,7 @@ const OpenPositions: React.FC<OpenPositionsProps> = ({
         if (trade.tokenMint) loadTokens([trade.tokenMint]);
       } else if (event.type === 'POSITION_CLOSED') {
         const { tradeId } = event.data;
-        setOpenTrades(prev => prev.filter(t => t.id !== tradeId && t.originalTradeId !== tradeId));
+        setOpenTrades(prev => prev.filter(t => t.id !== tradeId));
         showSuccess('Position Closed', 'Trade closed successfully.');
       }
     };
