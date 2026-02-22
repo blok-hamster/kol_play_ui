@@ -23,6 +23,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { formatCurrency, copyToClipboard } from '@/lib/utils';
 import { useKOLStore } from '@/stores';
 import { LazyAvatar } from '@/components/ui/lazy-avatar';
@@ -217,9 +218,20 @@ const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
 
             {/* Info */}
             <div className="min-w-0 flex-1">
-              <h3 className={`font-bold text-foreground ${isList ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'} truncate`}>
-                {displayName}
-              </h3>
+              <div className="flex items-center space-x-2 truncate">
+                <h3 className={`font-bold text-foreground ${isList ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'} truncate`}>
+                  {displayName}
+                </h3>
+                {subscription.source === 'personal' ? (
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-muted-foreground/30 text-muted-foreground font-medium uppercase tracking-tighter shrink-0">
+                    Personal
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-primary/10 text-primary border-none font-bold uppercase tracking-tighter shrink-0">
+                    Platform
+                  </Badge>
+                )}
+              </div>
               <div className="flex items-center space-x-1.5 sm:space-x-2 text-[10px] sm:text-sm text-muted-foreground">
                 <span className="font-mono truncate">
                   <span className="xs:hidden">

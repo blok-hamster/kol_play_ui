@@ -18,6 +18,7 @@ export interface SubscribeToKOLRequest {
   subType: 'trade' | 'watch';
   copyPercentage?: number;
   maxAmount?: number;
+  label?: string;
   settings?: {
     enableSlippageProtection?: boolean;
     maxSlippagePercent?: number;
@@ -43,6 +44,7 @@ export interface UpdateUserSubscriptionRequest {
   maxAmount?: number | undefined;
   tokenBuyCount?: number | undefined;
   isActive?: boolean | undefined;
+  label?: string | undefined;
   settings?: {
     enableSlippageProtection?: boolean | undefined;
     maxSlippagePercent?: number | undefined;
@@ -254,6 +256,7 @@ export class TradingService {
           subType: request.subType,
           copyPercentage: request.copyPercentage,
           maxAmount: request.maxAmount,
+          label: request.label,
           settings: request.settings,
           watchConfig: request.watchConfig,
         }
@@ -401,8 +404,16 @@ export class TradingService {
           afkEnabled: settings.agentSettings.afkEnabled,
           afkBuyAmount: settings.agentSettings.afkBuyAmount,
           maxConcurrentTrades: settings.agentSettings.maxConcurrentTrades,
+          runFrequency: settings.agentSettings.runFrequency,
+          workflowTemplate: settings.agentSettings.workflowTemplate,
           enableTimeRestrictions: settings.agentSettings.enableTimeRestrictions,
-          tradingHours: settings.agentSettings.tradingHours
+          tradingHours: settings.agentSettings.tradingHours,
+          // Map exit strategy fields directly to the flattened agentConfig
+          takeProfitPercentage: settings.agentSettings.watchConfig?.takeProfitPercentage,
+          stopLossPercentage: settings.agentSettings.watchConfig?.stopLossPercentage,
+          enableTrailingStop: settings.agentSettings.watchConfig?.enableTrailingStop,
+          trailingPercentage: settings.agentSettings.watchConfig?.trailingPercentage,
+          maxHoldTimeMinutes: settings.agentSettings.watchConfig?.maxHoldTimeMinutes,
         };
       }
 

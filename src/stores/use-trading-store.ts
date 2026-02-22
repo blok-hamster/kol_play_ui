@@ -515,10 +515,89 @@ export const useTradingStore = create<TradingState>()(
         set({ isLoadingStats: true }); // Use loading stats as overlay
         try {
           const response = await TradingService.updateTradingSettings(settings);
-          if (response.success) {
-            set({ error: null });
-            // Successfully saved trading settings
-          } else {
+          if (response.success && response.data?.settings) {
+            // Update store with actual backend settings to ensure consistency
+            const backendSettings: any = response.data.settings;
+            const tradeConfig = backendSettings.tradeConfig || {};
+            const watchConfig = backendSettings.watchConfig || {};
+            
+            const mergedSettings: TradingSettings = {
+              ...get().tradingSettings,
+              slippage: tradeConfig.slippage ?? 0.5,
+              minSpend: tradeConfig.minSpend ?? 0.01,
+              maxSpend: tradeConfig.maxSpend ?? 1.0,
+              useWatchConfig: tradeConfig.useWatchConfig ?? true,
+              paperTrading: tradeConfig.paperTrading ?? false,
+              useTurboPriority: tradeConfig.useTurboPriority ?? false,
+              enableMarketCapFilter: tradeConfig.enableMarketCapFilter ?? true,
+              minMarketCap: tradeConfig.minMarketCap ?? 10000,
+              maxMarketCap: tradeConfig.maxMarketCap ?? 50000000,
+              enableLiquidityFilter: tradeConfig.enableLiquidityFilter ?? true,
+              minLiquidity: tradeConfig.minLiquidity ?? 50000,
+              tokenBlacklist: tradeConfig.tokenBlacklist ?? [],
+              dexWhitelist: tradeConfig.dexWhitelist ?? ['Raydium', 'Jupiter', 'Orca', 'Pump.fun'],
+              maxConcurrentTrades: tradeConfig.maxConcurrentTrades ?? 3,
+              watchConfig: {
+                takeProfitPercentage: watchConfig.takeProfitPercentage ?? 50,
+                stopLossPercentage: watchConfig.stopLossPercentage ?? 15,
+                enableTrailingStop: watchConfig.enableTrailingStop ?? false,
+                trailingPercentage: watchConfig.trailingPercentage ?? 10,
+                maxHoldTimeMinutes: watchConfig.maxHoldTimeMinutes ?? 1440,
+              },
+              minKOLConvergence: tradeConfig.minKOLConvergence ?? 1,
+              convergenceWindowMinutes: tradeConfig.convergenceWindowMinutes ?? 60,
+              afkEnabled: tradeConfig.afkEnabled ?? false,
+              afkBuyAmount: tradeConfig.afkBuyAmount ?? 0.1,
+              runFrequency: tradeConfig.runFrequency ?? 60,
+              enableTimeRestrictions: tradeConfig.enableTimeRestrictions ?? false,
+              tradingHours: tradeConfig.tradingHours ?? {
+                start: '00:00',
+                end: '23:59',
+                timezone: 'UTC',
+              },
+              agentSettings: backendSettings.agentConfig ? {
+                slippage: backendSettings.agentConfig.slippage ?? 0.5,
+                minSpend: backendSettings.agentConfig.minSpend ?? 0.01,
+                maxSpend: backendSettings.agentConfig.maxSpend ?? 1.0,
+                useWatchConfig: backendSettings.agentConfig.useWatchConfig ?? true,
+                paperTrading: backendSettings.agentConfig.paperTrading ?? false,
+                useTurboPriority: backendSettings.agentConfig.useTurboPriority ?? false,
+                enableMarketCapFilter: backendSettings.agentConfig.enableMarketCapFilter ?? true,
+                minMarketCap: backendSettings.agentConfig.minMarketCap ?? 10000,
+                maxMarketCap: backendSettings.agentConfig.maxMarketCap ?? 50000000,
+                enableLiquidityFilter: backendSettings.agentConfig.enableLiquidityFilter ?? true,
+                minLiquidity: backendSettings.agentConfig.minLiquidity ?? 50000,
+                tokenBlacklist: backendSettings.agentConfig.tokenBlacklist ?? [],
+                dexWhitelist: backendSettings.agentConfig.dexWhitelist ?? ['Raydium', 'Jupiter', 'Orca', 'Pump.fun'],
+                maxConcurrentTrades: backendSettings.agentConfig.maxConcurrentTrades ?? 3,
+                minKOLConvergence: backendSettings.agentConfig.minKOLConvergence ?? 1,
+                convergenceWindowMinutes: backendSettings.agentConfig.convergenceWindowMinutes ?? 60,
+                afkEnabled: backendSettings.agentConfig.afkEnabled ?? false,
+                afkBuyAmount: backendSettings.agentConfig.afkBuyAmount ?? 0.1,
+                runFrequency: backendSettings.agentConfig.runFrequency ?? 60,
+                workflowTemplate: backendSettings.agentConfig.workflowTemplate ?? 'FULL_AUTONOMY',
+                enableTimeRestrictions: backendSettings.agentConfig.enableTimeRestrictions ?? false,
+                tradingHours: backendSettings.agentConfig.tradingHours ?? {
+                  start: '00:00',
+                  end: '23:59',
+                  timezone: 'UTC',
+                },
+                watchConfig: {
+                  takeProfitPercentage: backendSettings.agentConfig.takeProfitPercentage ?? 50,
+                  stopLossPercentage: backendSettings.agentConfig.stopLossPercentage ?? 15,
+                  enableTrailingStop: backendSettings.agentConfig.enableTrailingStop ?? false,
+                  trailingPercentage: backendSettings.agentConfig.trailingPercentage ?? 10,
+                  maxHoldTimeMinutes: backendSettings.agentConfig.maxHoldTimeMinutes ?? 1440,
+                },
+              } : (get().tradingSettings.agentSettings || DEFAULT_AGENT_SETTINGS),
+            };
+
+            set({ 
+              tradingSettings: mergedSettings,
+              isPaperTrading: mergedSettings.paperTrading || false,
+              error: null 
+            });
+          } else if (!response.success) {
             throw new Error(response.message || 'Failed to save settings');
           }
         } catch (error: any) {
@@ -594,13 +673,14 @@ export const useTradingStore = create<TradingState>()(
                 afkEnabled: backendSettings.agentConfig.afkEnabled ?? false,
                 afkBuyAmount: backendSettings.agentConfig.afkBuyAmount ?? 0.1,
                 runFrequency: backendSettings.agentConfig.runFrequency ?? 60,
+                workflowTemplate: backendSettings.agentConfig.workflowTemplate ?? 'FULL_AUTONOMY',
                 enableTimeRestrictions: backendSettings.agentConfig.enableTimeRestrictions ?? false,
                 tradingHours: backendSettings.agentConfig.tradingHours ?? {
                   start: '00:00',
                   end: '23:59',
                   timezone: 'UTC',
                 },
-                watchConfig: backendSettings.agentConfig.watchConfig ?? {
+                watchConfig: {
                   takeProfitPercentage: backendSettings.agentConfig.takeProfitPercentage ?? 50,
                   stopLossPercentage: backendSettings.agentConfig.stopLossPercentage ?? 15,
                   enableTrailingStop: backendSettings.agentConfig.enableTrailingStop ?? false,

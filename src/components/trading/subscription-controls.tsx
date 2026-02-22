@@ -65,6 +65,7 @@ export default function SubscriptionControls({
         minAmount: 0.01,
         copyPercentage: 100,
         maxAmount: 1.0,
+        label: kolName,
         settings: {
           enableSlippageProtection: true,
           maxSlippagePercent: 1.0,
