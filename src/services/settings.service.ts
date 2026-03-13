@@ -39,6 +39,17 @@ export interface UpdateSettingParams {
     displayName?: string;
     avatar?: string;
   };
+  manualTradeConfig?: {
+    slippage?: number;
+    useTurboPriority?: boolean;
+    paperTrading?: boolean;
+  };
+  terminalTradeConfig?: {
+    slippage?: number;
+    useTurboPriority?: boolean;
+    paperTrading?: boolean;
+  };
+  agentConfig?: any;
 }
 
 // Interface for editing that allows empty string values for number fields
@@ -78,6 +89,17 @@ export interface UpdateSettingParamsEditing {
     displayName?: string;
     avatar?: string;
   };
+  manualTradeConfig?: {
+    slippage?: number | string;
+    useTurboPriority?: boolean;
+    paperTrading?: boolean;
+  };
+  terminalTradeConfig?: {
+    slippage?: number | string;
+    useTurboPriority?: boolean;
+    paperTrading?: boolean;
+  };
+  agentConfig?: any;
 }
 
 // Legacy interfaces for backward compatibility

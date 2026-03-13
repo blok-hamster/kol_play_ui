@@ -1,6 +1,8 @@
 import { UpdateSettingParams } from '@/services/settings.service';
 import { SettingsService } from '@/services/settings.service';
 import { SwapService } from '@/services/swap.service';
+import { BalanceService } from '@/services/balance.service';
+import { useUserStore } from '@/stores/use-user-store';
 import { SwapData } from '@/types';
 
 /**
@@ -46,8 +48,7 @@ export async function checkTradeConfig(): Promise<{
  * Execute instant buy with user's saved trade config
  */
 export async function executeInstantBuy(
-  tokenMint: string,
-  tokenSymbol?: string
+  tokenMint: string
 ): Promise<{
   success: boolean;
   result?: any;
@@ -66,6 +67,24 @@ export async function executeInstantBuy(
 
     const settings = configCheck.config!;
     const tradeConfig = settings.tradeConfig;
+
+    // Balance Check
+    const user = useUserStore.getState().user;
+    const walletAddress = user?.accountDetails?.address || user?.walletAddress;
+    if (walletAddress) {
+        const validation = await BalanceService.validateSwap(
+            walletAddress,
+            'SOL', // Buying with SOL
+            tradeConfig.minSpend!,
+            true
+        );
+        if (!validation.isValid) {
+            return {
+                success: false,
+                error: validation.message || 'Insufficient balance for instant buy'
+            };
+        }
+    }
 
     // Use minimum spend amount for instant buy
     const buyAmount = tradeConfig.minSpend!;
@@ -110,8 +129,7 @@ export async function executeInstantBuy(
  */
 export async function executeBuyWithAmount(
   tokenMint: string,
-  amount: number,
-  tokenSymbol?: string
+  amount: number
 ): Promise<{
   success: boolean;
   result?: any;
@@ -136,6 +154,24 @@ export async function executeBuyWithAmount(
     // Check if user has trade config (for watch settings, but not required for custom amount)
     const configCheck = await checkTradeConfig();
     const settings = configCheck.config;
+
+    // Balance Check
+    const user = useUserStore.getState().user;
+    const walletAddress = user?.accountDetails?.address || user?.walletAddress;
+    if (walletAddress) {
+        const validation = await BalanceService.validateSwap(
+            walletAddress,
+            'SOL',
+            amount,
+            true
+        );
+        if (!validation.isValid) {
+            return {
+                success: false,
+                error: validation.message || 'Insufficient balance'
+            };
+        }
+    }
 
     // Prepare swap data
     const swapData: SwapData = {
@@ -186,12 +222,22 @@ export async function getBuyAmountLimits(): Promise<{
 
     if (configCheck.hasConfig && configCheck.config?.tradeConfig) {
       const { minSpend, maxSpend } = configCheck.config.tradeConfig;
-      return {
+      const result: {
+        hasConfig: boolean;
+        minAmount: number;
+        maxAmount: number;
+        defaultAmount?: number;
+      } = {
         hasConfig: true,
         minAmount: minSpend || 0.01,
         maxAmount: maxSpend || 100,
-        defaultAmount: minSpend,
       };
+      
+      if (minSpend !== undefined) {
+        result.defaultAmount = minSpend;
+      }
+      
+      return result;
     }
 
     // Default limits when no config exists
@@ -215,7 +261,6 @@ export async function getBuyAmountLimits(): Promise<{
  */
 export async function executeInstantSell(
   tokenMint: string,
-  tokenSymbol?: string,
   tokenBalance?: number
 ): Promise<{
   success: boolean;

@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/layout/app-layout';
-import { TokenService } from '@/services/token.service';
 import { SolanaService } from '@/services/solana.service';
 import { SearchTokenResult } from '@/types';
 import LiveTradesFeed from '@/components/trading/live-trades-feed';
 import { Zap, TrendingUp, Clock, ArrowRight, BarChart3, Activity, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 import { usePumpPortalStream } from '@/hooks/use-pumpportal-stream';
 import { executeInstantBuy, checkTradeConfig } from '@/lib/trade-utils';
@@ -36,7 +34,7 @@ const TokenCard: React.FC<{ token: SearchTokenResult }> = ({ token }) => {
             }
 
             setIsBuying(true);
-            const result = await executeInstantBuy(token.mint, token.symbol);
+            const result = await executeInstantBuy(token.mint);
 
             if (result.success) {
                 showSuccess(
@@ -240,13 +238,13 @@ export default function ProLandingPage() {
             const unsubscribe = subscribeNewTokens((token) => {
                 const transformed: SearchTokenResult = {
                     mint: token.mint,
-                    symbol: token.symbol,
-                    name: token.name,
-                    image: token.image,
+                    symbol: token.symbol || '',
+                    name: token.name || '',
+                    image: token.image || '',
                     price: 0,
                     priceChange24h: 0,
                     volume24h: 0,
-                    decimals: 9,
+                    decimals: 6,
                     holders: 0,
                     jupiter: false,
                     verified: false,
@@ -254,15 +252,32 @@ export default function ProLandingPage() {
                     marketCapUsd: 0,
                     priceUsd: 0,
                     lpBurn: 0,
-                    market: 'pump'
+                    market: 'pump',
+                    freezeAuthority: null,
+                    mintAuthority: null,
+                    poolAddress: '',
+                    totalBuys: 0,
+                    totalSells: 0,
+                    totalTransactions: 0,
+                    volume_5m: 0,
+                    volume: 0,
+                    volume_15m: 0,
+                    volume_30m: 0,
+                    volume_1h: 0,
+                    volume_6h: 0,
+                    volume_12h: 0,
+                    volume_24h: 0
                 };
                 setNewTokens(prev => {
                     if (prev.find(t => t.mint === transformed.mint)) return prev;
                     return [transformed, ...prev].slice(0, 50); // Keep more for scrolling
                 });
             });
-            return unsubscribe;
+            return () => {
+                unsubscribe();
+            };
         }
+        return undefined;
     }, [isConnected, subscribeNewTokens]);
 
     return (

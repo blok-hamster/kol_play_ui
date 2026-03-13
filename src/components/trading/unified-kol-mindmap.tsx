@@ -161,6 +161,7 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
     'none' | 'trending' | 'high-volume'
   >('none');
   const [showSubscribedOnly, setShowSubscribedOnly] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [dimensions, setDimensions] = useState({ width, height });
   const [interactionErrors, setInteractionErrors] = useState<Error[]>([]);
   const [processedData, setProcessedData] = useState<{
@@ -520,16 +521,20 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
     // --- Node Visuals Construction (Enter only) ---
     // Helper for radius calculation
     const getRadius = (d: UnifiedNode) => {
+      // Clamp the scale factor aggressively so entering fullscreen provides more canvas space, not just gigantic nodes
+      const effectiveWidth = isFullScreen ? Math.min(1000, dimensions.width) : dimensions.width;
+      const scaleFactor = Math.min(0.8, Math.max(0.55, effectiveWidth / 1200));
+
       if (d.type === 'token') {
-        const baseSize = 20;
-        const connectionBonus = Math.sqrt(d.connections) * 7;
-        const volumeBonus = Math.log(d.totalVolume || 1) * 2.5;
-        return Math.min(55, baseSize + connectionBonus + volumeBonus);
+        const baseSize = 20 * scaleFactor;
+        const connectionBonus = Math.sqrt(d.connections) * 7 * scaleFactor;
+        const volumeBonus = Math.log(d.totalVolume || 1) * 2.5 * scaleFactor;
+        return Math.min(55 * scaleFactor, baseSize + connectionBonus + volumeBonus);
       } else {
-        const baseSize = 14;
-        const influenceBonus = Math.sqrt(d.influenceScore || 0) * 2.2;
-        const tradeBonus = Math.sqrt(d.tradeCount || 0) * 1.5;
-        return Math.min(40, baseSize + influenceBonus + tradeBonus);
+        const baseSize = 14 * scaleFactor;
+        const influenceBonus = Math.sqrt(d.influenceScore || 0) * 2.2 * scaleFactor;
+        const tradeBonus = Math.sqrt(d.tradeCount || 0) * 1.5 * scaleFactor;
+        return Math.min(40 * scaleFactor, baseSize + influenceBonus + tradeBonus);
       }
     };
 
@@ -742,6 +747,12 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
         setSelectedNode(prev => prev?.id === d.id ? null : { ...d });
       });
 
+    // Clean up associated clip paths for exiting nodes to prevent SVG defs memory leaks
+    nodeSelection.exit().each(function (d) {
+      if (d && d.id) {
+        defs.select(`#node-clip-${d.id.replace(/[^a-zA-Z0-9]/g, '-')}`).remove();
+      }
+    });
     nodeSelection.exit().remove();
 
     // 5. Update Labels
@@ -779,9 +790,12 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
       })
       .attr('font-size', d => (d.type === 'token' && d.connections > 5) || (d.type === 'kol' && (d.influenceScore || 0) > 70) ? '12px' : '11px')
       .attr('dy', d => {
+        // Use the same clamped scaleFactor for label positioning
+        const effectiveWidth = isFullScreen ? Math.min(1000, dimensions.width) : dimensions.width;
+        const scaleFactor = Math.min(0.8, Math.max(0.55, effectiveWidth / 1200));
         const r = d.type === 'token'
-          ? Math.min(55, 20 + Math.sqrt(d.connections) * 7 + Math.log(d.totalVolume || 1) * 2.5)
-          : Math.min(40, 14 + Math.sqrt(d.influenceScore || 0) * 2.2 + Math.sqrt(d.tradeCount || 0) * 1.5);
+          ? Math.min(55 * scaleFactor, (20 * scaleFactor) + Math.sqrt(d.connections) * (7 * scaleFactor) + Math.log(d.totalVolume || 1) * (2.5 * scaleFactor))
+          : Math.min(40 * scaleFactor, (14 * scaleFactor) + Math.sqrt(d.influenceScore || 0) * (2.2 * scaleFactor) + Math.sqrt(d.tradeCount || 0) * (1.5 * scaleFactor));
         return r + 16;
       })
       .attr('fill', '#ffffff');
@@ -1175,6 +1189,31 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
     }
   };
 
+  const handleToggleFullScreen = () => {
+    if (!containerRef.current) return;
+
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   // Handle filter changes while maintaining WebSocket subscriptions
   const handleFilterChange = useCallback(
     (newShowSubscribedOnly: boolean) => {
@@ -1359,7 +1398,7 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
     <div
       ref={containerRef}
       className={cn(
-        'w-full h-full flex flex-col min-h-[300px]',
+        'flex flex-col bg-black/90 w-full h-full min-h-[300px]',
         className
       )}
     >
@@ -1445,7 +1484,7 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
             <span className="hidden xs:inline">Volume</span>
           </Button>
 
-          {/* Zoom Controls */}
+          {/* Zoom Controls & Expand */}
           <div className="ml-1 sm:ml-2 flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
             <Button
               variant="outline"
@@ -1470,6 +1509,17 @@ export const UnifiedKOLMindmap: React.FC<Partial<UnifiedKOLMindmapProps>> = ({
               className="h-6 w-6 sm:h-7 sm:w-7 p-0"
             >
               <RotateCcw className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            </Button>
+            {/* Divider */}
+            <div className="w-px h-4 bg-border mx-1" />
+            <Button
+              variant={isFullScreen ? "default" : "outline"}
+              size="sm"
+              onClick={handleToggleFullScreen}
+              className="h-6 w-6 sm:h-7 sm:w-7 p-0"
+              title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+            >
+              <Maximize2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
             </Button>
           </div>
         </div>

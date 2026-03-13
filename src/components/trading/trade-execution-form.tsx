@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
     const { user } = useUserStore();
     const { isPaperTrading } = useTradingStore();
     const { showNotification } = useNotifications();
+    const pathname = usePathname();
 
 
     const [side, setSide] = useState<'buy' | 'sell'>('buy');
@@ -153,7 +155,9 @@ export const TradeExecutionForm: React.FC<TradeExecutionFormProps> = ({
                     enableTrailingStop: trailingStop,
                     trailingPercentage: Number(trailingPercent),
                     maxHoldTimeMinutes: 1440
-                } : undefined
+                } : undefined,
+                isSimulation: isPaperTrading,
+                isTerminal: pathname.includes('pro-terminal')
             };
 
             if (orderType === 'limit') {

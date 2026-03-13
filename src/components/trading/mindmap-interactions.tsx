@@ -2,19 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import {
   CircleDollarSign,
   UserCheck,
   TrendingUp,
   Activity,
-  Wallet,
   BadgeDollarSign,
   Users,
-  CheckCircle,
   Info,
-  Maximize2,
   Eye,
   EyeOff,
   UserPlus,
@@ -22,7 +19,6 @@ import {
   Target,
   Zap,
   BarChart3,
-  Copy,
   AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -110,11 +106,9 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
   node,
   connections,
   onClose,
-  onError,
   className
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [buyingNodeId, setBuyingNodeId] = useState<string | null>(null);
   const [showTradeConfigPrompt, setShowTradeConfigPrompt] = useState(false);
@@ -135,17 +129,6 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
     return num.toString();
   };
 
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(node.id);
-      setCopyStatus('copied');
-      setTimeout(() => setCopyStatus('idle'), 2000);
-    } catch (error) {
-      setCopyStatus('error');
-      onError && onError(error as Error);
-      setTimeout(() => setCopyStatus('idle'), 2000);
-    }
-  }, [node.id, onError]);
 
   const handleSubscribe = useCallback(() => {
     window.dispatchEvent(new CustomEvent('open-kol-modal', { detail: { kolId: node.id } }));
@@ -167,7 +150,7 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
         }
 
         setBuyingNodeId(node.id);
-        const result = await executeInstantBuy(node.id, node.symbol || node.name);
+        const result = await executeInstantBuy(node.id);
 
         if (result.success) {
           showSuccess(
@@ -210,8 +193,8 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
   return (
     <Card className={cn(
       isMobile
-        ? "fixed top-4 left-4 right-4 w-auto max-w-sm mx-auto max-h-[calc(100vh-2rem)]"
-        : "w-80 lg:w-96 max-h-[75vh]",
+        ? "fixed top-4 left-4 right-4 w-auto max-w-sm mx-auto max-h-[calc(100dvh-2rem)]"
+        : "w-[22vw] min-w-[320px] max-w-[420px] max-h-[calc(100%-2rem)] flex flex-col",
       "overflow-hidden bg-card/95 backdrop-blur-sm border-2",
       isMobile
         ? "animate-in slide-in-from-bottom-5 duration-300"
@@ -257,9 +240,9 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3 sm:space-y-4 overflow-y-auto px-2.5 sm:px-4 pb-2.5 sm:pb-4">
+      <CardContent className="flex-1 flex flex-col space-y-3 sm:space-y-4 overflow-y-auto px-2.5 sm:px-4 pb-2.5 sm:pb-4 min-h-0">
         {/* Node Identity */}
-        <div className="space-y-1.5 sm:space-y-2">
+        <div className="space-y-1.5 sm:space-y-2 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
             {node.image ? (
               <img
@@ -491,9 +474,9 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
           isOpen={showTokenModal}
           onClose={() => setShowTokenModal(false)}
           mint={node.tokenMint || node.id}
-          name={node.name}
-          symbol={node.symbol}
-          title={`${node.name || node.symbol || 'Token'} Details`}
+          {...(node.name !== undefined && { name: node.name })}
+          {...(node.symbol !== undefined && { symbol: node.symbol })}
+          title={`${node.symbol || node.name || 'Token'} Details`}
           size="xl"
           chartHeight={400}
         />
@@ -503,10 +486,6 @@ export const DetailedInfoPanel: React.FC<DetailedInfoPanelProps> = ({
         <TradeConfigPrompt
           isOpen={showTradeConfigPrompt}
           onClose={() => setShowTradeConfigPrompt(false)}
-          onConfigured={() => {
-            setShowTradeConfigPrompt(false);
-            handleInstantBuy();
-          }}
         />
       )}
     </Card>
@@ -663,7 +642,6 @@ export const ConnectionHighlight: React.FC<ConnectionHighlightProps> = ({
 
 // Main Node Interaction System
 export const NodeInteractionSystem: React.FC<NodeInteractionSystemProps> = ({
-  nodes,
   links,
   onNodeSelect,
   onNodeHover,

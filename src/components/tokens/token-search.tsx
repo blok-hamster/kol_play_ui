@@ -12,7 +12,6 @@ import {
   type TokenDetailData 
 } from '@/lib/token-data-utils';
 import TokenDetailModal from './token-detail-modal';
-import SimpleTestModal from './simple-test-modal';
 import TokenModalErrorBoundary from '../error-boundaries/token-modal-error-boundary';
 import KOLTradesModal from '../trading/kol-trades-modal';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
@@ -157,114 +156,6 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
     }));
   }, []);
 
-  // Debounced search function
-  const performSearch = useCallback(
-    async (query: string) => {
-      if (query.length < 2) {
-        setUnifiedResults([]);
-        setIsOpen(false);
-        return;
-      }
-
-      setIsSearching(true);
-      setIsOpen(true);
-
-      try {
-        if (enableAddressSearch) {
-          // Use unified search
-          const response = await TokenService.unifiedSearch({
-            query,
-            limit: 10,
-            includeTokens: true,
-            includeAddresses: true,
-          });
-
-          setUnifiedResults(response.data || []);
-
-          // Also update the legacy token store for backward compatibility
-          const tokenResults =
-            response.data
-              ?.filter(result => result.type === 'token')
-              .map(result => result.data as SearchTokenResult) || [];
-          setSearchResults(tokenResults);
-          setSearchQuery(query);
-        } else {
-          // Use token-only search for backward compatibility
-          const response = await TokenService.searchTokens({
-            query,
-            limit: 10,
-          });
-          const tokenResults = response.data || [];
-          setSearchResults(tokenResults);
-          setSearchQuery(query);
-
-          // Convert to unified format
-          const unifiedResults: UnifiedSearchResult[] = tokenResults.map(
-            token => ({
-              type: 'token',
-              data: token,
-            })
-          );
-          setUnifiedResults(unifiedResults);
-        }
-      } catch (error) {
-        setUnifiedResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    },
-    [enableAddressSearch, setSearchResults, setSearchQuery]
-  );
-
-  // Debounce search
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (localQuery.trim()) {
-        performSearch(localQuery.trim());
-      } else {
-        setUnifiedResults([]);
-        setIsOpen(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [localQuery, performSearch]);
-
-  // Handle keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen || unifiedResults.length === 0) return;
-
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          setSelectedIndex(prev =>
-            prev < unifiedResults.length - 1 ? prev + 1 : prev
-          );
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
-          break;
-        case 'Enter':
-          e.preventDefault();
-          if (selectedIndex >= 0 && selectedIndex < unifiedResults.length) {
-            handleResultSelect(unifiedResults[selectedIndex], e as any);
-          }
-          break;
-        case 'Escape':
-          setIsOpen(false);
-          setSelectedIndex(-1);
-          break;
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, unifiedResults, selectedIndex]);
-
   // Handle result selection
   const handleResultSelect = useCallback(
     (result: UnifiedSearchResult, event?: React.MouseEvent) => {
@@ -337,6 +228,120 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
     [onTokenSelect, onAddressSelect, openTokenModal, openKOLModal, showError]
   );
 
+  // Debounced search function
+  const performSearch = useCallback(
+    async (query: string) => {
+      if (query.length < 2) {
+        setUnifiedResults([]);
+        setIsOpen(false);
+        return;
+      }
+
+      setIsSearching(true);
+      setIsOpen(true);
+
+      try {
+        if (enableAddressSearch) {
+          // Use unified search
+          const response = await TokenService.unifiedSearch({
+            query,
+            limit: 10,
+            includeTokens: true,
+            includeAddresses: true,
+          });
+
+          setUnifiedResults(response.data || []);
+
+          // Also update the legacy token store for backward compatibility
+          const tokenResults =
+            response.data
+              ?.filter(result => result.type === 'token')
+              .map(result => result.data as SearchTokenResult) || [];
+          setSearchResults(tokenResults);
+          setSearchQuery(query);
+        } else {
+          // Use unified search for tokens only
+          const response = await TokenService.unifiedSearch({
+            query,
+            limit: 10,
+            includeTokens: true,
+            includeAddresses: false,
+          });
+          const tokenResults = response.data
+            ?.filter(result => result.type === 'token')
+            .map(result => result.data as SearchTokenResult) || [];
+          setSearchResults(tokenResults);
+          setSearchQuery(query);
+
+          // Convert to unified format
+          const unifiedResults: UnifiedSearchResult[] = tokenResults.map(
+            (token: any) => ({
+              type: 'token',
+              data: token,
+            })
+          );
+          setUnifiedResults(unifiedResults);
+        }
+      } catch (error) {
+        setUnifiedResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [enableAddressSearch, setSearchResults, setSearchQuery]
+  );
+
+  // Debounce search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (localQuery.trim()) {
+        performSearch(localQuery.trim());
+      } else {
+        setUnifiedResults([]);
+        setIsOpen(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [localQuery, performSearch]);
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen || unifiedResults.length === 0) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setSelectedIndex(prev =>
+            prev < unifiedResults.length - 1 ? prev + 1 : prev
+          );
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (selectedIndex >= 0 && selectedIndex < unifiedResults.length) {
+            handleResultSelect(unifiedResults[selectedIndex], e as any);
+          }
+          break;
+        case 'Escape':
+          setIsOpen(false);
+          setSelectedIndex(-1);
+          break;
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+    return undefined;
+  }, [isOpen, unifiedResults, selectedIndex, handleResultSelect]);
+
+
   // Handle instant buy
   const handleInstantBuy = useCallback(
     async (token: SearchTokenResult, e: React.MouseEvent) => {
@@ -363,7 +368,7 @@ const TokenSearch: React.FC<TokenSearchProps> = ({
         setBuyingTokens(prev => new Set(prev).add(token.mint));
 
         // Execute instant buy
-        const result = await executeInstantBuy(token.mint, token.symbol);
+        const result = await executeInstantBuy(token.mint);
 
         if (result.success) {
           showSuccess(

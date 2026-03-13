@@ -10,7 +10,6 @@ import {
   Activity,
   BadgeDollarSign,
   Users,
-  Target,
   Zap,
   BarChart3,
   UserPlus
@@ -90,7 +89,7 @@ const TokenTooltipActions: React.FC<{ node: UnifiedNode }> = ({ node }) => {
       }
 
       setIsBuying(true);
-      const result = await executeInstantBuy(node.id, node.symbol || node.name);
+      const result = await executeInstantBuy(node.id);
 
       if (result.success) {
         showSuccess(

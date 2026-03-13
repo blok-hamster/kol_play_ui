@@ -453,6 +453,8 @@ export class PortfolioService {
       slippage?: number;
       priority?: 'high' | 'medium' | 'low';
       limitPrice?: number;
+      isSimulation?: boolean;
+      isTerminal?: boolean;
     }
   ): Promise<ApiResponse<any>> {
     try {

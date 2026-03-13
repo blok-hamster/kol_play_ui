@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { SearchTokenResult } from '@/types';
 import { formatNumber, formatRelativeTime, copyToClipboard } from '@/lib/utils';
 import { ExternalLink, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/stores';
-import { executeInstantBuy, executeBuyWithAmount, checkTradeConfig, getBuyAmountLimits } from '@/lib/trade-utils';
+import { executeInstantBuy, executeBuyWithAmount, getBuyAmountLimits } from '@/lib/trade-utils';
 import TradeConfigPrompt from '@/components/ui/trade-config-prompt';
 import BuyAmountPrompt from '@/components/ui/buy-amount-prompt';
 
@@ -16,7 +15,6 @@ interface TokenDetailProps {
 }
 
 const TokenDetail: React.FC<TokenDetailProps> = ({ token }) => {
-  const router = useRouter();
   const { showSuccess, showError } = useNotifications();
 
   // Trade state
@@ -59,7 +57,7 @@ const TokenDetail: React.FC<TokenDetailProps> = ({ token }) => {
 
       // Has config - use instant buy with default amount
       setIsBuying(true);
-      const result = await executeInstantBuy(token.mint, token.symbol);
+      const result = await executeInstantBuy(token.mint);
 
       if (result.success) {
         showSuccess(
@@ -94,7 +92,7 @@ const TokenDetail: React.FC<TokenDetailProps> = ({ token }) => {
       setIsBuying(true);
 
       // Execute buy with custom amount
-      const result = await executeBuyWithAmount(token.mint, amount, token.symbol);
+      const result = await executeBuyWithAmount(token.mint, amount);
 
       if (result.success) {
         showSuccess(
@@ -245,9 +243,9 @@ const TokenDetail: React.FC<TokenDetailProps> = ({ token }) => {
         tokenSymbol={token.symbol}
         tokenName={token.name}
         hasTradeConfig={buyAmountLimits.hasConfig}
-        defaultAmount={buyAmountLimits.defaultAmount}
         minAmount={buyAmountLimits.minAmount}
         maxAmount={buyAmountLimits.maxAmount}
+        {...(buyAmountLimits.defaultAmount !== undefined && { defaultAmount: buyAmountLimits.defaultAmount })}
       />
     </>
   );

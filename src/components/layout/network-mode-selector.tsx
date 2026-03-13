@@ -150,7 +150,9 @@ export const NetworkModeSelector: React.FC<NetworkModeSelectorProps> = ({ classN
                         // Sync with backend if authenticated
                         if (useUserStore.getState().isAuthenticated) {
                             SettingsService.updateUserSettings({
-                                tradeConfig: { paperTrading: checked }
+                                tradeConfig: { paperTrading: checked },
+                                manualTradeConfig: { paperTrading: checked },
+                                terminalTradeConfig: { paperTrading: checked }
                             }).catch(err => console.error('Failed to sync paper trading mode:', err));
                         }
                     }}

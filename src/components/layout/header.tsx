@@ -69,12 +69,6 @@ const navigationItems: NavigationItem[] = [
     icon: Wallet,
     description: 'Track your performance',
   },
-  {
-    name: 'Settings',
-    href: '/settings',
-    icon: Sliders,
-    description: 'Account and preferences',
-  },
 ];
 
 const proNavigationItems: NavigationItem[] = [
@@ -109,12 +103,6 @@ const proNavigationItems: NavigationItem[] = [
     icon: Wallet,
     description: 'Track your performance',
   },
-  {
-    name: 'Settings',
-    href: '/settings',
-    icon: Sliders,
-    description: 'Configuration',
-  },
 ];
 
 const secondaryItems: NavigationItem[] = [
@@ -123,12 +111,6 @@ const secondaryItems: NavigationItem[] = [
     href: '/agent',
     icon: Brain,
     description: 'Trading insights and help',
-  },
-  {
-    name: 'Help & Support',
-    href: '/help',
-    icon: HelpCircle,
-    description: 'Get assistance',
   },
 ];
 

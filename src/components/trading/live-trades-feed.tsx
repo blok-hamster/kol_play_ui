@@ -74,12 +74,12 @@ const TradeCard: React.FC<{
       }
 
       setIsBuying(true);
-      const result = await executeInstantBuy(tokenMint, tradeData?.symbol);
+      const result = await executeInstantBuy(tokenMint);
 
       if (result.success) {
         showSuccess(
           'Buy Order Executed',
-          `Successfully bought ${tradeData?.symbol || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOL`
+          `Successfully bought ${tradeData?.symbol || 'token'} for ${configCheck.config?.tradeConfig?.minSpend || 'N/A'} SOLS`
         );
       } else {
         showError('Buy Error', result.error || 'Failed to execute buy order');
@@ -171,7 +171,11 @@ const TradeCard: React.FC<{
 
         <div className="text-right">
           <div className="text-base font-black text-foreground leading-none mb-0.5">
-            {tradeData?.amountIn?.toFixed(2)} <span className="text-[10px] text-muted-foreground font-bold">SOL</span>
+            {isBuy ? (
+              <>{tradeData?.amountOut ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(tradeData.amountOut) : '0.00'} <span className="text-[10px] text-muted-foreground font-bold"></span>SOL</>
+            ) : (
+              <>{tradeData?.amountOut ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(tradeData.amountOut) : '0.00'} <span className="text-[10px] text-muted-foreground font-bold">{tradeData?.symbol || 'Token'}</span></>
+            )}
           </div>
           <div className="text-[10px] text-muted-foreground font-bold flex items-center justify-end">
             <Clock className="w-2.5 h-2.5 mr-0.5 opacity-60" />

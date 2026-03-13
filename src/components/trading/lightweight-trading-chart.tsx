@@ -78,7 +78,7 @@ export const LightweightTradingChart: React.FC<LightweightTradingChartProps> = (
     const solPriceRef = useRef<number>(200);
 
     // Settings State (Persisted)
-    const [timeframe, setTimeframe] = useState<ChartTimeframe>('15m');
+    const [timeframe, setTimeframe] = useState<ChartTimeframe>('1m');
     const [indicators, setIndicators] = useState({
         sma: false,
         ema: false,
@@ -127,7 +127,7 @@ export const LightweightTradingChart: React.FC<LightweightTradingChartProps> = (
 
         const chart = createChart(chartContainerRef.current, {
             width: chartContainerRef.current.clientWidth,
-            height: height,
+            height: chartContainerRef.current.clientHeight || height,
             layout: {
                 background: { type: ColorType.Solid, color: colors.background },
                 textColor: colors.text,
@@ -141,6 +141,7 @@ export const LightweightTradingChart: React.FC<LightweightTradingChartProps> = (
                 timeVisible: true,
                 secondsVisible: false,
                 rightOffset: 5,
+                barSpacing: 4,
             },
             rightPriceScale: {
                 borderColor: colors.grid,
@@ -191,7 +192,10 @@ export const LightweightTradingChart: React.FC<LightweightTradingChartProps> = (
 
         const handleResize = () => {
             if (chartContainerRef.current) {
-                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+                chart.applyOptions({
+                    width: chartContainerRef.current.clientWidth,
+                    height: chartContainerRef.current.clientHeight
+                });
             }
         };
 

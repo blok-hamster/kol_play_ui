@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { Users, TrendingUp, DollarSign, Clock, Loader2, Radio, Zap, BarChart3, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { TokenService } from '@/services/token.service';
 import SolanaService from '@/services/solana.service';
 import { useTokenStore } from '@/stores/use-token-store';
 import { useLoading } from '@/stores/use-ui-store';
@@ -310,7 +308,7 @@ const TokenList: React.FC<TokenListProps> = ({
         setBuyingTokens(prev => new Set(prev).add(token.mint));
 
         // Execute instant buy
-        const result = await executeInstantBuy(token.mint, token.symbol);
+        const result = await executeInstantBuy(token.mint);
 
         if (result.success) {
           showSuccess(
@@ -320,7 +318,7 @@ const TokenList: React.FC<TokenListProps> = ({
 
           // Optional: Show transaction details
           if (result.result?.transactionId) {
-            void 0 && ('Transaction ID:', result.result.transactionId);
+            console.log('Transaction ID:', result.result.transactionId);
           }
         } else {
           showError(
